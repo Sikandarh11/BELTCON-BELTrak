@@ -1,6 +1,6 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
-import { readFile } from "fs/promises";
 
+import frontPageHtml from "./front-page.html?raw";
 import { renderErrorPage } from "./lib/error-page";
 import { authMiddleware } from "./middleware/authMiddleware";
 
@@ -23,8 +23,7 @@ const frontpageMiddleware = createMiddleware().server(async ({ next, request }) 
   try {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/") {
-      const html = await readFile(new URL("./front-page.html", import.meta.url), "utf-8");
-      return new Response(html, {
+      return new Response(frontPageHtml, {
         status: 200,
         headers: { "content-type": "text/html; charset=utf-8" },
       });
