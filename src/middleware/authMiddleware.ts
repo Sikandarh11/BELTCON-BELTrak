@@ -2,7 +2,8 @@ import { createMiddleware } from "@tanstack/react-start";
 
 import { handleAuthRequest, getSessionFromRequest } from "@/services/authRepository.server";
 
-const PUBLIC_PATHS = new Set(["/login", "/register"]);
+// Allow the root landing page to be public so "Back to home" works
+const PUBLIC_PATHS = new Set(["/", "/login", "/register"]);
 
 function isAssetRequest(pathname: string) {
   return pathname.startsWith("/@") || pathname.startsWith("/assets") || pathname.startsWith("/api/") || pathname.includes(".");
