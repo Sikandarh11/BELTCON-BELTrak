@@ -96,8 +96,8 @@ export function AppLayout({ children, currentUser, onLogout }: { children: React
         <header className="h-14 shrink-0 border-b border-border bg-panel/60 backdrop-blur flex items-center px-4 gap-3">
           <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-border bg-background/50 text-[13px] hover:bg-accent">
             <Plane className="size-3.5 text-primary -rotate-45" />
-            <span className="font-medium">LTI</span>
-            <span className="text-muted-foreground hidden md:inline">Long Thanh Intl.</span>
+            <span className="font-medium">RIA</span>
+            <span className="text-muted-foreground hidden md:inline">Riyadh Intl.</span>
             <ChevronDown className="size-3.5 text-muted-foreground" />
           </button>
           <div className="hidden md:flex items-center gap-1.5 text-[12px] text-muted-foreground border border-border rounded-md px-2.5 py-1.5">
