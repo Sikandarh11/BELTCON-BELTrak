@@ -1,0 +1,117 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-danger: var(--danger);
+  --color-panel: var(--panel);
+  --color-panel-foreground: var(--panel-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-display: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  --radius: 0.5rem;
+  /* Dark ops theme - deep slate w/ cyan accent */
+  --background: oklch(0.18 0.02 250);
+  --foreground: oklch(0.96 0.01 250);
+  --panel: oklch(0.22 0.02 250);
+  --panel-foreground: oklch(0.96 0.01 250);
+  --card: oklch(0.22 0.02 250);
+  --card-foreground: oklch(0.96 0.01 250);
+  --popover: oklch(0.24 0.02 250);
+  --popover-foreground: oklch(0.96 0.01 250);
+  --primary: rgb(31 184 201);
+  --primary-foreground: oklch(0.15 0.02 250);
+  --secondary: oklch(0.28 0.02 250);
+  --secondary-foreground: oklch(0.96 0.01 250);
+  --muted: oklch(0.26 0.02 250);
+  --muted-foreground: oklch(0.68 0.02 250);
+  --accent: oklch(0.32 0.05 220);
+  --accent-foreground: oklch(0.96 0.01 250);
+  --destructive: oklch(0.62 0.24 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --success: oklch(0.72 0.18 150);
+  --warning: oklch(0.80 0.17 80);
+  --info: oklch(0.72 0.15 230);
+  --danger: oklch(0.65 0.25 25);
+  --border: oklch(0.30 0.02 250);
+  --input: oklch(0.28 0.02 250);
+  --ring: rgb(31 184 201);
+  --sidebar: oklch(0.15 0.02 250);
+  --sidebar-foreground: oklch(0.88 0.01 250);
+  --sidebar-primary: rgb(31 184 201);
+  --sidebar-primary-foreground: oklch(0.15 0.02 250);
+  --sidebar-accent: oklch(0.24 0.02 250);
+  --sidebar-accent-foreground: oklch(0.96 0.01 250);
+  --sidebar-border: oklch(0.26 0.02 250);
+  --sidebar-ring: rgb(31 184 201);
+}
+
+.dark {
+  --background: oklch(0.18 0.02 250);
+  --foreground: oklch(0.96 0.01 250);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body, #root { height: 100%; }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "cv11", "ss01";
+  }
+}
+
+@utility glow-danger {
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-danger) 70%, transparent);
+  animation: pulse-danger 1.6s ease-out infinite;
+}
+
+@keyframes pulse-danger {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-danger) 70%, transparent); }
+  70% { box-shadow: 0 0 0 12px color-mix(in oklab, var(--color-danger) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-danger) 0%, transparent); }
+}
+
+@utility scan-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--color-primary) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-primary) 6%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}

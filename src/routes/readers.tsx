@@ -1,0 +1,103 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
+import { READERS } from "@/lib/data";
+import { useState } from "react";
+import { Radio, X, Wifi, Cpu, Activity } from "lucide-react";
+
+export const Route = createFileRoute("/readers")({
+  head: () => ({ meta: [{ title: "RFID Readers · BELTrak" }] }),
+  component: Readers,
+});
+
+function Readers() {
+  const [sel, setSel] = useState<string | null>("RDR-019");
+  const reader = READERS.find(r => r.id === sel);
+
+  return (
+    <div className="p-6">
+      <PageHeader title="RFID Reader Management" subtitle="44 portals across reclaim, customs, and back-of-house zones." />
+
+      <div className="grid grid-cols-4 gap-3 mb-4 text-[12px]">
+        {[
+          { l: "Total readers", v: 44, c: "text-foreground" },
+          { l: "Online", v: 38, c: "text-success" },
+          { l: "Degraded", v: 4, c: "text-warning" },
+          { l: "Offline", v: 2, c: "text-danger" },
+        ].map((s) => (
+          <div key={s.l} className="rounded-lg border border-border bg-panel/60 p-3">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.l}</div>
+            <div className={`text-2xl font-semibold ${s.c}`}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-12 gap-4">
+        <Panel className={`col-span-12 ${sel ? "lg:col-span-8" : "lg:col-span-12"} !p-0`}>
+          <table className="w-full text-[12.5px]">
+            <thead className="text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border bg-background/40">
+              <tr>{["Reader ID","Name","Type","Floor","IP Address","Read Rate","Status"].map(h => <th key={h} className="text-left px-3 py-2.5 font-medium">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {READERS.map((r) => (
+                <tr key={r.id} onClick={() => setSel(r.id)} className={`border-b border-border cursor-pointer hover:bg-accent/30 ${sel === r.id ? "bg-accent/40" : ""}`}>
+                  <td className="px-3 py-2.5 font-mono text-primary">{r.id}</td>
+                  <td className="px-3 py-2.5">{r.name}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{r.type}</td>
+                  <td className="px-3 py-2.5 font-mono">{r.floor}</td>
+                  <td className="px-3 py-2.5 font-mono text-muted-foreground">{r.ip}</td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
+                        <div className={`h-full ${r.readRate > 90 ? "bg-success" : r.readRate > 60 ? "bg-warning" : "bg-danger"}`} style={{ width: `${r.readRate}%` }} />
+                      </div>
+                      <span className="font-mono text-[11px] text-muted-foreground">{r.readRate}%</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5"><StatusPill status={r.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
+
+        {reader && (
+          <Panel title="Reader Detail" className="col-span-12 lg:col-span-4" action={<button onClick={() => setSel(null)}><X className="size-3.5 text-muted-foreground" /></button>}>
+            <div className="flex items-center gap-3 pb-3 border-b border-border mb-3">
+              <div className="size-12 rounded-md bg-info/15 border border-info/30 flex items-center justify-center">
+                <Radio className="size-6 text-info" />
+              </div>
+              <div>
+                <div className="font-mono font-semibold">{reader.id}</div>
+                <div className="text-[12px] text-muted-foreground">{reader.name}</div>
+                <div className="mt-1"><StatusPill status={reader.status} /></div>
+              </div>
+            </div>
+            <dl className="space-y-2 text-[12.5px]">
+              <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Cpu className="size-3.5" />Model</dt><dd className="font-mono">{reader.type}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Wifi className="size-3.5" />IP Address</dt><dd className="font-mono">{reader.ip}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground">Firmware</dt><dd className="font-mono">7.4.1.240</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground">Antennas</dt><dd className="font-mono">4 / 4 active</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Activity className="size-3.5" />Last Event</dt><dd className="font-mono">09:34:18</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground">Uptime</dt><dd className="font-mono">37d 4h 22m</dd></div>
+            </dl>
+            <div className="mt-4">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Antennas</div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {["A1","A2","A3","A4"].map((a, i) => (
+                  <div key={a} className={`rounded-md border ${i === 2 && reader.status === "Degraded" ? "border-warning bg-warning/10" : "border-success/30 bg-success/5"} p-2 text-center`}>
+                    <div className="text-[10px] font-mono">{a}</div>
+                    <div className="text-[10px] text-muted-foreground">{i === 2 && reader.status === "Degraded" ? "-62 dBm" : "-41 dBm"}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button className="text-[12px] px-2.5 py-1.5 rounded-md border border-border hover:bg-accent">Restart</button>
+              <button className="text-[12px] px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground font-medium">Configure</button>
+            </div>
+          </Panel>
+        )}
+      </div>
+    </div>
+  );
+}
