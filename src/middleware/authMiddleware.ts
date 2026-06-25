@@ -32,9 +32,5 @@ export const authMiddleware = createMiddleware().server(async ({ request, next }
     return redirect("/login");
   }
 
-  if (session && isPublicAuthRoute) {
-    return redirect("/");
-  }
-
   return next();
 });
