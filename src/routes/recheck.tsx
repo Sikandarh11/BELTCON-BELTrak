@@ -17,14 +17,14 @@ function Recheck() {
       />
 
       <div className="grid grid-cols-12 gap-4">
-        <Panel title="X-Ray Viewer" className="col-span-12 xl:col-span-8 !p-0 overflow-hidden">
-          <div className="relative bg-black h-[560px] flex items-center justify-center">
+        <Panel title="X-Ray Viewer" className="col-span-12 xl:col-span-8 p-0! overflow-hidden">
+          <div className="relative bg-white h-140 flex items-center justify-center">
             {/* X-ray visualization */}
             <svg viewBox="0 0 400 240" className="w-[90%] h-[90%]">
               <defs>
                 <linearGradient id="xrayBg" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#001f1a"/>
-                  <stop offset="100%" stopColor="#000000"/>
+                  <stop offset="0%" stopColor="#f8fafc"/>
+                  <stop offset="100%" stopColor="#e2e8f0"/>
                 </linearGradient>
               </defs>
               <rect width="400" height="240" fill="url(#xrayBg)"/>
@@ -41,7 +41,7 @@ function Recheck() {
               {/* Cable */}
               <path d="M220 130 Q260 110 295 145 Q310 165 280 175" fill="none" stroke="rgba(70,140,240,0.7)" strokeWidth="3"/>
               {/* Crosshair */}
-              <g stroke="rgba(255,80,80,0.8)" strokeWidth="0.8">
+              <g stroke="rgba(220,38,38,0.8)" strokeWidth="0.8">
                 <line x1="160" y1="100" x2="160" y2="170"/>
                 <line x1="125" y1="135" x2="195" y2="135"/>
                 <circle cx="160" cy="135" r="44" fill="none" strokeDasharray="3 3"/>
@@ -49,12 +49,12 @@ function Recheck() {
             </svg>
 
             {/* HUD overlays */}
-            <div className="absolute top-3 left-3 text-[11px] font-mono text-emerald-300/80 space-y-0.5">
+            <div className="absolute top-3 left-3 text-[11px] font-mono text-emerald-700 space-y-0.5">
               <div>BAY · 02</div>
               <div>SCAN · 08:13:22</div>
               <div>OP · M.AL-QAHTANI</div>
             </div>
-            <div className="absolute top-3 right-3 text-[11px] font-mono text-amber-300/90 space-y-0.5 text-right">
+            <div className="absolute top-3 right-3 text-[11px] font-mono text-amber-700 space-y-0.5 text-right">
               <div>kV · 160</div>
               <div>mA · 1.3</div>
               <div className="text-rose-400">⚠ ORGANIC DETECTED</div>
@@ -62,11 +62,11 @@ function Recheck() {
 
             {/* Controls */}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-md border border-border bg-panel/90 backdrop-blur p-1">
-              <button className="size-9 hover:bg-accent rounded flex items-center justify-center"><ChevronLeft className="size-4" /></button>
-              <button className="size-9 hover:bg-accent rounded flex items-center justify-center"><ZoomOut className="size-4" /></button>
-              <button className="size-9 hover:bg-accent rounded flex items-center justify-center"><ZoomIn className="size-4" /></button>
-              <button className="size-9 hover:bg-accent rounded flex items-center justify-center"><RotateCw className="size-4" /></button>
-              <button className="size-9 hover:bg-accent rounded flex items-center justify-center"><ChevronRight className="size-4" /></button>
+              <button className="size-9 hover:bg-accent rounded flex items-center justify-center"><ChevronLeft className="size-4 text-slate-700" /></button>
+              <button className="size-9 hover:bg-accent rounded flex items-center justify-center"><ZoomOut className="size-4 text-slate-700" /></button>
+              <button className="size-9 hover:bg-accent rounded flex items-center justify-center"><ZoomIn className="size-4 text-slate-700" /></button>
+              <button className="size-9 hover:bg-accent rounded flex items-center justify-center"><RotateCw className="size-4 text-slate-700" /></button>
+              <button className="size-9 hover:bg-accent rounded flex items-center justify-center"><ChevronRight className="size-4 text-slate-700" /></button>
               <span className="font-mono text-[11px] text-muted-foreground px-2">3 / 8</span>
             </div>
           </div>
@@ -87,9 +87,9 @@ function Recheck() {
           <Panel title="Previous Scans">
             <div className="grid grid-cols-4 gap-2">
               {[1,2,3,4,5,6,7,8].map((i) => (
-                <div key={i} className={`aspect-square rounded border ${i === 3 ? "border-primary" : "border-border"} bg-emerald-950/40 relative`}>
-                  <div className="absolute inset-1 rounded-sm bg-emerald-700/30" />
-                  <span className="absolute bottom-0.5 right-1 text-[9px] font-mono text-emerald-200/80">{String(i).padStart(2,"0")}</span>
+                <div key={i} className={`aspect-square rounded border ${i === 3 ? "border-primary" : "border-border"} bg-emerald-50 relative`}>
+                  <div className="absolute inset-1 rounded-sm bg-emerald-200/40" />
+                  <span className="absolute bottom-0.5 right-1 text-[9px] font-mono text-emerald-700/80">{String(i).padStart(2,"0")}</span>
                 </div>
               ))}
             </div>
