@@ -44,14 +44,14 @@ function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050b14] text-slate-100">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(34,197,94,0.16),_transparent_28%),radial-gradient(circle_at_bottom_left,_rgba(34,211,238,0.16),_transparent_30%),linear-gradient(180deg,_rgba(5,11,20,0.98),_rgba(6,13,23,1))]" />
+    <div className="min-h-screen bg-white text-slate-900">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,197,94,0.12),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(34,211,238,0.12),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,247,250,1))]" />
       <div className="relative grid min-h-screen lg:grid-cols-[0.9fr_1.1fr]">
         <section className="flex items-center justify-center px-6 py-8 lg:px-10 xl:px-16 xl:py-10">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/6 p-6 shadow-[0_28px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-8">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:p-8">
             <div className="mb-6">
-              <h2 className="text-2xl font-semibold tracking-tight text-white">Create account</h2>
-              <p className="mt-2 text-sm text-slate-300">Registration is restricted to users with a valid airport registration key.</p>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Create account</h2>
+              <p className="mt-2 text-sm text-slate-600">Registration is restricted to users with a valid airport registration key.</p>
             </div>
 
             {error ? (
@@ -64,41 +64,41 @@ function RegisterPage() {
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block space-y-2">
-                  <span className="text-sm text-slate-200">First Name</span>
-                  <input required value={form.firstName} onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="First name" autoComplete="given-name" />
+                  <span className="text-sm text-slate-700">First Name</span>
+                  <input required value={form.firstName} onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="First name" autoComplete="given-name" />
                 </label>
 
                 <label className="block space-y-2">
-                  <span className="text-sm text-slate-200">Last Name</span>
-                  <input required value={form.lastName} onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Last name" autoComplete="family-name" />
+                  <span className="text-sm text-slate-700">Last Name</span>
+                  <input required value={form.lastName} onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Last name" autoComplete="family-name" />
                 </label>
               </div>
 
               <label className="block space-y-2">
-                <span className="text-sm text-slate-200">Email Address</span>
-                <input type="email" required value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="name@airport.local" autoComplete="email" />
+                <span className="text-sm text-slate-700">Email Address</span>
+                <input type="email" required value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="name@airport.local" autoComplete="email" />
               </label>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block space-y-2">
-                  <span className="text-sm text-slate-200">Password</span>
-                  <input type="password" required minLength={12} value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Create password" autoComplete="new-password" />
+                  <span className="text-sm text-slate-700">Password</span>
+                  <input type="password" required minLength={12} value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Create password" autoComplete="new-password" />
                 </label>
 
                 <label className="block space-y-2">
-                  <span className="text-sm text-slate-200">Confirm Password</span>
-                  <input type="password" required value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Confirm password" autoComplete="new-password" />
+                  <span className="text-sm text-slate-700">Confirm Password</span>
+                  <input type="password" required value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Confirm password" autoComplete="new-password" />
                 </label>
               </div>
 
               <label className="block space-y-2">
-                <span className="text-sm text-slate-200">Registration Key</span>
-                <input required value={form.registrationKey} onChange={(event) => setForm((current) => ({ ...current, registrationKey: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Enter registration key" autoComplete="off" />
-                <p className="text-xs text-slate-400">Use the registration key issued by airport administration.</p>
+                <span className="text-sm text-slate-700">Registration Key</span>
+                <input required value={form.registrationKey} onChange={(event) => setForm((current) => ({ ...current, registrationKey: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Enter registration key" autoComplete="off" />
+                <p className="text-xs text-slate-500">Use the registration key issued by airport administration.</p>
               </label>
 
-              <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/8 p-4 text-xs leading-5 text-slate-300">
-                <div className="flex items-center gap-2 text-sm font-medium text-cyan-200">
+              <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/8 p-4 text-xs leading-5 text-slate-600">
+                <div className="flex items-center gap-2 text-sm font-medium text-cyan-700">
                   <ShieldCheck className="size-4" />
                   Security controls applied
                 </div>
@@ -111,9 +111,9 @@ function RegisterPage() {
               </button>
             </form>
 
-            <div className="mt-6 flex items-center justify-between text-sm text-slate-300">
+            <div className="mt-6 flex items-center justify-between text-sm text-slate-600">
               <span>Already registered?</span>
-              <Link to="/login" className="font-medium text-cyan-300 hover:text-cyan-200">Sign in</Link>
+              <Link to="/login" className="font-medium text-cyan-600 hover:text-cyan-700">Sign in</Link>
             </div>
           </div>
         </section>
@@ -121,21 +121,21 @@ function RegisterPage() {
         <section className="flex flex-col justify-between px-6 py-8 lg:px-10 xl:px-16 xl:py-10">
           <div className="flex items-center gap-3">
             <div className="flex size-12 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 shadow-[0_0_40px_rgba(34,211,238,0.15)]">
-              <PlaneTakeoff className="size-6 -rotate-12 text-cyan-300" />
+              <PlaneTakeoff className="size-6 -rotate-12 text-cyan-600" />
             </div>
             <div>
-              <div className="text-lg font-semibold tracking-tight text-white">BELTrak</div>
-              <div className="text-xs uppercase tracking-[0.28em] text-cyan-200/70">Airport Suspect Baggage Tracking System</div>
+              <div className="text-lg font-semibold tracking-tight text-slate-900">BELTrak</div>
+              <div className="text-xs uppercase tracking-[0.28em] text-cyan-700/70">Airport Suspect Baggage Tracking System</div>
             </div>
           </div>
 
           <div className="max-w-2xl py-14 lg:py-0">
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs uppercase tracking-[0.22em] text-cyan-100/80">
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs uppercase tracking-[0.22em] text-cyan-800/80">
               <BadgeCheck className="size-3.5" />
               Controlled registration for the airport intranet
             </p>
-            <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-white sm:text-5xl xl:text-6xl">Every account is validated before it touches the operations network.</h1>
-            <p className="mt-5 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+            <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl xl:text-6xl">Every account is validated before it touches the operations network.</h1>
+            <p className="mt-5 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
               The registration key prevents unauthorized sign-ups, and every password is stored as a bcrypt hash inside the local JSON user database.
             </p>
 
@@ -147,10 +147,10 @@ function RegisterPage() {
               ].map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                    <Icon className="size-4 text-cyan-300" />
-                    <div className="mt-3 text-sm font-medium text-white">{item.title}</div>
-                    <div className="mt-1 text-xs leading-5 text-slate-300">{item.text}</div>
+                  <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 backdrop-blur">
+                    <Icon className="size-4 text-cyan-600" />
+                    <div className="mt-3 text-sm font-medium text-slate-900">{item.title}</div>
+                    <div className="mt-1 text-xs leading-5 text-slate-600">{item.text}</div>
                   </div>
                 );
               })}

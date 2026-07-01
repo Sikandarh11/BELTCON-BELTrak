@@ -32,34 +32,34 @@ function LiveMap() {
 
       <div className="grid grid-cols-12 gap-4">
         <Panel className="col-span-12 xl:col-span-9 !p-0 overflow-hidden">
-          <div className="relative w-full h-[640px] bg-background scan-grid">
+          <div className="relative w-full h-[640px] bg-white scan-grid">
             {/* Floorplan outline */}
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
-              <rect x="4" y="6" width="92" height="88" fill="oklch(0.20 0.02 250)" stroke="oklch(0.40 0.04 220)" strokeWidth="0.25" />
+              <rect x="4" y="6" width="92" height="88" fill="white" stroke="oklch(0.82 0.02 250)" strokeWidth="0.25" />
               {/* Reclaim hall */}
-              <rect x="8" y="18" width="44" height="22" fill="oklch(0.22 0.02 250)" stroke="oklch(0.35 0.03 220)" strokeWidth="0.15" />
-              <text x="10" y="22" fontSize="2" fill="rgb(150,160,180)">RECLAIM HALL</text>
+              <rect x="8" y="18" width="44" height="22" fill="oklch(0.97 0.01 250)" stroke="oklch(0.82 0.02 250)" strokeWidth="0.15" />
+              <text x="10" y="22" fontSize="2" fill="rgb(71,85,105)">RECLAIM HALL</text>
               {/* Belts */}
               {[14,28,42].map((x,i)=>(
                 <g key={i}>
-                  <rect x={x} y="26" width="10" height="8" rx="1" fill="oklch(0.28 0.03 220)" stroke="oklch(0.45 0.06 220)" strokeWidth="0.15"/>
-                  <text x={x+1.5} y="31.5" fontSize="1.6" fill="rgb(180,200,220)">Belt {i+1}</text>
+                  <rect x={x} y="26" width="10" height="8" rx="1" fill="oklch(0.94 0.02 220)" stroke="oklch(0.80 0.03 220)" strokeWidth="0.15"/>
+                  <text x={x+1.5} y="31.5" fontSize="1.6" fill="rgb(100,116,139)">Belt {i+1}</text>
                 </g>
               ))}
               {/* Arrival hall */}
-              <rect x="40" y="42" width="32" height="14" fill="oklch(0.22 0.02 250)" stroke="oklch(0.35 0.03 220)" strokeWidth="0.15" />
-              <text x="42" y="46" fontSize="2" fill="rgb(150,160,180)">ARRIVAL HALL</text>
+              <rect x="40" y="42" width="32" height="14" fill="oklch(0.97 0.01 250)" stroke="oklch(0.82 0.02 250)" strokeWidth="0.15" />
+              <text x="42" y="46" fontSize="2" fill="rgb(71,85,105)">ARRIVAL HALL</text>
               {/* Customs corridor */}
-              <rect x="40" y="74" width="46" height="14" fill="oklch(0.20 0.04 30 / 0.4)" stroke="oklch(0.50 0.18 30)" strokeWidth="0.2" />
+              <rect x="40" y="74" width="46" height="14" fill="oklch(0.98 0.02 30)" stroke="oklch(0.75 0.10 30)" strokeWidth="0.2" />
               <text x="42" y="78" fontSize="2" fill="rgb(220,140,120)">CUSTOMS CONTROL ZONE</text>
               {/* Washrooms */}
-              <rect x="20" y="54" width="14" height="10" fill="oklch(0.22 0.02 250)" stroke="oklch(0.35 0.03 220)" strokeWidth="0.15"/>
-              <text x="21" y="58" fontSize="1.6" fill="rgb(150,160,180)">WC N</text>
-              <rect x="64" y="64" width="14" height="10" fill="oklch(0.22 0.02 250)" stroke="oklch(0.35 0.03 220)" strokeWidth="0.15"/>
-              <text x="65" y="68" fontSize="1.6" fill="rgb(150,160,180)">WC S</text>
+              <rect x="20" y="54" width="14" height="10" fill="oklch(0.97 0.01 250)" stroke="oklch(0.82 0.02 250)" strokeWidth="0.15"/>
+              <text x="21" y="58" fontSize="1.6" fill="rgb(71,85,105)">WC N</text>
+              <rect x="64" y="64" width="14" height="10" fill="oklch(0.97 0.01 250)" stroke="oklch(0.82 0.02 250)" strokeWidth="0.15"/>
+              <text x="65" y="68" fontSize="1.6" fill="rgb(71,85,105)">WC S</text>
               {/* Lost & found */}
-              <rect x="72" y="22" width="14" height="10" fill="oklch(0.22 0.02 250)" stroke="oklch(0.35 0.03 220)" strokeWidth="0.15"/>
-              <text x="73" y="26" fontSize="1.6" fill="rgb(150,160,180)">L&amp;F</text>
+              <rect x="72" y="22" width="14" height="10" fill="oklch(0.97 0.01 250)" stroke="oklch(0.82 0.02 250)" strokeWidth="0.15"/>
+              <text x="73" y="26" fontSize="1.6" fill="rgb(71,85,105)">L&amp;F</text>
 
               {/* Movement trails */}
               {SUSPECT_BAGS_ON_MAP.map((b, i) => (

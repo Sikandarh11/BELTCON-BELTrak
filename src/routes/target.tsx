@@ -81,7 +81,8 @@ function Target() {
                 <div className="mt-1 text-[11px] text-muted-foreground">08:13 · Station 2 · Organic detected</div>
               </div>
               <div>
-                <div className="aspect-[4/3] rounded-md border border-border bg-gradient-to-br from-slate-800 to-slate-900 relative overflow-hidden flex items-center justify-center text-5xl">🎒
+                <div className="aspect-[4/3] rounded-md border border-border bg-gradient-to-br from-white to-slate-100 relative overflow-hidden flex items-center justify-center text-5xl text-foreground">
+                  🎒
                   <span className="absolute top-1.5 left-1.5 text-[10px] font-mono bg-background/80 px-1.5 py-0.5 rounded border border-border flex items-center gap-1"><Camera className="size-3" />BAG PHOTO</span>
                 </div>
                 <div className="mt-1 text-[11px] text-muted-foreground">Black hard-shell · 65L</div>

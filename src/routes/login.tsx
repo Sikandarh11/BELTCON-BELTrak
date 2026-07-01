@@ -35,29 +35,29 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050b14] text-slate-100">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.2),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(15,118,110,0.18),_transparent_28%),linear-gradient(180deg,_rgba(5,11,20,0.98),_rgba(6,13,23,1))]" />
+    <div className="min-h-screen bg-white text-slate-900">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.14),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(15,118,110,0.08),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,247,250,1))]" />
       <div className="relative grid min-h-screen lg:grid-cols-[1.2fr_0.8fr]">
         <section className="flex flex-col justify-between px-6 py-8 lg:px-10 xl:px-16 xl:py-10">
           <div className="flex items-center gap-3">
             <div className="flex size-12 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 shadow-[0_0_40px_rgba(34,211,238,0.15)]">
-              <PlaneLanding className="size-6 -rotate-12 text-cyan-300" />
+              <PlaneLanding className="size-6 -rotate-12 text-cyan-600" />
             </div>
             <div>
-              <div className="text-lg font-semibold tracking-tight text-white">BELTrak</div>
-              <div className="text-xs uppercase tracking-[0.28em] text-cyan-200/70">Airport Suspect Baggage Tracking System</div>
+              <div className="text-lg font-semibold tracking-tight text-slate-900">BELTrak</div>
+              <div className="text-xs uppercase tracking-[0.28em] text-cyan-700/70">Airport Suspect Baggage Tracking System</div>
             </div>
           </div>
 
           <div className="max-w-2xl py-14 lg:py-0">
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs uppercase tracking-[0.22em] text-cyan-100/80">
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs uppercase tracking-[0.22em] text-cyan-800/80">
               <Shield className="size-3.5" />
               Secure intranet access
             </p>
-            <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-white sm:text-5xl xl:text-6xl">
+            <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl xl:text-6xl">
               Operational visibility for baggage security and customs control.
             </h1>
-            <p className="mt-5 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+            <p className="mt-5 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
               Sign in to the internal BELTrak portal to monitor suspect baggage, review alarms, and manage airport operations from a protected airport network.
             </p>
 
@@ -69,10 +69,10 @@ function LoginPage() {
               ].map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                    <Icon className="size-4 text-cyan-300" />
-                    <div className="mt-3 text-sm font-medium text-white">{item.title}</div>
-                    <div className="mt-1 text-xs leading-5 text-slate-300">{item.text}</div>
+                  <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 backdrop-blur">
+                    <Icon className="size-4 text-cyan-600" />
+                    <div className="mt-3 text-sm font-medium text-slate-900">{item.title}</div>
+                    <div className="mt-1 text-xs leading-5 text-slate-600">{item.text}</div>
                   </div>
                 );
               })}
@@ -83,10 +83,10 @@ function LoginPage() {
         </section>
 
         <section className="flex items-center justify-center px-6 py-8 lg:px-10 xl:px-16 xl:py-10">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/6 p-6 shadow-[0_28px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-8">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:p-8">
             <div className="mb-6">
-              <h2 className="text-2xl font-semibold tracking-tight text-white">Sign in</h2>
-              <p className="mt-2 text-sm text-slate-300">Use your airport credentials to access the operations console.</p>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Sign in</h2>
+              <p className="mt-2 text-sm text-slate-600">Use your airport credentials to access the operations console.</p>
             </div>
 
             {error ? (
@@ -98,26 +98,26 @@ function LoginPage() {
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               <label className="block space-y-2">
-                <span className="text-sm text-slate-200">Email</span>
+                <span className="text-sm text-slate-700">Email</span>
                 <input
                   type="email"
                   required
                   value={form.email}
                   onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
                   placeholder="name@airport.local"
                   autoComplete="email"
                 />
               </label>
 
               <label className="block space-y-2">
-                <span className="text-sm text-slate-200">Password</span>
+                <span className="text-sm text-slate-700">Password</span>
                 <input
                   type="password"
                   required
                   value={form.password}
                   onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
-                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
                   placeholder="Enter your password"
                   autoComplete="current-password"
                 />
@@ -133,11 +133,11 @@ function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-6 flex items-center justify-between text-sm text-slate-300">
+            <div className="mt-6 flex items-center justify-between text-sm text-slate-600">
               <span>New airport user?</span>
-              <Link to="/register" className="font-medium text-cyan-300 hover:text-cyan-200">Register with a key</Link>
+              <Link to="/register" className="font-medium text-cyan-600 hover:text-cyan-700">Register with a key</Link>
             </div>
-            <a href="/" className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-transparent px-4 py-2 text-sm font-medium text-white/80 hover:bg-white/5">
+            <a href="/" className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-transparent px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
               Back to home
             </a>
           </div>

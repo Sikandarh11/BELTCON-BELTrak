@@ -9,12 +9,12 @@ const AUTH_REDIRECT_DELAY_MS = 250;
 
 function AuthLoadingScreen() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#081018] text-slate-100">
-      <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
-        <LoaderCircle className="size-5 animate-spin text-cyan-300" />
+    <div className="flex min-h-screen items-center justify-center bg-white text-slate-900">
+      <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
+        <LoaderCircle className="size-5 animate-spin text-cyan-600" />
         <div>
           <div className="text-sm font-medium">Verifying secure session</div>
-          <div className="text-xs text-slate-400">BELTrak protected access</div>
+          <div className="text-xs text-slate-500">BELTrak protected access</div>
         </div>
       </div>
     </div>
