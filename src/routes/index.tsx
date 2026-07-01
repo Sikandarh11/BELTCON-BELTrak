@@ -23,7 +23,7 @@ function Dashboard() {
     <div className="p-6">
       <PageHeader
         title="Operations Dashboard"
-        subtitle="Riyadh International Airport — Terminal 1 · Real-time customs visibility"
+        subtitle="King Khalid International Airport — Terminal 1 · Real-time customs visibility"
         actions={
           <div className="flex gap-2">
             <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-[12px] hover:bg-accent"><RefreshCw className="size-3.5" />Refresh</button>
