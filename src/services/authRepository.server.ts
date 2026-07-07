@@ -48,6 +48,10 @@ async function supabaseAuthTokenExchange(email: string, password: string) {
   }
 }
 
+function getTokenErrorMessage(tokenRes: any) {
+  return tokenRes?.error_description ?? tokenRes?.error?.message ?? tokenRes?.error ?? tokenRes?.message ?? "Invalid email or password";
+}
+
 async function supabaseRefreshTokenExchange(refreshToken: string) {
   const url = `${SUPABASE_URL}/auth/v1/token`;
   const body = new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken });
@@ -250,14 +254,17 @@ export async function handleAuthRequest(request: Request) {
       const tokenRes = await supabaseAuthTokenExchange(email, parsed.data.password);
       if (!tokenRes || tokenRes.error || !tokenRes.access_token) {
         console.error("supabaseAuthTokenExchange failed", tokenRes);
-        const message = tokenRes?.error_description ?? tokenRes?.error ?? tokenRes?.message ?? "Invalid email or password";
+        const message = getTokenErrorMessage(tokenRes);
         return new Response(JSON.stringify({ error: message }), { status: 401, headers: { "content-type": "application/json; charset=utf-8" } });
       }
 
-      const user = tokenRes.user;
+      const user = tokenRes.user as { id: string; email: string; user_metadata?: { first_name?: string; last_name?: string } } | null;
+      if (!user) {
+        return new Response(JSON.stringify({ error: "Invalid email or password" }), { status: 401, headers: { "content-type": "application/json; charset=utf-8" } });
+      }
       // update last_login
       try {
-        if (user?.id) await supabaseUpdateLastLogin(user.id);
+        await supabaseUpdateLastLogin(user.id);
       } catch {}
 
       // fetch profile
@@ -275,8 +282,8 @@ export async function handleAuthRequest(request: Request) {
         lastLogin: profile?.last_login ?? null,
       };
 
-      const access = tokenRes.access_token;
-      const refresh = tokenRes.refresh_token;
+      const access = tokenRes.access_token ?? "";
+      const refresh = tokenRes.refresh_token ?? "";
       const expiresIn = tokenRes.expires_in ?? AUTH_SESSION_DURATION_MS / 1000;
       const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
@@ -352,10 +359,13 @@ export async function handleAuthRequest(request: Request) {
     const tokenRes = await supabaseAuthTokenExchange(email, parsed.data.password);
     if (!tokenRes || tokenRes.error || !tokenRes.access_token) {
       console.error("supabaseAuthTokenExchange failed after create", tokenRes);
-      return new Response(JSON.stringify({ error: `Account created but sign-in failed: ${tokenRes?.error_description ?? tokenRes?.error ?? JSON.stringify(tokenRes)}` }), { status: 201, headers: { "content-type": "application/json; charset=utf-8" } });
+      return new Response(JSON.stringify({ error: `Account created but sign-in failed: ${getTokenErrorMessage(tokenRes)}` }), { status: 201, headers: { "content-type": "application/json; charset=utf-8" } });
     }
 
-    const user = tokenRes.user;
+    const user = tokenRes.user as { id: string; email: string; user_metadata?: { first_name?: string; last_name?: string } } | null;
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Account created but sign-in failed: missing user" }), { status: 201, headers: { "content-type": "application/json; charset=utf-8" } });
+    }
     const profileRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=first_name,last_name,email,role,created_at,last_login,is_active`, { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } });
     const profiles = profileRes.ok ? await profileRes.json() : [];
     const profile = profiles[0];
@@ -370,8 +380,8 @@ export async function handleAuthRequest(request: Request) {
       lastLogin: profile?.last_login ?? null,
     };
 
-    const access = tokenRes.access_token;
-    const refresh = tokenRes.refresh_token;
+    const access = tokenRes.access_token ?? "";
+    const refresh = tokenRes.refresh_token ?? "";
     const expiresIn = tokenRes.expires_in ?? AUTH_SESSION_DURATION_MS / 1000;
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 

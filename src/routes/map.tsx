@@ -31,8 +31,8 @@ function LiveMap() {
       />
 
       <div className="grid grid-cols-12 gap-4">
-        <Panel className="col-span-12 xl:col-span-9 !p-0 overflow-hidden">
-          <div className="relative w-full h-[640px] bg-white scan-grid">
+        <Panel className="col-span-12 xl:col-span-9 p-0! overflow-hidden">
+          <div className="relative w-full h-160 bg-white scan-grid">
             {/* Floorplan outline */}
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
               <rect x="4" y="6" width="92" height="88" fill="white" stroke="oklch(0.82 0.02 250)" strokeWidth="0.25" />
@@ -135,7 +135,7 @@ function LiveMap() {
                 <dl className="grid grid-cols-3 gap-y-1.5 text-[12px]">
                   <dt className="col-span-1 text-muted-foreground">Flight</dt><dd className="col-span-2 font-mono">{bag.flight}</dd>
                   <dt className="col-span-1 text-muted-foreground">Passenger</dt><dd className="col-span-2">{bag.passenger}</dd>
-                  <dt className="col-span-1 text-muted-foreground">Location</dt><dd className="col-span-2">Washroom North</dd>
+                  <dt className="col-span-1 text-muted-foreground">Location</dt><dd className="col-span-2">Custom Exit Gate 02</dd>
                   <dt className="col-span-1 text-muted-foreground">First seen</dt><dd className="col-span-2 font-mono">08:12:04</dd>
                   <dt className="col-span-1 text-muted-foreground">Dwell time</dt><dd className="col-span-2 font-mono text-warning">62 min</dd>
                 </dl>
@@ -152,10 +152,10 @@ function LiveMap() {
           <Panel title="Reader Status Overlay">
             <div className="space-y-1.5 text-[12px]">
               {[
-                { n: "RDR-021 · Customs Gate 1", s: "Online" },
-                { n: "RDR-022 · Customs Gate 2", s: "Online" },
-                { n: "RDR-019 · Washroom North", s: "Degraded" },
-                { n: "RDR-020 · Washroom South", s: "Offline" },
+                { n: "RDR-010 · Custom Exit Gate 01", s: "Online" },
+                { n: "RDR-011 · Custom Exit Gate 02", s: "Online" },
+                { n: "RDR-004 · Tagging Station 04", s: "Degraded" },
+                { n: "RDR-013 · Custom Exit Gate 04", s: "Offline" },
               ].map((r) => (
                 <div key={r.n} className="flex items-center justify-between py-1 border-b border-border last:border-0">
                   <div className="flex items-center gap-2"><Radio className="size-3 text-muted-foreground" />{r.n}</div>

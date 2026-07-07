@@ -10,14 +10,14 @@ export const KPIS = [
 ] as const;
 
 export const ACTIVITY = [
-  { time: "09:12", text: "Bag ETB-240091 detected at Washroom North Reader", level: "warn" },
-  { time: "09:14", text: "Alarm A-7844 triggered at Customs Exit Gate 2", level: "danger" },
+  { time: "09:12", text: "Bag ETB-240091 detected at Tagging Station 04", level: "warn" },
+  { time: "09:14", text: "Alarm A-7844 triggered at Custom Exit Gate 02", level: "danger" },
   { time: "09:17", text: "Supervisor S. Khalid acknowledged Alarm A-7844", level: "info" },
-  { time: "09:21", text: "Bag ETB-240055 re-read at Reclaim Belt 1 (SV452 → EK783 link)", level: "info" },
-  { time: "09:24", text: "Reader RDR-019 (Washroom South) reported low read-rate", level: "warn" },
+  { time: "09:21", text: "Bag ETB-240055 re-read at Recheck Station 01 (SV452 → EK783 link)", level: "info" },
+  { time: "09:24", text: "Reader RDR-004 (Tagging Station 04) reported low read-rate", level: "warn" },
   { time: "09:28", text: "Bag ETB-240077 cleared after secondary inspection", level: "success" },
-  { time: "09:31", text: "Officer M. Al-Qahtani assigned to Recheck Station 2", level: "info" },
-  { time: "09:35", text: "RFID antenna A3 on RDR-007 reset successfully", level: "success" },
+  { time: "09:31", text: "Officer M. Al-Qahtani assigned to Recheck Station 02", level: "info" },
+  { time: "09:35", text: "RFID antenna A3 on RDR-010 reset successfully", level: "success" },
 ];
 
 export const HOURLY_TAGS = [
@@ -55,38 +55,37 @@ export const ALARMS: {
   id: string; time: string; tag: string; flight: string; location: string;
   threat: string; status: AlarmStatus; officer: string;
 }[] = [
-  { id: "A-7844", time: "09:14:22", tag: "ETB-240091", flight: "SV452", location: "Customs Exit Gate 2", threat: "Suspect Bag Detected", status: "ACTIVE", officer: "Unassigned" },
-  { id: "A-7843", time: "09:08:51", tag: "ETB-240083", flight: "QR1163", location: "Reclaim Belt 3", threat: "Suspect Bag Detected", status: "ESCALATED", officer: "S. Khalid" },
-  { id: "A-7842", time: "08:52:09", tag: "ETB-240077", flight: "EK212", location: "Washroom North", threat: "Movement Alert", status: "ACKNOWLEDGED", officer: "M. Al-Qahtani" },
+  { id: "A-7844", time: "09:14:22", tag: "ETB-240091", flight: "SV452", location: "Custom Exit Gate 02", threat: "Suspect Bag Detected", status: "ACTIVE", officer: "Unassigned" },
+  { id: "A-7843", time: "09:08:51", tag: "ETB-240083", flight: "QR1163", location: "Custom Exit Gate 03", threat: "Suspect Bag Detected", status: "ESCALATED", officer: "S. Khalid" },
+  { id: "A-7842", time: "08:52:09", tag: "ETB-240077", flight: "EK212", location: "Tagging Station 04", threat: "Movement Alert", status: "ACKNOWLEDGED", officer: "M. Al-Qahtani" },
   { id: "A-7841", time: "08:41:33", tag: "ETB-240072", flight: "TK148", location: "Arrival Hall", threat: "Re-entry", status: "ACKNOWLEDGED", officer: "F. Otaibi" },
-  { id: "A-7840", time: "08:30:11", tag: "ETB-240068", flight: "MS667", location: "Customs Exit Gate 1", threat: "Suspect Bag Detected", status: "CLOSED", officer: "S. Khalid" },
+  { id: "A-7840", time: "08:30:11", tag: "ETB-240068", flight: "MS667", location: "Custom Exit Gate 01", threat: "Suspect Bag Detected", status: "CLOSED", officer: "S. Khalid" },
   { id: "A-7839", time: "08:12:47", tag: "ETB-240055", flight: "EK783", location: "Lost & Found", threat: "Unknown Tag", status: "CLOSED", officer: "N. Harbi" },
-  { id: "A-7838", time: "07:58:02", tag: "ETB-240049", flight: "LH628", location: "Washroom South", threat: "Movement Alert", status: "CLOSED", officer: "A. Zahrani" },
-  { id: "A-7837", time: "07:41:18", tag: "ETB-240041", flight: "AF655", location: "Customs Exit Gate 3", threat: "Suspect Bag Detected", status: "CLOSED", officer: "M. Al-Qahtani" },
+  { id: "A-7838", time: "07:58:02", tag: "ETB-240049", flight: "LH628", location: "Recheck Station 02", threat: "Movement Alert", status: "CLOSED", officer: "A. Zahrani" },
+  { id: "A-7837", time: "07:41:18", tag: "ETB-240041", flight: "AF655", location: "Custom Exit Gate 04", threat: "Suspect Bag Detected", status: "CLOSED", officer: "M. Al-Qahtani" },
 ];
 
 export const TAG_TIMELINE = [
-  { time: "08:12", event: "Tagged at Station 2", loc: "Suspect Tagging Station 2", icon: "tag" },
-  { time: "08:15", event: "Read at Reclaim Belt 1", loc: "RDR-001 / Belt 1", icon: "scan" },
-  { time: "08:23", event: "Read at Arrival Hall", loc: "RDR-004 / Hall A", icon: "scan" },
-  { time: "08:32", event: "Read at Washroom North", loc: "RDR-019 / WC-N", icon: "alert" },
-  { time: "08:45", event: "Detected at Customs Exit Gate 2", loc: "RDR-021 / Gate 2", icon: "alarm" },
+  { time: "08:12", event: "Tagged at Station 04", loc: "Tagging Station 04", icon: "tag" },
+  { time: "08:15", event: "Read at Tagging Station 01", loc: "RDR-001 / Tagging Station 01", icon: "scan" },
+  { time: "08:23", event: "Read at Recheck Station 01", loc: "RDR-020 / Recheck Station 01", icon: "scan" },
+  { time: "08:32", event: "Read at Tagging Station 04", loc: "RDR-004 / Tagging Station 04", icon: "alert" },
+  { time: "08:45", event: "Detected at Custom Exit Gate 02", loc: "RDR-011 / Custom Exit Gate 02", icon: "alarm" },
   { time: "09:14", event: "Alarm A-7844 raised", loc: "Customs Hall", icon: "alarm" },
 ];
 
 export const READERS = [
-  { id: "RDR-001", name: "Reclaim Belt 1 Reader", type: "Impinj R700", floor: "G", ip: "10.42.7.11", status: "Online", readRate: 98 },
-  { id: "RDR-002", name: "Reclaim Belt 2 Reader", type: "Impinj R700", floor: "G", ip: "10.42.7.12", status: "Online", readRate: 96 },
-  { id: "RDR-003", name: "Reclaim Belt 3 Reader", type: "Impinj R700", floor: "G", ip: "10.42.7.13", status: "Online", readRate: 94 },
-  { id: "RDR-004", name: "Arrival Hall Portal", type: "Zebra FX9600", floor: "G", ip: "10.42.7.14", status: "Online", readRate: 99 },
-  { id: "RDR-007", name: "Employee Entrance", type: "Zebra FX9600", floor: "G", ip: "10.42.7.17", status: "Degraded", readRate: 71 },
-  { id: "RDR-012", name: "Lost & Found Reader", type: "Impinj R420", floor: "G", ip: "10.42.7.22", status: "Online", readRate: 95 },
-  { id: "RDR-019", name: "Washroom North Reader", type: "Impinj R420", floor: "G", ip: "10.42.7.29", status: "Degraded", readRate: 68 },
-  { id: "RDR-020", name: "Washroom South Reader", type: "Impinj R420", floor: "G", ip: "10.42.7.30", status: "Offline", readRate: 0 },
-  { id: "RDR-021", name: "Customs Exit Gate 1", type: "Zebra ATR7000", floor: "G", ip: "10.42.7.31", status: "Online", readRate: 99 },
-  { id: "RDR-022", name: "Customs Exit Gate 2", type: "Zebra ATR7000", floor: "G", ip: "10.42.7.32", status: "Online", readRate: 99 },
-  { id: "RDR-023", name: "Customs Exit Gate 3", type: "Zebra ATR7000", floor: "G", ip: "10.42.7.33", status: "Online", readRate: 97 },
-  { id: "RDR-031", name: "Emergency Exit West", type: "Impinj R420", floor: "G", ip: "10.42.7.41", status: "Online", readRate: 92 },
+  { id: "RDR-001", name: "Tagging Station 01", type: "ThingMagic IZAR", floor: "G", zone: "Tagging Station 01", ip: "10.42.7.11", status: "Online", readRate: 98 },
+  { id: "RDR-002", name: "Tagging Station 02", type: "ThingMagic IZAR", floor: "G", zone: "Tagging Station 02", ip: "10.42.7.12", status: "Online", readRate: 97 },
+  { id: "RDR-003", name: "Tagging Station 03", type: "ThingMagic IZAR", floor: "G", zone: "Tagging Station 03", ip: "10.42.7.13", status: "Online", readRate: 96 },
+  { id: "RDR-004", name: "Tagging Station 04", type: "ThingMagic IZAR", floor: "G", zone: "Tagging Station 04", ip: "10.42.7.14", status: "Degraded", readRate: 72 },
+  { id: "RDR-005", name: "Tagging Station 05", type: "ThingMagic IZAR", floor: "G", zone: "Tagging Station 05", ip: "10.42.7.15", status: "Online", readRate: 95 },
+  { id: "RDR-010", name: "Custom Exit Gate 01", type: "ThingMagic IZAR", floor: "G", zone: "Custom Exit Gate 01", ip: "10.42.7.21", status: "Online", readRate: 99 },
+  { id: "RDR-011", name: "Custom Exit Gate 02", type: "ThingMagic IZAR", floor: "G", zone: "Custom Exit Gate 02", ip: "10.42.7.22", status: "Online", readRate: 99 },
+  { id: "RDR-012", name: "Custom Exit Gate 03", type: "ThingMagic IZAR", floor: "G", zone: "Custom Exit Gate 03", ip: "10.42.7.23", status: "Online", readRate: 98 },
+  { id: "RDR-013", name: "Custom Exit Gate 04", type: "ThingMagic IZAR", floor: "G", zone: "Custom Exit Gate 04", ip: "10.42.7.24", status: "Offline", readRate: 0 },
+  { id: "RDR-020", name: "Recheck Station 01", type: "ThingMagic IZAR", floor: "G", zone: "Recheck Station 01", ip: "10.42.7.31", status: "Online", readRate: 97 },
+  { id: "RDR-021", name: "Recheck Station 02", type: "ThingMagic IZAR", floor: "G", zone: "Recheck Station 02", ip: "10.42.7.32", status: "Online", readRate: 94 },
 ];
 
 export const USERS = [
@@ -96,7 +95,7 @@ export const USERS = [
   { name: "Noura Harbi", email: "n.harbi@ops.local", role: "Control Center Operator", status: "Active", last: "07:55 today" },
   { name: "Abdullah Zahrani", email: "a.zahrani@ops.local", role: "Operations Officer", status: "On Break", last: "07:12 today" },
   { name: "Lina Bakr", email: "l.bakr@ops.local", role: "Customs Supervisor", status: "Active", last: "06:48 today" },
-  { name: "Yousef Mutairi", email: "y.mutairi@ops.local", role: "Operations Administrator", status: "Active", last: "Yesterday 22:14" },
+  { name: "Yousef Mutairi", email: "y.mutairi@ops.local", role: "Airport Administrator", status: "Active", last: "Yesterday 22:14" },
   { name: "Hassan Dosari", email: "h.dosari@ops.local", role: "System Administrator", status: "Active", last: "Yesterday 18:02" },
   { name: "Reem Ghamdi", email: "r.ghamdi@ops.local", role: "Control Center Operator", status: "Active", last: "Yesterday 23:51" },
   { name: "Tariq Shehri", email: "t.shehri@ops.local", role: "Operations Officer", status: "Inactive", last: "3 days ago" },
@@ -109,9 +108,9 @@ export const USERS = [
 
 export const ROLES = [
   "Operations Officer",
-  "Customs Supervisor",
   "Control Center Operator",
-  "Operations Administrator",
+  "Customs Supervisor",
+  "Airport Administrator",
   "System Administrator",
 ];
 
@@ -126,31 +125,31 @@ export const ROLE_MATRIX: Record<string, Record<string, boolean>> = {
   "Operations Officer":      { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":0,"Manage Bags":1,"Run Recheck":1,"Manage Readers":0,"View Reports":1,"Manage Users":0,"Manage Roles":0,"System Settings":0 } as any,
   "Customs Supervisor":      { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":1,"Manage Bags":1,"Run Recheck":1,"Manage Readers":0,"View Reports":1,"Manage Users":0,"Manage Roles":0,"System Settings":0 } as any,
   "Control Center Operator": { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":0,"Manage Bags":0,"Run Recheck":0,"Manage Readers":1,"View Reports":1,"Manage Users":0,"Manage Roles":0,"System Settings":0 } as any,
-  "Operations Administrator":   { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":1,"Manage Bags":1,"Run Recheck":1,"Manage Readers":1,"View Reports":1,"Manage Users":1,"Manage Roles":1,"System Settings":1 } as any,
+  "Airport Administrator":   { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":1,"Manage Bags":1,"Run Recheck":1,"Manage Readers":1,"View Reports":1,"Manage Users":1,"Manage Roles":1,"System Settings":1 } as any,
   "System Administrator":    { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":1,"Manage Bags":1,"Run Recheck":1,"Manage Readers":1,"View Reports":1,"Manage Users":1,"Manage Roles":1,"System Settings":1 } as any,
 };
 
 export const ESCALATIONS = [
   { trigger: "Suspect Bag Detected", role: "Customs Supervisor", method: "Email + SMS", sla: "2 min" },
-  { trigger: "Suspect Bag at Exit Gate", role: "Operations Administrator", method: "SMS + Push", sla: "1 min" },
+  { trigger: "Suspect Bag at Exit Gate", role: "Airport Administrator", method: "SMS + Push", sla: "1 min" },
   { trigger: "Movement Alert (Washroom)", role: "Operations Officer", method: "Push", sla: "5 min" },
   { trigger: "Reader Offline > 5 min", role: "Control Center Operator", method: "Email", sla: "10 min" },
   { trigger: "Re-entry After Clearance", role: "Customs Supervisor", method: "SMS", sla: "3 min" },
 ];
 
 export const MAP_LOCATIONS = [
-  { id: "ah",  name: "Arrival Hall",         x: 50,  y: 50,  kind: "area" },
-  { id: "rb1", name: "Reclaim Belt 1",       x: 18,  y: 30,  kind: "reader" },
-  { id: "rb2", name: "Reclaim Belt 2",       x: 32,  y: 30,  kind: "reader" },
-  { id: "rb3", name: "Reclaim Belt 3",       x: 46,  y: 30,  kind: "reader" },
-  { id: "wn",  name: "Washroom North",       x: 26,  y: 60,  kind: "alarm" },
-  { id: "ws",  name: "Washroom South",       x: 70,  y: 70,  kind: "reader" },
-  { id: "lf",  name: "Lost & Found",         x: 78,  y: 28,  kind: "reader" },
-  { id: "ee",  name: "Employee Entrance",    x: 10,  y: 78,  kind: "reader" },
-  { id: "ex",  name: "Emergency Exit",       x: 90,  y: 50,  kind: "area" },
-  { id: "cg1", name: "Customs Exit Gate 1",  x: 55,  y: 82,  kind: "reader" },
-  { id: "cg2", name: "Customs Exit Gate 2",  x: 65,  y: 86,  kind: "alarm" },
-  { id: "cg3", name: "Customs Exit Gate 3",  x: 75,  y: 82,  kind: "reader" },
+  { id: "ah",   name: "Arrival Hall",         x: 50,  y: 50,  kind: "area" },
+  { id: "ts01", name: "Tagging Station 01",   x: 18,  y: 30,  kind: "reader" },
+  { id: "ts02", name: "Tagging Station 02",   x: 32,  y: 30,  kind: "reader" },
+  { id: "ts03", name: "Tagging Station 03",   x: 46,  y: 30,  kind: "reader" },
+  { id: "ts04", name: "Tagging Station 04",   x: 26,  y: 60,  kind: "alarm" },
+  { id: "ts05", name: "Tagging Station 05",   x: 70,  y: 70,  kind: "reader" },
+  { id: "ce01", name: "Custom Exit Gate 01",   x: 55,  y: 82,  kind: "reader" },
+  { id: "ce02", name: "Custom Exit Gate 02",   x: 65,  y: 86,  kind: "alarm" },
+  { id: "ce03", name: "Custom Exit Gate 03",   x: 75,  y: 82,  kind: "reader" },
+  { id: "ce04", name: "Custom Exit Gate 04",   x: 85,  y: 78,  kind: "reader" },
+  { id: "rs01", name: "Recheck Station 01",    x: 10,  y: 78,  kind: "reader" },
+  { id: "rs02", name: "Recheck Station 02",    x: 90,  y: 50,  kind: "area" },
 ];
 
 export const SUSPECT_BAGS_ON_MAP = [
