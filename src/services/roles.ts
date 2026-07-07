@@ -10,7 +10,7 @@ export async function getCurrentUserRole() {
 }
 
 export function roleIsAtLeast(role: string, required: string) {
-  const order = ["Operations Officer", "Customs Supervisor", "Control Center Operator", "Airport Administrator", "Admin"];
+  const order = ["Operations Officer", "Customs Supervisor", "Control Center Operator", "Operations Administrator", "Admin"];
   const r1 = order.indexOf(role);
   const r2 = order.indexOf(required);
   if (r1 === -1 || r2 === -1) return false;

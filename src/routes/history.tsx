@@ -13,7 +13,7 @@ function History() {
     <div className="p-6">
       <PageHeader
         title="Query Tag History"
-        subtitle="Trace the full lifecycle of any tagged bag across the airport."
+        subtitle="Trace the full lifecycle of any tagged bag across the facility."
         actions={
           <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-[12px] hover:bg-accent">
             <Download className="size-3.5" /> Export CSV
@@ -56,7 +56,7 @@ function History() {
               const color = e.icon === "alarm" ? "bg-danger/15 text-danger border-danger/30" : e.icon === "alert" ? "bg-warning/15 text-warning border-warning/30" : "bg-info/15 text-info border-info/30";
               return (
                 <li key={i} className="relative pb-4 last:pb-0">
-                  <div className={`absolute -left-[18px] size-7 rounded-full border ${color} flex items-center justify-center`}>
+                  <div className={`absolute size-7 rounded-full border ${color} flex items-center justify-center`} style={{ left: "-18px" }}>
                     <Icon className="size-3.5" />
                   </div>
                   <div className="flex items-center gap-2 ml-2">
@@ -70,7 +70,7 @@ function History() {
           </ol>
         </Panel>
 
-        <Panel title="Read Events · Table" className="col-span-12 lg:col-span-5 !p-0">
+        <Panel title="Read Events · Table" className="col-span-12 lg:col-span-5">
           <table className="w-full text-[12px]">
             <thead className="text-[10px] uppercase text-muted-foreground border-b border-border">
               <tr><th className="text-left px-3 py-2">Time</th><th className="text-left px-3 py-2">Reader</th><th className="text-left px-3 py-2">Antenna</th><th className="text-left px-3 py-2">RSSI</th></tr>

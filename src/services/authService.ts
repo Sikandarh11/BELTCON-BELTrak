@@ -12,7 +12,7 @@ export const AUTH_ROLES = [
   "Operations Officer",
   "Customs Supervisor",
   "Control Center Operator",
-  "Airport Administrator",
+  "Operations Administrator",
   "System Administrator",
 ] as const;
 

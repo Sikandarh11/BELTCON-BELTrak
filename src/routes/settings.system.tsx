@@ -19,17 +19,17 @@ const INTEGRATIONS = [
 function SystemSettings() {
   return (
     <div className="p-6 max-w-6xl">
-      <PageHeader title="System Settings" subtitle="Airport profile, time, and external integrations." />
+      <PageHeader title="System Settings" subtitle="Site profile, time, and external integrations." />
 
       <div className="grid grid-cols-12 gap-4">
-        <Panel title="Airport Profile" className="col-span-12 lg:col-span-7">
+        <Panel title="Site Profile" className="col-span-12 lg:col-span-7">
           <div className="grid grid-cols-2 gap-4 text-[13px]">
-            <Field label="Airport Name" v="King Abdulaziz International Airport" />
-            <Field label="Airport Code" v="LTI" mono />
-            <Field label="Timezone" v="Asia/Riyadh (UTC+03)" />
+            <Field label="Site Name" v="BELTrak Operations Center" />
+            <Field label="Site Code" v="BLC" mono />
+            <Field label="Timezone" v="UTC+03" />
             <Field label="Operating Hours" v="24 / 7" />
             <Field label="Terminal" v="Terminal 1" />
-            <Field label="Customs Authority" v="Saudi Zakat, Tax and Customs Authority" />
+            <Field label="Compliance Owner" v="Operations Control" />
             <Field label="Default Language" v="English (en-SA)" />
             <Field label="Date Format" v="DD/MM/YYYY HH:mm" mono />
           </div>

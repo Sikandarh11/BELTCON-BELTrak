@@ -10,7 +10,7 @@ export const Route = createFileRoute("/target")({
 const FIELDS = [
   ["Tag ID", "ETB-240091"],
   ["Bag Number", "BG77891"],
-  ["Flight", "SV452 · Riyadh → Jeddah"],
+  ["Flight", "SV452 · Origin A → Destination B"],
   ["Passenger", "Ahmed Al-Harbi"],
   ["Passport", "P4389122"],
   ["Nationality", "Saudi Arabia"],
@@ -67,7 +67,7 @@ function Target() {
           <Panel title="Imagery">
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <div className="aspect-[4/3] rounded-md border border-border bg-background/60 relative overflow-hidden">
+                <div className="aspect-4/3 rounded-md border border-border bg-background/60 relative overflow-hidden">
                   <div className="absolute inset-0 flex items-center justify-center">
                     <svg viewBox="0 0 100 60" className="w-full h-full p-2 opacity-80">
                       <rect x="10" y="20" width="80" height="25" rx="3" fill="oklch(0.30 0.05 30)" stroke="oklch(0.70 0.20 30)" strokeWidth="0.5"/>
@@ -81,14 +81,14 @@ function Target() {
                 <div className="mt-1 text-[11px] text-muted-foreground">08:13 · Station 2 · Organic detected</div>
               </div>
               <div>
-                <div className="aspect-[4/3] rounded-md border border-border bg-gradient-to-br from-white to-slate-100 relative overflow-hidden flex items-center justify-center text-5xl text-foreground">
+                <div className="aspect-4/3 rounded-md border border-border bg-linear-to-br from-white to-slate-100 relative overflow-hidden flex items-center justify-center text-5xl text-foreground">
                   🎒
                   <span className="absolute top-1.5 left-1.5 text-[10px] font-mono bg-background/80 px-1.5 py-0.5 rounded border border-border flex items-center gap-1"><Camera className="size-3" />BAG PHOTO</span>
                 </div>
                 <div className="mt-1 text-[11px] text-muted-foreground">Black hard-shell · 65L</div>
               </div>
               <div>
-                <div className="aspect-[4/3] rounded-md border border-border bg-background/60 relative overflow-hidden">
+                <div className="aspect-4/3 rounded-md border border-border bg-background/60 relative overflow-hidden">
                   <div className="absolute inset-0 scan-grid opacity-50" />
                   <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-[10px] font-mono">CAM-WC-N-03 · LIVE</div>
                   <span className="absolute top-1.5 left-1.5 text-[10px] font-mono bg-danger/80 text-destructive-foreground px-1.5 py-0.5 rounded flex items-center gap-1"><Video className="size-3" />CCTV</span>

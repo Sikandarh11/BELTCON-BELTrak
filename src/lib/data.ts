@@ -90,28 +90,28 @@ export const READERS = [
 ];
 
 export const USERS = [
-  { name: "Sikandar Hussain", email: "s.khalid@jed-airport.sa", role: "Customs Supervisor", status: "Active", last: "09:21 today" },
-  { name: "Mohammed Al-Qahtani", email: "m.qahtani@jed-airport.sa", role: "Operations Officer", status: "Active", last: "09:18 today" },
-  { name: "Fahad Otaibi", email: "f.otaibi@jed-airport.sa", role: "Operations Officer", status: "Active", last: "08:42 today" },
-  { name: "Noura Harbi", email: "n.harbi@jed-airport.sa", role: "Control Center Operator", status: "Active", last: "07:55 today" },
-  { name: "Abdullah Zahrani", email: "a.zahrani@jed-airport.sa", role: "Operations Officer", status: "On Break", last: "07:12 today" },
-  { name: "Lina Bakr", email: "l.bakr@jed-airport.sa", role: "Customs Supervisor", status: "Active", last: "06:48 today" },
-  { name: "Yousef Mutairi", email: "y.mutairi@jed-airport.sa", role: "Airport Administrator", status: "Active", last: "Yesterday 22:14" },
-  { name: "Hassan Dosari", email: "h.dosari@jed-airport.sa", role: "System Administrator", status: "Active", last: "Yesterday 18:02" },
-  { name: "Reem Ghamdi", email: "r.ghamdi@jed-airport.sa", role: "Control Center Operator", status: "Active", last: "Yesterday 23:51" },
-  { name: "Tariq Shehri", email: "t.shehri@jed-airport.sa", role: "Operations Officer", status: "Inactive", last: "3 days ago" },
-  { name: "Maha Subaie", email: "m.subaie@jed-airport.sa", role: "Operations Officer", status: "Active", last: "08:01 today" },
-  { name: "Ibrahim Asiri", email: "i.asiri@jed-airport.sa", role: "Customs Supervisor", status: "Active", last: "Yesterday 16:30" },
-  { name: "Khalid Rashid", email: "k.rashid@jed-airport.sa", role: "Control Center Operator", status: "Active", last: "Yesterday 21:09" },
-  { name: "Sara Najjar", email: "s.najjar@jed-airport.sa", role: "Operations Officer", status: "Active", last: "07:32 today" },
-  { name: "Omar Faisal", email: "o.faisal@jed-airport.sa", role: "System Administrator", status: "Active", last: "Yesterday 19:44" },
+  { name: "Sikandar Hussain", email: "s.khalid@ops.local", role: "Customs Supervisor", status: "Active", last: "09:21 today" },
+  { name: "Mohammed Al-Qahtani", email: "m.qahtani@ops.local", role: "Operations Officer", status: "Active", last: "09:18 today" },
+  { name: "Fahad Otaibi", email: "f.otaibi@ops.local", role: "Operations Officer", status: "Active", last: "08:42 today" },
+  { name: "Noura Harbi", email: "n.harbi@ops.local", role: "Control Center Operator", status: "Active", last: "07:55 today" },
+  { name: "Abdullah Zahrani", email: "a.zahrani@ops.local", role: "Operations Officer", status: "On Break", last: "07:12 today" },
+  { name: "Lina Bakr", email: "l.bakr@ops.local", role: "Customs Supervisor", status: "Active", last: "06:48 today" },
+  { name: "Yousef Mutairi", email: "y.mutairi@ops.local", role: "Operations Administrator", status: "Active", last: "Yesterday 22:14" },
+  { name: "Hassan Dosari", email: "h.dosari@ops.local", role: "System Administrator", status: "Active", last: "Yesterday 18:02" },
+  { name: "Reem Ghamdi", email: "r.ghamdi@ops.local", role: "Control Center Operator", status: "Active", last: "Yesterday 23:51" },
+  { name: "Tariq Shehri", email: "t.shehri@ops.local", role: "Operations Officer", status: "Inactive", last: "3 days ago" },
+  { name: "Maha Subaie", email: "m.subaie@ops.local", role: "Operations Officer", status: "Active", last: "08:01 today" },
+  { name: "Ibrahim Asiri", email: "i.asiri@ops.local", role: "Customs Supervisor", status: "Active", last: "Yesterday 16:30" },
+  { name: "Khalid Rashid", email: "k.rashid@ops.local", role: "Control Center Operator", status: "Active", last: "Yesterday 21:09" },
+  { name: "Sara Najjar", email: "s.najjar@ops.local", role: "Operations Officer", status: "Active", last: "07:32 today" },
+  { name: "Omar Faisal", email: "o.faisal@ops.local", role: "System Administrator", status: "Active", last: "Yesterday 19:44" },
 ];
 
 export const ROLES = [
   "Operations Officer",
   "Customs Supervisor",
   "Control Center Operator",
-  "Airport Administrator",
+  "Operations Administrator",
   "System Administrator",
 ];
 
@@ -126,13 +126,13 @@ export const ROLE_MATRIX: Record<string, Record<string, boolean>> = {
   "Operations Officer":      { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":0,"Manage Bags":1,"Run Recheck":1,"Manage Readers":0,"View Reports":1,"Manage Users":0,"Manage Roles":0,"System Settings":0 } as any,
   "Customs Supervisor":      { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":1,"Manage Bags":1,"Run Recheck":1,"Manage Readers":0,"View Reports":1,"Manage Users":0,"Manage Roles":0,"System Settings":0 } as any,
   "Control Center Operator": { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":0,"Manage Bags":0,"Run Recheck":0,"Manage Readers":1,"View Reports":1,"Manage Users":0,"Manage Roles":0,"System Settings":0 } as any,
-  "Airport Administrator":   { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":1,"Manage Bags":1,"Run Recheck":1,"Manage Readers":1,"View Reports":1,"Manage Users":1,"Manage Roles":1,"System Settings":1 } as any,
+  "Operations Administrator":   { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":1,"Manage Bags":1,"Run Recheck":1,"Manage Readers":1,"View Reports":1,"Manage Users":1,"Manage Roles":1,"System Settings":1 } as any,
   "System Administrator":    { "View Dashboard":1,"Acknowledge Alarms":1,"Escalate Alarms":1,"Close Alarms":1,"Manage Bags":1,"Run Recheck":1,"Manage Readers":1,"View Reports":1,"Manage Users":1,"Manage Roles":1,"System Settings":1 } as any,
 };
 
 export const ESCALATIONS = [
   { trigger: "Suspect Bag Detected", role: "Customs Supervisor", method: "Email + SMS", sla: "2 min" },
-  { trigger: "Suspect Bag at Exit Gate", role: "Airport Administrator", method: "SMS + Push", sla: "1 min" },
+  { trigger: "Suspect Bag at Exit Gate", role: "Operations Administrator", method: "SMS + Push", sla: "1 min" },
   { trigger: "Movement Alert (Washroom)", role: "Operations Officer", method: "Push", sla: "5 min" },
   { trigger: "Reader Offline > 5 min", role: "Control Center Operator", method: "Email", sla: "10 min" },
   { trigger: "Re-entry After Clearance", role: "Customs Supervisor", method: "SMS", sla: "3 min" },

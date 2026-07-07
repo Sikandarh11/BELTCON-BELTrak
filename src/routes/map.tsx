@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Plus, Minus, Layers, Building2, Radio, AlertTriangle, X, Briefcase } from "lucide-react";
 
 export const Route = createFileRoute("/map")({
-  head: () => ({ meta: [{ title: "Live Airport Map · BELTrak" }] }),
+  head: () => ({ meta: [{ title: "Live Operations Map · BELTrak" }] }),
   component: LiveMap,
 });
 
@@ -16,8 +16,8 @@ function LiveMap() {
   return (
     <div className="p-6">
       <PageHeader
-        title="Live Airport Map"
-        subtitle="Terminal 1 · Ground Floor · Customs Hall and Reclaim Area"
+        title="Live Operations Map"
+        subtitle="Ground Floor · Control Hall and Processing Area"
         actions={
           <div className="flex gap-2 text-[12px]">
             <select className="bg-background border border-border rounded-md px-2.5 py-1.5">

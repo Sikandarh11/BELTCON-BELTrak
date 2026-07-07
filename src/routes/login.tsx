@@ -45,7 +45,7 @@ function LoginPage() {
             </div>
             <div>
               <div className="text-lg font-semibold tracking-tight text-slate-900">BELTrak</div>
-              <div className="text-xs uppercase tracking-[0.28em] text-cyan-700/70">Airport Suspect Baggage Tracking System</div>
+              <div className="text-xs uppercase tracking-[0.28em] text-cyan-700/70">Operations Suspect Baggage Tracking System</div>
             </div>
           </div>
 
@@ -58,7 +58,7 @@ function LoginPage() {
               Operational visibility for baggage security and customs control.
             </h1>
             <p className="mt-5 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-              Sign in to the internal BELTrak portal to monitor suspect baggage, review alarms, and manage airport operations from a protected airport network.
+              Sign in to the internal BELTrak portal to monitor suspect baggage, review alarms, and manage operations from a protected network.
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -79,14 +79,14 @@ function LoginPage() {
             </div>
           </div>
 
-          <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Airport operations secure access only</div>
+          <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Operations secure access only</div>
         </section>
 
         <section className="flex items-center justify-center px-6 py-8 lg:px-10 xl:px-16 xl:py-10">
           <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:p-8">
             <div className="mb-6">
               <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Sign in</h2>
-              <p className="mt-2 text-sm text-slate-600">Use your airport credentials to access the operations console.</p>
+              <p className="mt-2 text-sm text-slate-600">Use your credentials to access the operations console.</p>
             </div>
 
             {error ? (
@@ -105,7 +105,7 @@ function LoginPage() {
                   value={form.email}
                   onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
-                  placeholder="name@airport.local"
+                  placeholder="name@ops.local"
                   autoComplete="email"
                 />
               </label>
@@ -134,7 +134,7 @@ function LoginPage() {
             </form>
 
             <div className="mt-6 flex items-center justify-between text-sm text-slate-600">
-              <span>New airport user?</span>
+              <span>New user?</span>
               <Link to="/register" className="font-medium text-cyan-600 hover:text-cyan-700">Register with a key</Link>
             </div>
             <a href="/" className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-transparent px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">

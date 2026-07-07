@@ -11,7 +11,7 @@ import type { SessionUser } from "@/services/authService";
 const NAV = [
   { section: "Operations", items: [
     { to: "/", label: "Dashboard", icon: LayoutDashboard },
-    { to: "/map", label: "Live Airport Map", icon: Map },
+    { to: "/map", label: "Live Operations Map", icon: Map },
     { to: "/alarms", label: "Notifications & Alarms", icon: BellRing, badge: 4 },
     { to: "/history", label: "Query Tag History", icon: History },
     { to: "/target", label: "Target Information", icon: Target },
@@ -43,7 +43,7 @@ export function AppLayout({ children, currentUser, onLogout }: { children: React
           </div>
           <div className="leading-tight">
             <div className="font-semibold tracking-tight text-[15px]">BELTrak</div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Airport Operations</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operations Control</div>
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-5">
@@ -96,8 +96,8 @@ export function AppLayout({ children, currentUser, onLogout }: { children: React
         <header className="h-14 shrink-0 border-b border-border bg-panel/60 backdrop-blur flex items-center px-4 gap-3">
           <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-border bg-background/50 text-[13px] hover:bg-accent">
             <Plane className="size-3.5 text-primary -rotate-45" />
-            <span className="font-medium">RUH</span>
-            <span className="text-muted-foreground hidden md:inline">King Khalid Intl.</span>
+            <span className="font-medium">OPS</span>
+            <span className="text-muted-foreground hidden md:inline">Operations Hub</span>
             <ChevronDown className="size-3.5 text-muted-foreground" />
           </button>
           <div className="hidden md:flex items-center gap-1.5 text-[12px] text-muted-foreground border border-border rounded-md px-2.5 py-1.5">
@@ -122,7 +122,7 @@ export function AppLayout({ children, currentUser, onLogout }: { children: React
             <span className="absolute top-1 right-1 size-2 rounded-full bg-danger animate-pulse" />
           </button>
           <div className="flex items-center gap-2 pl-3 border-l border-border">
-            <div className="size-8 rounded-full bg-gradient-to-br from-primary to-info flex items-center justify-center text-[11px] font-semibold text-primary-foreground">{userInitials}</div>
+            <div className="size-8 rounded-full bg-linear-to-br from-primary to-info flex items-center justify-center text-[11px] font-semibold text-primary-foreground">{userInitials}</div>
             <div className="hidden md:block leading-tight">
               <div className="text-[12px] font-medium">{currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Secure User"}</div>
               <div className="text-[10px] text-muted-foreground">{currentUser?.role ?? "Session pending"}</div>

@@ -23,7 +23,7 @@ function Dashboard() {
     <div className="p-6">
       <PageHeader
         title="Operations Dashboard"
-        subtitle="King Khalid International Airport — Terminal 1 · Real-time customs visibility"
+        subtitle="Real-time baggage and flow visibility"
         actions={
           <div className="flex gap-2">
             <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-[12px] hover:bg-accent"><RefreshCw className="size-3.5" />Refresh</button>
@@ -110,7 +110,7 @@ function Dashboard() {
           </div>
         </Panel>
 
-        <Panel title="Airport Passenger Traffic" className="col-span-12 xl:col-span-8">
+        <Panel title="Traffic Overview" className="col-span-12 xl:col-span-8">
           <div className="h-52">
             <ResponsiveContainer>
               <LineChart data={TRAFFIC_TREND}>
