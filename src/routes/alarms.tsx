@@ -46,6 +46,12 @@ function Alarms() {
         ))}
       </div>
 
+      {alarms.length === 0 && (
+        <div className="py-12 text-center text-[13px] text-muted-foreground">
+          No alarms recorded — use the Simulator to trigger one
+        </div>
+      )}
+
       <div className="grid grid-cols-12 gap-4">
         <Panel title="Filter" className="col-span-12 lg:col-span-3">
           <div className="space-y-3 text-[12px]">

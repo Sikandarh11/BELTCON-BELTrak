@@ -33,19 +33,6 @@ export const ALARM_TREND = [
   { d: "Thu", v: 31 }, { d: "Fri", v: 24 }, { d: "Sat", v: 19 }, { d: "Sun", v: 18 },
 ];
 
-export const THREAT_DIST = [
-  { name: "Suspect Bag", value: 64, color: "var(--color-danger)" },
-  { name: "Movement Alert", value: 22, color: "var(--color-warning)" },
-  { name: "Re-entry", value: 9, color: "var(--color-info)" },
-  { name: "Unknown Tag", value: 5, color: "var(--color-primary)" },
-];
-
-export const READER_HEALTH = [
-  { name: "Healthy", value: 38 },
-  { name: "Degraded", value: 4 },
-  { name: "Offline", value: 2 },
-];
-
 export const TRAFFIC_TREND = [
   { t: "06:00", pax: 1240 }, { t: "07:00", pax: 2180 }, { t: "08:00", pax: 3120 },
   { t: "09:00", pax: 4380 }, { t: "10:00", pax: 4120 }, { t: "11:00", pax: 3680 },

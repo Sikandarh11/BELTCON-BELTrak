@@ -79,8 +79,13 @@ function History() {
 
       <div className="grid grid-cols-12 gap-4">
         <Panel title={`Timeline · ${matchingBag?.iataCode ?? "All"}`} className="col-span-12 lg:col-span-7">
+          {timeline.length === 0 && (
+            <div className="py-12 text-center text-[13px] text-muted-foreground">
+              No events match
+            </div>
+          )}
           <ol className="relative pl-6">
-            <div className="absolute left-2 top-1 bottom-1 w-px bg-border" />
+            {timeline.length > 0 && <div className="absolute left-2 top-1 bottom-1 w-px bg-border" />}
             {timeline.map((e, i) => {
               const Icon = e.icon === "tag" ? Tag : e.icon === "scan" ? ScanLine : e.icon === "alert" ? AlertTriangle : BellRing;
               const color = e.icon === "alarm" ? "bg-danger/15 text-danger border-danger/30" : e.icon === "alert" ? "bg-warning/15 text-warning border-warning/30" : "bg-info/15 text-info border-info/30";
