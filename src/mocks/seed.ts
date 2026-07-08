@@ -208,9 +208,3 @@ export const SEED_EVENTS: RfidEvent[] = [
   { id: "ev-005", epc: "EPC-240091", readerId: "RDR-022", zone: "CUSTOMS_EXIT_GATE_2", eventType: "CUSTOMS_EXIT_DETECTED", firstSeen: "2026-07-07T08:45:00", lastSeen: "2026-07-07T08:45:01", readCount: 3, rssi: -41 },
   { id: "ev-006", epc: "EPC-240091", readerId: "RDR-022", zone: "CUSTOMS_EXIT_GATE_2", eventType: "ALARM_TRIGGERED", firstSeen: "2026-07-07T09:14:00", lastSeen: "2026-07-07T09:14:00", readCount: 1, rssi: -40 },
 ];
-
-/** @deprecated use store */
-export const LEGACY_ALARMS = ALARMS;
-
-/** @deprecated use store */
-export const LEGACY_READERS = READERS;

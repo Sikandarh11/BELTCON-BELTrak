@@ -29,16 +29,21 @@ export function ProtectedRoute({ children }: { children: (session: AuthSessionRe
   const sessionQuery = useQuery({
     queryKey: AUTH_SESSION_KEY,
     queryFn: fetchSession,
-    retry: false,
+    retry: 1,
     refetchOnWindowFocus: false,
-    staleTime: 0,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   useEffect(() => {
-    if (sessionQuery.isError) {
-      void navigate({ to: "/login", replace: true });
+    if (sessionQuery.isError && !sessionQuery.isLoading) {
+      const timer = window.setTimeout(() => {
+        void navigate({ to: "/login", replace: true });
+      }, 500);
+
+      return () => window.clearTimeout(timer);
     }
-  }, [navigate, sessionQuery.isError]);
+  }, [navigate, sessionQuery.isError, sessionQuery.isLoading]);
 
   useEffect(() => {
     const expiresAt = sessionQuery.data?.expiresAt;
