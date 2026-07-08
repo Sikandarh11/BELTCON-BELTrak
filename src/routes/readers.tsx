@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
-import { READERS } from "@/lib/data";
+import { useAppStore } from "@/store/appStore";
 import { useState } from "react";
 import { Radio, X, Wifi, Cpu, Activity } from "lucide-react";
 
@@ -11,7 +11,8 @@ export const Route = createFileRoute("/readers")({
 
 function Readers() {
   const [sel, setSel] = useState<string | null>("RDR-019");
-  const reader = READERS.find(r => r.id === sel);
+  const readers = useAppStore((s) => s.readers);
+  const reader = readers.find(r => r.id === sel);
 
   return (
     <div className="p-6">
@@ -38,12 +39,12 @@ function Readers() {
               <tr>{["Reader ID","Name","Type","Floor","IP Address","Read Rate","Status"].map(h => <th key={h} className="text-left px-3 py-2.5 font-medium">{h}</th>)}</tr>
             </thead>
             <tbody>
-              {READERS.map((r) => (
+              {readers.map((r) => (
                 <tr key={r.id} onClick={() => setSel(r.id)} className={`border-b border-border cursor-pointer hover:bg-accent/30 ${sel === r.id ? "bg-accent/40" : ""}`}>
                   <td className="px-3 py-2.5 font-mono text-primary">{r.id}</td>
                   <td className="px-3 py-2.5">{r.name}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{r.type}</td>
-                  <td className="px-3 py-2.5 font-mono">{r.floor}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{r.model}</td>
+                  <td className="px-3 py-2.5 font-mono">G</td>
                   <td className="px-3 py-2.5 font-mono text-muted-foreground">{r.ip}</td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
@@ -53,7 +54,7 @@ function Readers() {
                       <span className="font-mono text-[11px] text-muted-foreground">{r.readRate}%</span>
                     </div>
                   </td>
-                  <td className="px-3 py-2.5"><StatusPill status={r.status} /></td>
+                  <td className="px-3 py-2.5"><StatusPill status={r.status === "ONLINE" ? "Online" : r.status === "DEGRADED" ? "Degraded" : "Offline"} /></td>
                 </tr>
               ))}
             </tbody>
@@ -69,11 +70,11 @@ function Readers() {
               <div>
                 <div className="font-mono font-semibold">{reader.id}</div>
                 <div className="text-[12px] text-muted-foreground">{reader.name}</div>
-                <div className="mt-1"><StatusPill status={reader.status} /></div>
+                <div className="mt-1"><StatusPill status={reader.status === "ONLINE" ? "Online" : reader.status === "DEGRADED" ? "Degraded" : "Offline"} /></div>
               </div>
             </div>
             <dl className="space-y-2 text-[12.5px]">
-              <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Cpu className="size-3.5" />Model</dt><dd className="font-mono">{reader.type}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Cpu className="size-3.5" />Model</dt><dd className="font-mono">{reader.model}</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Wifi className="size-3.5" />IP Address</dt><dd className="font-mono">{reader.ip}</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">Firmware</dt><dd className="font-mono">7.4.1.240</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">Antennas</dt><dd className="font-mono">4 / 4 active</dd></div>
@@ -84,9 +85,9 @@ function Readers() {
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Antennas</div>
               <div className="grid grid-cols-4 gap-1.5">
                 {["A1","A2","A3","A4"].map((a, i) => (
-                  <div key={a} className={`rounded-md border ${i === 2 && reader.status === "Degraded" ? "border-warning bg-warning/10" : "border-success/30 bg-success/5"} p-2 text-center`}>
+                    <div key={a} className={`rounded-md border ${i === 2 && reader.status === "DEGRADED" ? "border-warning bg-warning/10" : "border-success/30 bg-success/5"} p-2 text-center`}>
                     <div className="text-[10px] font-mono">{a}</div>
-                    <div className="text-[10px] text-muted-foreground">{i === 2 && reader.status === "Degraded" ? "-62 dBm" : "-41 dBm"}</div>
+                      <div className="text-[10px] text-muted-foreground">{i === 2 && reader.status === "DEGRADED" ? "-62 dBm" : "-41 dBm"}</div>
                   </div>
                 ))}
               </div>

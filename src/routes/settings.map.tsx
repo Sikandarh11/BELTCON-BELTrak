@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader } from "@/components/AppLayout";
 import { Upload, MapPin, Move, Crosshair } from "lucide-react";
-import { MAP_LOCATIONS } from "@/lib/data";
+import { MAP_LOCATIONS } from "@/mocks/seed";
 
 export const Route = createFileRoute("/settings/map")({
   head: () => ({ meta: [{ title: "Map Settings · BELTrak" }] }),

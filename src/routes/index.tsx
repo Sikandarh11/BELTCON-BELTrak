@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
-import { KPIS, ACTIVITY, HOURLY_TAGS, ALARM_TREND, THREAT_DIST, READER_HEALTH, TRAFFIC_TREND, ALARMS } from "@/lib/data";
+import { ACTIVITY, HOURLY_TAGS, ALARM_TREND, THREAT_DIST, READER_HEALTH, TRAFFIC_TREND } from "@/mocks/seed";
+import { useAppStore } from "@/store/appStore";
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
@@ -19,6 +20,25 @@ const tooltipStyle = {
 } as const;
 
 function Dashboard() {
+  const bags = useAppStore((s) => s.bags);
+  const alarms = useAppStore((s) => s.alarms);
+  const readers = useAppStore((s) => s.readers);
+
+  const kpis = [
+    { label: "Suspect Bags Tagged Today", value: bags.filter((b) => b.status !== "IDENTIFIED").length, delta: "", tone: "primary" },
+    { label: "Active Suspect Bags", value: bags.filter((b) => b.status !== "RESOLVED").length, delta: "", tone: "warning" },
+    { label: "Alarms Raised Today", value: alarms.length, delta: `${alarms.filter((a) => a.outcome === "OPEN").length} unresolved`, tone: "danger" },
+    { label: "Bags Cleared", value: alarms.filter((a) => a.outcome === "CLEARED").length, delta: "", tone: "success" },
+    { label: "Online RFID Readers", value: `${readers.filter((r) => r.status === "ONLINE").length} / ${readers.length}`, delta: `${readers.filter((r) => r.status === "OFFLINE").length} offline`, tone: "info" },
+    { label: "Portal Gates Online", value: "6 / 6", delta: "All operational", tone: "success" },
+  ];
+
+  const outcomeToStatus = (o: string) =>
+    o === "OPEN" ? "ACTIVE"
+      : o === "UNDER_INVESTIGATION" ? "ACKNOWLEDGED"
+      : o === "ESCALATED" ? "ESCALATED"
+      : "CLOSED";
+
   return (
     <div className="p-6">
       <PageHeader
@@ -34,7 +54,7 @@ function Dashboard() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
-        {KPIS.map((k) => {
+        {kpis.map((k) => {
           const toneText: Record<string, string> = {
             primary: "text-primary", warning: "text-warning", danger: "text-danger",
             success: "text-success", info: "text-info",
@@ -165,16 +185,19 @@ function Dashboard() {
 
         <Panel title="Recent Alarms" action={<a href="/alarms" className="text-[11px] text-primary hover:underline">View all →</a>} className="col-span-12 xl:col-span-5">
           <ul className="space-y-2">
-            {ALARMS.slice(0, 5).map((a) => (
-              <li key={a.id} className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-accent/40">
-                <span className="font-mono text-[11px] text-muted-foreground w-14">{a.id}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12.5px] truncate">{a.threat}</div>
-                  <div className="text-[11px] text-muted-foreground truncate">{a.location} · {a.flight}</div>
-                </div>
-                <StatusPill status={a.status} />
-              </li>
-            ))}
+            {alarms.slice(0, 5).map((a) => {
+              const bag = bags.find((b) => b.id === a.bagId);
+              return (
+                <li key={a.id} className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-accent/40">
+                  <span className="font-mono text-[11px] text-muted-foreground w-14">{a.id}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12.5px] truncate">Suspect Bag</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{a.zone.replace(/_/g, " ")} · {bag?.flight ?? "—"}</div>
+                  </div>
+                  <StatusPill status={outcomeToStatus(a.outcome)} />
+                </li>
+              );
+            })}
           </ul>
         </Panel>
       </div>

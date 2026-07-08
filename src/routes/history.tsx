@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader } from "@/components/AppLayout";
-import { TAG_TIMELINE } from "@/lib/data";
+import { useAppStore } from "@/store/appStore";
 import { Search, Download, Tag, ScanLine, AlertTriangle, BellRing } from "lucide-react";
 
 export const Route = createFileRoute("/history")({
@@ -9,6 +9,23 @@ export const Route = createFileRoute("/history")({
 });
 
 function History() {
+  const events = useAppStore((s) => s.events);
+
+  const timeline = events
+    .slice()
+    .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
+    .map((e) => ({
+      time: new Date(e.firstSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      event: e.eventType === "TAG_ENCODED" ? "Tagged at Station"
+           : e.eventType === "ALARM_TRIGGERED" ? "Alarm raised"
+           : e.eventType === "CUSTOMS_EXIT_DETECTED" ? "Detected at Exit Gate"
+           : `Read at ${e.zone.replace(/_/g, " ")}`,
+      loc: `${e.readerId} / ${e.zone.replace(/_/g, " ")}`,
+      icon: e.eventType === "TAG_ENCODED" ? "tag"
+          : e.eventType.includes("ALARM") || e.eventType.includes("EXIT") ? "alarm"
+          : "scan",
+    }));
+
   return (
     <div className="p-6">
       <PageHeader
@@ -51,7 +68,7 @@ function History() {
         <Panel title="Timeline · ETB-240091" className="col-span-12 lg:col-span-7">
           <ol className="relative pl-6">
             <div className="absolute left-2 top-1 bottom-1 w-px bg-border" />
-            {TAG_TIMELINE.map((e, i) => {
+            {timeline.map((e, i) => {
               const Icon = e.icon === "tag" ? Tag : e.icon === "scan" ? ScanLine : e.icon === "alert" ? AlertTriangle : BellRing;
               const color = e.icon === "alarm" ? "bg-danger/15 text-danger border-danger/30" : e.icon === "alert" ? "bg-warning/15 text-warning border-warning/30" : "bg-info/15 text-info border-info/30";
               return (

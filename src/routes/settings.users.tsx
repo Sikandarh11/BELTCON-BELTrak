@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
-import { USERS } from "@/lib/data";
+import { USERS } from "@/mocks/seed";
 import { UserPlus, Search, MoreHorizontal } from "lucide-react";
 
 export const Route = createFileRoute("/settings/users")({

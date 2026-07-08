@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
-import { MAP_LOCATIONS, SUSPECT_BAGS_ON_MAP, ACTIVITY } from "@/lib/data";
+import { MAP_LOCATIONS, ACTIVITY } from "@/mocks/seed";
+import { useAppStore } from "@/store/appStore";
 import { useState } from "react";
 import { Plus, Minus, Layers, Building2, Radio, AlertTriangle, X, Briefcase } from "lucide-react";
 
@@ -11,7 +12,29 @@ export const Route = createFileRoute("/map")({
 
 function LiveMap() {
   const [selected, setSelected] = useState<string | null>("ETB-240091");
-  const bag = SUSPECT_BAGS_ON_MAP.find((b) => b.tag === selected);
+  const bags = useAppStore((s) => s.bags);
+
+  const bagsOnMap = bags
+    .filter((b) => b.isSuspect && b.status !== "RESOLVED")
+    .map((b) => {
+      const zoneName = b.currentZone
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      const loc = MAP_LOCATIONS.find(
+        (l) => l.name.toLowerCase() === zoneName.toLowerCase()
+      );
+      return {
+        tag: b.iataCode,
+        flight: b.flight,
+        passenger: "—",
+        x: loc?.x ?? 50,
+        y: loc?.y ?? 50,
+        status: (b.status === "ALARMED" || b.status === "ESCALATED" || b.status === "ESCAPE_ALERT")
+          ? "ALARM" : "TRACKING",
+      };
+    });
+
+  const bag = bagsOnMap.find((b) => b.tag === selected);
 
   return (
     <div className="p-6">
@@ -62,7 +85,7 @@ function LiveMap() {
               <text x="73" y="26" fontSize="1.6" fill="rgb(71,85,105)">L&amp;F</text>
 
               {/* Movement trails */}
-              {SUSPECT_BAGS_ON_MAP.map((b, i) => (
+              {bagsOnMap.map((b, i) => (
                 <line key={i} x1={b.x - 6} y1={b.y - 3} x2={b.x} y2={b.y} stroke={b.status === "ALARM" ? "oklch(0.65 0.25 25)" : "oklch(0.72 0.15 230)"} strokeWidth="0.25" strokeDasharray="0.6 0.4" opacity="0.7" />
               ))}
             </svg>
@@ -81,7 +104,7 @@ function LiveMap() {
             })}
 
             {/* Suspect bags */}
-            {SUSPECT_BAGS_ON_MAP.map((b) => (
+            {bagsOnMap.map((b) => (
               <button
                 key={b.tag}
                 onClick={() => setSelected(b.tag)}

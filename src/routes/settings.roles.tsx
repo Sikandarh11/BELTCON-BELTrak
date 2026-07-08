@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader } from "@/components/AppLayout";
-import { ROLES, PERMISSIONS, ROLE_MATRIX } from "@/lib/data";
+import { ROLES, PERMISSIONS, ROLE_MATRIX } from "@/mocks/seed";
 import { Check, Minus, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/settings/roles")({

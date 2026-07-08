@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
+import { useAppStore } from "@/store/appStore";
 import { ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, CheckCircle2, PauseCircle, ArrowUpRight } from "lucide-react";
 
 export const Route = createFileRoute("/recheck")({
@@ -8,12 +9,20 @@ export const Route = createFileRoute("/recheck")({
 });
 
 function Recheck() {
+  const bags = useAppStore((s) => s.bags);
+  const alarms = useAppStore((s) => s.alarms);
+  const events = useAppStore((s) => s.events);
+
+  const currentBag = bags.find((b) =>
+    b.status === "ALARMED" || b.status === "UNDER_RECHECK"
+  );
+
   return (
     <div className="p-6">
       <PageHeader
         title="Recheck Station · Bay 2"
         subtitle="Customs officer secondary inspection · ETB-240091"
-        actions={<StatusPill status="ACTIVE" />}
+        actions={<StatusPill status={currentBag ? "ACTIVE" : "CLOSED"} />}
       />
 
       <div className="grid grid-cols-12 gap-4">
@@ -74,14 +83,18 @@ function Recheck() {
 
         <div className="col-span-12 xl:col-span-4 space-y-4">
           <Panel title="Bag Details">
-            <dl className="grid grid-cols-3 gap-y-2 text-[13px]">
-              <dt className="text-muted-foreground text-[12px]">Tag</dt><dd className="col-span-2 font-mono">ETB-240091</dd>
-              <dt className="text-muted-foreground text-[12px]">Flight</dt><dd className="col-span-2 font-mono">SV452</dd>
-              <dt className="text-muted-foreground text-[12px]">Passenger</dt><dd className="col-span-2">Ahmed Al-Harbi</dd>
-              <dt className="text-muted-foreground text-[12px]">Passport</dt><dd className="col-span-2 font-mono">P4389122</dd>
-              <dt className="text-muted-foreground text-[12px]">Reason</dt><dd className="col-span-2 text-warning">Organic Material Detected</dd>
-              <dt className="text-muted-foreground text-[12px]">Risk Score</dt><dd className="col-span-2"><span className="font-mono text-danger font-semibold">78 / 100</span></dd>
-            </dl>
+            {currentBag ? (
+              <dl className="grid grid-cols-3 gap-y-2 text-[13px]">
+                <dt className="text-muted-foreground text-[12px]">Tag</dt><dd className="col-span-2 font-mono">{currentBag.iataCode}</dd>
+                <dt className="text-muted-foreground text-[12px]">Flight</dt><dd className="col-span-2 font-mono">{currentBag.flight}</dd>
+                <dt className="text-muted-foreground text-[12px]">Passenger</dt><dd className="col-span-2">—</dd>
+                <dt className="text-muted-foreground text-[12px]">Passport</dt><dd className="col-span-2 font-mono">—</dd>
+                <dt className="text-muted-foreground text-[12px]">Reason</dt><dd className="col-span-2 text-warning">{alarms.find((a) => a.bagId === currentBag.id)?.zone.replace(/_/g, " ") ?? "Secondary inspection"}</dd>
+                <dt className="text-muted-foreground text-[12px]">Risk Score</dt><dd className="col-span-2"><span className="font-mono text-danger font-semibold">{currentBag.threatLevel * 20} / 100</span></dd>
+              </dl>
+            ) : (
+              <div className="py-6 text-center text-[12px] text-muted-foreground">No bags pending recheck</div>
+            )}
           </Panel>
 
           <Panel title="Previous Scans">

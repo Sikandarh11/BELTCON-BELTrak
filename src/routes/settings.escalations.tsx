@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader } from "@/components/AppLayout";
-import { ESCALATIONS } from "@/lib/data";
+import { ESCALATIONS } from "@/mocks/seed";
 import { Plus, Mail, MessageSquare, Bell } from "lucide-react";
 
 export const Route = createFileRoute("/settings/escalations")({

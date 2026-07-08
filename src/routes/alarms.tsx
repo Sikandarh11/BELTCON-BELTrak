@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
-import { ALARMS } from "@/lib/data";
+import { useAppStore } from "@/store/appStore";
+import { alarmService } from "@/services/alarmService";
 import { Eye, Check, ArrowUpRight, X, Filter } from "lucide-react";
 
 export const Route = createFileRoute("/alarms")({
@@ -9,6 +10,22 @@ export const Route = createFileRoute("/alarms")({
 });
 
 function Alarms() {
+  const alarms = useAppStore((s) => s.alarms);
+  const bags = useAppStore((s) => s.bags);
+
+  const active = alarms.filter((a) => a.outcome === "OPEN").length;
+  const escalated = alarms.filter((a) => a.outcome === "ESCALATED").length;
+  const acked = alarms.filter((a) => a.outcome === "UNDER_INVESTIGATION").length;
+  const closed = alarms.filter((a) =>
+    !["OPEN", "UNDER_INVESTIGATION", "ESCALATED"].includes(a.outcome)
+  ).length;
+
+  const outcomeToStatus = (o: string) =>
+    o === "OPEN" ? "ACTIVE"
+      : o === "UNDER_INVESTIGATION" ? "ACKNOWLEDGED"
+      : o === "ESCALATED" ? "ESCALATED"
+      : "CLOSED";
+
   return (
     <div className="p-6">
       <PageHeader
@@ -17,10 +34,10 @@ function Alarms() {
       />
       <div className="grid grid-cols-4 gap-3 mb-4">
         {[
-          { l: "Active", v: 4, c: "text-danger", b: "border-danger/30 bg-danger/5" },
-          { l: "Escalated", v: 1, c: "text-warning", b: "border-warning/30 bg-warning/5" },
-          { l: "Acknowledged", v: 2, c: "text-info", b: "border-info/30 bg-info/5" },
-          { l: "Closed today", v: 11, c: "text-muted-foreground", b: "border-border" },
+          { l: "Active", v: active, c: "text-danger", b: "border-danger/30 bg-danger/5" },
+          { l: "Escalated", v: escalated, c: "text-warning", b: "border-warning/30 bg-warning/5" },
+          { l: "Acknowledged", v: acked, c: "text-info", b: "border-info/30 bg-info/5" },
+          { l: "Closed today", v: closed, c: "text-muted-foreground", b: "border-border" },
         ].map((s) => (
           <div key={s.l} className={`rounded-lg border p-3 ${s.b}`}>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.l}</div>
@@ -69,22 +86,22 @@ function Alarms() {
               </tr>
             </thead>
             <tbody>
-              {ALARMS.map((a) => (
+              {alarms.map((a) => (
                 <tr key={a.id} className="border-b border-border hover:bg-accent/30">
                   <td className="px-3 py-2.5 font-mono text-primary">{a.id}</td>
-                  <td className="px-3 py-2.5 font-mono text-muted-foreground">{a.time}</td>
-                  <td className="px-3 py-2.5 font-mono">{a.tag}</td>
-                  <td className="px-3 py-2.5 font-mono">{a.flight}</td>
-                  <td className="px-3 py-2.5">{a.location}</td>
-                  <td className="px-3 py-2.5">{a.threat}</td>
-                  <td className="px-3 py-2.5"><StatusPill status={a.status} /></td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{a.officer}</td>
+                  <td className="px-3 py-2.5 font-mono text-muted-foreground">{new Date(a.triggeredAt).toLocaleTimeString()}</td>
+                  <td className="px-3 py-2.5 font-mono">{bags.find((b) => b.id === a.bagId)?.iataCode ?? "—"}</td>
+                  <td className="px-3 py-2.5 font-mono">{bags.find((b) => b.id === a.bagId)?.flight ?? "—"}</td>
+                  <td className="px-3 py-2.5">{a.zone.replace(/_/g, " ")}</td>
+                  <td className="px-3 py-2.5">Suspect Bag</td>
+                  <td className="px-3 py-2.5"><StatusPill status={outcomeToStatus(a.outcome)} /></td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{a.acknowledgedBy ?? "Unassigned"}</td>
                   <td className="px-3 py-2.5">
                     <div className="flex gap-1">
                       <button title="View" className="size-7 inline-flex items-center justify-center rounded hover:bg-accent"><Eye className="size-3.5" /></button>
-                      <button title="Acknowledge" className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-info"><Check className="size-3.5" /></button>
-                      <button title="Escalate" className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-warning"><ArrowUpRight className="size-3.5" /></button>
-                      <button title="Close" className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-muted-foreground"><X className="size-3.5" /></button>
+                      <button title="Acknowledge" onClick={() => alarmService.acknowledge(a.id, "Current Officer")} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-info"><Check className="size-3.5" /></button>
+                      <button title="Escalate" onClick={() => alarmService.escalate(a.id)} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-warning"><ArrowUpRight className="size-3.5" /></button>
+                      <button title="Close" onClick={() => alarmService.resolve(a.id, "CLEARED", "current-user")} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-muted-foreground"><X className="size-3.5" /></button>
                     </div>
                   </td>
                 </tr>
