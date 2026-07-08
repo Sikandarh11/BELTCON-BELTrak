@@ -13,7 +13,7 @@ export type ResolutionAction =
 export interface Bag {
   id: string; bhsUid: string; iataCode: string; epc: string | null;
   flight: string; isSuspect: boolean; status: BagStatus;
-  currentZone: string; threatLevel: 1 | 2 | 3 | 4 | 5;
+  currentZone: string;
 }
 export interface RfidEvent {
   id: string; epc: string; readerId: string; zone: string; eventType: string;

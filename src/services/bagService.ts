@@ -38,7 +38,6 @@ export const bagService = {
       isSuspect: true,
       status: "IDENTIFIED",
       currentZone: "TAGGING_STATION",
-      threatLevel: 1,
     };
     useAppStore.getState().upsertBag(bag);
     return bag;

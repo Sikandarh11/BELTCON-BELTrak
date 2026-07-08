@@ -1,12 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Map, BellRing, History, Target, ScanLine, Radio, FileBarChart2,
+  LayoutDashboard, Map, BellRing, History, Target, ScanLine, Radio, FileBarChart2, Tag,
   Settings, MapPinned, ShieldAlert, GitBranch, UserCog, Users, Search, Bell, ChevronDown,
-  CircleDot, Plane, Activity, LogOut,
+  CircleDot, Plane, Activity, LogOut, FlaskConical,
 } from "lucide-react";
 import { type ReactNode } from "react";
 
+import { GlobalBanners } from "./GlobalBanners";
 import type { SessionUser } from "@/services/authService";
+import { useAppStore } from "@/store/appStore";
 
 const NAV = [
   { section: "Operations", items: [
@@ -14,6 +16,8 @@ const NAV = [
     { to: "/map", label: "Live Operations Map", icon: Map },
     { to: "/alarms", label: "Notifications & Alarms", icon: BellRing, badge: 4 },
     { to: "/history", label: "Query Tag History", icon: History },
+    { to: "/tagging", label: "Tagging Station", icon: Tag },
+    { to: "/simulator", label: "Simulator", icon: Activity },
     { to: "/target", label: "Target Information", icon: Target },
     { to: "/recheck", label: "Recheck Station", icon: ScanLine },
     { to: "/readers", label: "RFID Readers", icon: Radio },
@@ -27,10 +31,14 @@ const NAV = [
     { to: "/settings/roles", label: "Manage Roles", icon: UserCog },
     { to: "/settings/users", label: "Manage Users", icon: Users },
   ]},
+  { section: "Developer", items: [
+    { to: "/simulator", label: "Simulator", icon: FlaskConical },
+  ]},
 ];
 
 export function AppLayout({ children, currentUser, onLogout }: { children: ReactNode; currentUser?: SessionUser | null; onLogout?: () => void | Promise<void> }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const openAlarms = useAppStore((s) => s.alarms.filter((a) => a.outcome === "OPEN").length);
   const userInitials = currentUser ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.trim() || "U" : "SK";
 
   return (
@@ -68,7 +76,11 @@ export function AppLayout({ children, currentUser, onLogout }: { children: React
                       >
                         <Icon className={`size-4 ${active ? "text-primary" : "text-sidebar-foreground/60 group-hover:text-foreground"}`} />
                         <span className="flex-1 truncate">{it.label}</span>
-                        {"badge" in it && it.badge ? (
+                        {"badge" in it && it.badge && it.to === "/alarms" && openAlarms > 0 ? (
+                          <span className="text-[10px] font-semibold rounded-full bg-danger/20 text-danger px-1.5 py-0.5 border border-danger/30">
+                            {openAlarms}
+                          </span>
+                        ) : "badge" in it && it.badge && it.to !== "/alarms" ? (
                           <span className="text-[10px] font-semibold rounded-full bg-danger/20 text-danger px-1.5 py-0.5 border border-danger/30">
                             {it.badge}
                           </span>
@@ -138,7 +150,10 @@ export function AppLayout({ children, currentUser, onLogout }: { children: React
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto">
+          <GlobalBanners />
+          {children}
+        </main>
       </div>
     </div>
   );

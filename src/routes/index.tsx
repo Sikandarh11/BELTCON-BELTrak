@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
-import { ACTIVITY, HOURLY_TAGS, ALARM_TREND, THREAT_DIST, READER_HEALTH, TRAFFIC_TREND } from "@/mocks/seed";
+import { HOURLY_TAGS, ALARM_TREND, TRAFFIC_TREND } from "@/mocks/seed";
 import { useAppStore } from "@/store/appStore";
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -23,6 +23,41 @@ function Dashboard() {
   const bags = useAppStore((s) => s.bags);
   const alarms = useAppStore((s) => s.alarms);
   const readers = useAppStore((s) => s.readers);
+  const events = useAppStore((s) => s.events);
+
+  const readerHealth = [
+    { name: "Healthy", value: readers.filter((r) => r.status === "ONLINE").length, color: "bg-success" },
+    { name: "Degraded", value: readers.filter((r) => r.status === "DEGRADED").length, color: "bg-warning" },
+    { name: "Offline", value: readers.filter((r) => r.status === "OFFLINE").length, color: "bg-danger" },
+  ].filter((r) => r.value > 0);
+
+  const statusDist = [
+    { name: "Alarmed", value: bags.filter((b) => b.status === "ALARMED").length, color: "#E0524D" },
+    { name: "In Transit", value: bags.filter((b) => ["TAGGED", "IN_ARRIVAL_HALL", "AT_EXIT"].includes(b.status)).length, color: "#3B82F6" },
+    { name: "Under Recheck", value: bags.filter((b) => b.status === "UNDER_RECHECK").length, color: "#F2A93B" },
+    { name: "Resolved", value: bags.filter((b) => b.status === "RESOLVED").length, color: "#2E9E5B" },
+    { name: "Escalated", value: bags.filter((b) => b.status === "ESCALATED" || b.status === "ESCAPE_ALERT").length, color: "#8B5CF6" },
+    { name: "Pending Tag", value: bags.filter((b) => b.status === "IDENTIFIED").length, color: "#94A3B8" },
+  ].filter((s) => s.value > 0);
+
+  const liveActivity = events
+    .slice()
+    .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
+    .slice(0, 8)
+    .map((e) => {
+      const level = e.eventType.includes("ALARM") || e.eventType.includes("EXIT")
+        ? "danger"
+        : e.eventType.includes("ESCAPE") || e.eventType.includes("RESTRICTED")
+        ? "warn"
+        : e.eventType === "TAG_ENCODED"
+        ? "success"
+        : "info";
+      return {
+        text: `${e.epc} — ${e.eventType.replace(/_/g, " ").toLowerCase()} at ${e.zone.replace(/_/g, " ")}`,
+        time: new Date(e.firstSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        level,
+      };
+    });
 
   const kpis = [
     { label: "Suspect Bags Tagged Today", value: bags.filter((b) => b.status !== "IDENTIFIED").length, delta: "", tone: "primary" },
@@ -108,18 +143,18 @@ function Dashboard() {
           </div>
         </Panel>
 
-        <Panel title="Threat Distribution" className="col-span-12 md:col-span-6 xl:col-span-3">
+        <Panel title="Bag Status Breakdown" className="col-span-12 md:col-span-6 xl:col-span-3">
           <div className="h-56 flex">
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={THREAT_DIST} dataKey="value" innerRadius={48} outerRadius={78} paddingAngle={2}>
-                  {THREAT_DIST.map((e, i) => <Cell key={i} fill={e.color} />)}
+                <Pie data={statusDist} dataKey="value" innerRadius={48} outerRadius={78} paddingAngle={2}>
+                  {statusDist.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Pie>
                 <Tooltip {...tooltipStyle} />
               </PieChart>
             </ResponsiveContainer>
             <div className="space-y-1.5 self-center pr-2">
-              {THREAT_DIST.map((t) => (
+              {statusDist.map((t) => (
                 <div key={t.name} className="flex items-center gap-2 text-[11px]">
                   <span className="size-2 rounded-sm" style={{ background: t.color }} />
                   <span className="text-muted-foreground">{t.name}</span>
@@ -146,10 +181,9 @@ function Dashboard() {
 
         <Panel title="Reader Health" className="col-span-12 xl:col-span-4">
           <div className="space-y-3">
-            {READER_HEALTH.map((r) => {
-              const total = READER_HEALTH.reduce((s, x) => s + x.value, 0);
+            {readerHealth.map((r) => {
+              const total = readers.length;
               const pct = (r.value / total) * 100;
-              const color = r.name === "Healthy" ? "bg-success" : r.name === "Degraded" ? "bg-warning" : "bg-danger";
               return (
                 <div key={r.name}>
                   <div className="flex justify-between text-[12px] mb-1">
@@ -157,20 +191,20 @@ function Dashboard() {
                     <span className="font-mono text-muted-foreground">{r.value} readers</span>
                   </div>
                   <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                    <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
+                    <div className={`h-full ${r.color}`} style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );
             })}
             <div className="pt-2 border-t border-border text-[11px] text-muted-foreground">
-              Last health sweep: <span className="font-mono text-foreground">09:34:18</span>
+              Last health sweep: <span className="font-mono text-foreground">{new Date().toLocaleTimeString()}</span>
             </div>
           </div>
         </Panel>
 
         <Panel title="Live Activity Feed" className="col-span-12 xl:col-span-7">
           <ul className="divide-y divide-border -my-2">
-            {ACTIVITY.map((a, i) => {
+            {liveActivity.length > 0 ? liveActivity.map((a, i) => {
               const dot = a.level === "danger" ? "bg-danger" : a.level === "warn" ? "bg-warning" : a.level === "success" ? "bg-success" : "bg-info";
               return (
                 <li key={i} className="py-2.5 flex items-start gap-3">
@@ -179,7 +213,9 @@ function Dashboard() {
                   <span className="font-mono text-[11px] text-muted-foreground">{a.time}</span>
                 </li>
               );
-            })}
+            }) : (
+              <li className="py-4 text-[13px] text-muted-foreground">No events recorded yet</li>
+            )}
           </ul>
         </Panel>
 

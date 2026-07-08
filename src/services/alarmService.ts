@@ -82,6 +82,7 @@ export const alarmService = {
       action,
       resolvedAt: new Date().toISOString(),
     });
+    console.log(`[alarmService] Bag ${alarm.bagId} resolved with ${action} — future exit reads will be suppressed`);
 
     toast.success(`Alarm ${alarmId} resolved`, {
       description: `Action: ${action.replace(/_/g, " ").toLowerCase()}`,

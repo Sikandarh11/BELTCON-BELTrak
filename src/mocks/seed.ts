@@ -3,14 +3,14 @@
 import type { Alarm, Bag, Reader, RfidEvent } from "@/types";
 
 export const SEED_BAGS: Bag[] = [
-  { id: "b1", bhsUid: "BHS-240091", iataCode: "ETB-240091", epc: "EPC-240091", flight: "SV452", isSuspect: true, status: "ALARMED", currentZone: "CUSTOMS_EXIT_GATE_2", threatLevel: 4 },
-  { id: "b2", bhsUid: "BHS-240083", iataCode: "ETB-240083", epc: "EPC-240083", flight: "QR1163", isSuspect: true, status: "ESCALATED", currentZone: "RECLAIM_BELT_3", threatLevel: 3 },
-  { id: "b3", bhsUid: "BHS-240077", iataCode: "ETB-240077", epc: "EPC-240077", flight: "EK212", isSuspect: true, status: "UNDER_RECHECK", currentZone: "WASHROOM_NORTH", threatLevel: 2 },
-  { id: "b4", bhsUid: "BHS-240072", iataCode: "ETB-240072", epc: "EPC-240072", flight: "TK148", isSuspect: true, status: "IN_ARRIVAL_HALL", currentZone: "ARRIVAL_HALL", threatLevel: 2 },
-  { id: "b5", bhsUid: "BHS-240068", iataCode: "ETB-240068", epc: "EPC-240068", flight: "MS667", isSuspect: true, status: "RESOLVED", currentZone: "CUSTOMS_EXIT_GATE_1", threatLevel: 3 },
-  { id: "b6", bhsUid: "BHS-240055", iataCode: "ETB-240055", epc: "EPC-240055", flight: "EK783", isSuspect: true, status: "RESOLVED", currentZone: "LOST_FOUND", threatLevel: 1 },
-  { id: "b7", bhsUid: "BHS-240049", iataCode: "ETB-240049", epc: "EPC-240049", flight: "LH628", isSuspect: true, status: "RESOLVED", currentZone: "WASHROOM_SOUTH", threatLevel: 2 },
-  { id: "b8", bhsUid: "BHS-240041", iataCode: "ETB-240041", epc: "EPC-240041", flight: "AF655", isSuspect: true, status: "RESOLVED", currentZone: "CUSTOMS_EXIT_GATE_3", threatLevel: 3 },
+  { id: "b1", bhsUid: "BHS-240091", iataCode: "ETB-240091", epc: "EPC-240091", flight: "SV452", isSuspect: true, status: "ALARMED", currentZone: "CUSTOMS_EXIT_GATE_2" },
+  { id: "b2", bhsUid: "BHS-240083", iataCode: "ETB-240083", epc: "EPC-240083", flight: "QR1163", isSuspect: true, status: "ESCALATED", currentZone: "RECLAIM_BELT_3" },
+  { id: "b3", bhsUid: "BHS-240077", iataCode: "ETB-240077", epc: "EPC-240077", flight: "EK212", isSuspect: true, status: "UNDER_RECHECK", currentZone: "WASHROOM_NORTH" },
+  { id: "b4", bhsUid: "BHS-240072", iataCode: "ETB-240072", epc: "EPC-240072", flight: "TK148", isSuspect: true, status: "IN_ARRIVAL_HALL", currentZone: "ARRIVAL_HALL" },
+  { id: "b5", bhsUid: "BHS-240068", iataCode: "ETB-240068", epc: "EPC-240068", flight: "MS667", isSuspect: true, status: "RESOLVED", currentZone: "CUSTOMS_EXIT_GATE_1" },
+  { id: "b6", bhsUid: "BHS-240055", iataCode: "ETB-240055", epc: "EPC-240055", flight: "EK783", isSuspect: true, status: "RESOLVED", currentZone: "LOST_FOUND" },
+  { id: "b7", bhsUid: "BHS-240049", iataCode: "ETB-240049", epc: "EPC-240049", flight: "LH628", isSuspect: true, status: "RESOLVED", currentZone: "WASHROOM_SOUTH" },
+  { id: "b8", bhsUid: "BHS-240041", iataCode: "ETB-240041", epc: "EPC-240041", flight: "AF655", isSuspect: true, status: "RESOLVED", currentZone: "CUSTOMS_EXIT_GATE_3" },
 ];
 
 export const KPIS = [
@@ -21,17 +21,6 @@ export const KPIS = [
   { label: "Online RFID Readers", value: "42 / 44", delta: "2 offline", tone: "info" },
   { label: "Portal Gates Online", value: "6 / 6", delta: "All operational", tone: "success" },
 ] as const;
-
-export const ACTIVITY = [
-  { time: "09:12", text: "Bag ETB-240091 detected at Tagging Station 04", level: "warn" },
-  { time: "09:14", text: "Alarm A-7844 triggered at Custom Exit Gate 02", level: "danger" },
-  { time: "09:17", text: "Supervisor S. Khalid acknowledged Alarm A-7844", level: "info" },
-  { time: "09:21", text: "Bag ETB-240055 re-read at Recheck Station 01 (SV452 → EK783 link)", level: "info" },
-  { time: "09:24", text: "Reader RDR-004 (Tagging Station 04) reported low read-rate", level: "warn" },
-  { time: "09:28", text: "Bag ETB-240077 cleared after secondary inspection", level: "success" },
-  { time: "09:31", text: "Officer M. Al-Qahtani assigned to Recheck Station 02", level: "info" },
-  { time: "09:35", text: "RFID antenna A3 on RDR-010 reset successfully", level: "success" },
-];
 
 export const HOURLY_TAGS = [
   { h: "00", v: 14 }, { h: "01", v: 9 }, { h: "02", v: 7 }, { h: "03", v: 6 },

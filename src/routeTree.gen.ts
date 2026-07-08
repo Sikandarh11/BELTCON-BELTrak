@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TargetRouteImport } from './routes/target'
+import { Route as TaggingRouteImport } from './routes/tagging'
+import { Route as SimulatorRouteImport } from './routes/simulator'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as RecheckRouteImport } from './routes/recheck'
@@ -30,6 +32,16 @@ import { Route as SettingsEscalationsRouteImport } from './routes/settings.escal
 const TargetRoute = TargetRouteImport.update({
   id: '/target',
   path: '/target',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TaggingRoute = TaggingRouteImport.update({
+  id: '/tagging',
+  path: '/tagging',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SimulatorRoute = SimulatorRouteImport.update({
+  id: '/simulator',
+  path: '/simulator',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -124,6 +136,8 @@ export interface FileRoutesByFullPath {
   '/recheck': typeof RecheckRoute
   '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
+  '/simulator': typeof SimulatorRoute
+  '/tagging': typeof TaggingRoute
   '/target': typeof TargetRoute
   '/settings/escalations': typeof SettingsEscalationsRoute
   '/settings/map': typeof SettingsMapRoute
@@ -143,6 +157,8 @@ export interface FileRoutesByTo {
   '/recheck': typeof RecheckRoute
   '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
+  '/simulator': typeof SimulatorRoute
+  '/tagging': typeof TaggingRoute
   '/target': typeof TargetRoute
   '/settings/escalations': typeof SettingsEscalationsRoute
   '/settings/map': typeof SettingsMapRoute
@@ -163,6 +179,8 @@ export interface FileRoutesById {
   '/recheck': typeof RecheckRoute
   '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
+  '/simulator': typeof SimulatorRoute
+  '/tagging': typeof TaggingRoute
   '/target': typeof TargetRoute
   '/settings/escalations': typeof SettingsEscalationsRoute
   '/settings/map': typeof SettingsMapRoute
@@ -184,6 +202,8 @@ export interface FileRouteTypes {
     | '/recheck'
     | '/register'
     | '/reports'
+    | '/simulator'
+    | '/tagging'
     | '/target'
     | '/settings/escalations'
     | '/settings/map'
@@ -203,6 +223,8 @@ export interface FileRouteTypes {
     | '/recheck'
     | '/register'
     | '/reports'
+    | '/simulator'
+    | '/tagging'
     | '/target'
     | '/settings/escalations'
     | '/settings/map'
@@ -222,6 +244,8 @@ export interface FileRouteTypes {
     | '/recheck'
     | '/register'
     | '/reports'
+    | '/simulator'
+    | '/tagging'
     | '/target'
     | '/settings/escalations'
     | '/settings/map'
@@ -242,6 +266,8 @@ export interface RootRouteChildren {
   RecheckRoute: typeof RecheckRoute
   RegisterRoute: typeof RegisterRoute
   ReportsRoute: typeof ReportsRoute
+  SimulatorRoute: typeof SimulatorRoute
+  TaggingRoute: typeof TaggingRoute
   TargetRoute: typeof TargetRoute
   SettingsEscalationsRoute: typeof SettingsEscalationsRoute
   SettingsMapRoute: typeof SettingsMapRoute
@@ -258,6 +284,20 @@ declare module '@tanstack/react-router' {
       path: '/target'
       fullPath: '/target'
       preLoaderRoute: typeof TargetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tagging': {
+      id: '/tagging'
+      path: '/tagging'
+      fullPath: '/tagging'
+      preLoaderRoute: typeof TaggingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/simulator': {
+      id: '/simulator'
+      path: '/simulator'
+      fullPath: '/simulator'
+      preLoaderRoute: typeof SimulatorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -386,6 +426,8 @@ const rootRouteChildren: RootRouteChildren = {
   RecheckRoute: RecheckRoute,
   RegisterRoute: RegisterRoute,
   ReportsRoute: ReportsRoute,
+  SimulatorRoute: SimulatorRoute,
+  TaggingRoute: TaggingRoute,
   TargetRoute: TargetRoute,
   SettingsEscalationsRoute: SettingsEscalationsRoute,
   SettingsMapRoute: SettingsMapRoute,

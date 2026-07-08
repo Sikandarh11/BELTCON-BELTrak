@@ -8,6 +8,7 @@ interface AppState {
   events: RfidEvent[];
   resolutions: Resolution[];
   readers: Reader[];
+  resetKey: number;
 
   upsertBag: (bag: Bag) => void;
   updateBag: (id: string, patch: Partial<Bag>) => void;
@@ -26,6 +27,7 @@ const INITIAL_STATE = {
   events: SEED_EVENTS,
   resolutions: [] as Resolution[],
   readers: SEED_READERS,
+  resetKey: 0,
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -71,5 +73,5 @@ export const useAppStore = create<AppState>((set) => ({
       readers: s.readers.map((r) => (r.id === id ? { ...r, ...patch } : r)),
     })),
 
-  reset: () => set({ ...INITIAL_STATE }),
+  reset: () => set({ ...INITIAL_STATE, resetKey: Date.now() }),
 }));
