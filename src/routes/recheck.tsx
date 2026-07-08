@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
 import { useAppStore } from "@/store/appStore";
-import { ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, CheckCircle2, PauseCircle, ArrowUpRight } from "lucide-react";
+import { alarmService } from "@/services/alarmService";
+import { ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, CheckCircle2, PauseCircle, ArrowUpRight, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/recheck")({
   head: () => ({ meta: [{ title: "Recheck Station · BELTrak" }] }),
@@ -13,9 +15,24 @@ function Recheck() {
   const alarms = useAppStore((s) => s.alarms);
   const events = useAppStore((s) => s.events);
 
-  const currentBag = bags.find((b) =>
-    b.status === "ALARMED" || b.status === "UNDER_RECHECK"
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const recheckBags = bags.filter(
+    (b) => b.status === "ALARMED" || b.status === "UNDER_RECHECK"
   );
+  const currentBag = searchTerm
+    ? bags.find((b) => b.iataCode === searchTerm || b.epc === searchTerm)
+    : recheckBags[0] ?? null;
+
+  const bagAlarm = currentBag
+    ? alarms.find((a) => a.bagId === currentBag.id && a.outcome !== "CLEARED" && a.outcome !== "SUPPRESSED")
+    : null;
+
+  const bagEvents = currentBag
+    ? events.filter((e) => e.epc === currentBag.epc).sort((a, b) =>
+        new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime()
+      )
+    : [];
 
   return (
     <div className="p-6">
@@ -24,6 +41,24 @@ function Recheck() {
         subtitle="Customs officer secondary inspection · ETB-240091"
         actions={<StatusPill status={currentBag ? "ACTIVE" : "CLOSED"} />}
       />
+
+      <div className="flex gap-2 mb-4">
+        <input
+          placeholder="Search by IATA code or EPC..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-[13px] font-mono"
+        />
+        <button
+          onClick={() => setSearchTerm("")}
+          className="px-3 py-2 border border-border rounded-md text-[12px] hover:bg-accent"
+        >
+          Show next pending
+        </button>
+        <span className="self-center text-[12px] text-muted-foreground">
+          {recheckBags.length} bag{recheckBags.length !== 1 ? "s" : ""} pending
+        </span>
+      </div>
 
       <div className="grid grid-cols-12 gap-4">
         <Panel title="X-Ray Viewer" className="col-span-12 xl:col-span-8 p-0! overflow-hidden">
@@ -90,22 +125,32 @@ function Recheck() {
                 <dt className="text-muted-foreground text-[12px]">Passenger</dt><dd className="col-span-2">—</dd>
                 <dt className="text-muted-foreground text-[12px]">Passport</dt><dd className="col-span-2 font-mono">—</dd>
                 <dt className="text-muted-foreground text-[12px]">Reason</dt><dd className="col-span-2 text-warning">{alarms.find((a) => a.bagId === currentBag.id)?.zone.replace(/_/g, " ") ?? "Secondary inspection"}</dd>
-                <dt className="text-muted-foreground text-[12px]">Risk Score</dt><dd className="col-span-2"><span className="font-mono text-danger font-semibold">{currentBag.threatLevel * 20} / 100</span></dd>
+                <dt className="text-muted-foreground text-[12px]">Status</dt><dd className="col-span-2"><StatusPill status={currentBag.status === "ALARMED" ? "ACTIVE" : "ACKNOWLEDGED"} /></dd>
               </dl>
             ) : (
               <div className="py-6 text-center text-[12px] text-muted-foreground">No bags pending recheck</div>
             )}
           </Panel>
 
-          <Panel title="Previous Scans">
-            <div className="grid grid-cols-4 gap-2">
-              {[1,2,3,4,5,6,7,8].map((i) => (
-                <div key={i} className={`aspect-square rounded border ${i === 3 ? "border-primary" : "border-border"} bg-emerald-50 relative`}>
-                  <div className="absolute inset-1 rounded-sm bg-emerald-200/40" />
-                  <span className="absolute bottom-0.5 right-1 text-[9px] font-mono text-emerald-700/80">{String(i).padStart(2,"0")}</span>
-                </div>
-              ))}
-            </div>
+          <Panel title={`Movement Timeline${currentBag ? ` · ${currentBag.iataCode}` : ""}`}>
+            {bagEvents.length > 0 ? (
+              <ol className="space-y-2 max-h-48 overflow-y-auto text-[12px]">
+                {bagEvents.map((e) => (
+                  <li key={e.id} className="flex items-center gap-2 py-1 border-b border-border last:border-0">
+                    <span className="font-mono text-muted-foreground w-14">
+                      {new Date(e.firstSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className={`size-2 rounded-full ${
+                      e.eventType.includes("ALARM") || e.eventType.includes("EXIT") ? "bg-danger" : "bg-info"
+                    }`} />
+                    <span className="flex-1">{e.zone.replace(/_/g, " ")}</span>
+                    <span className="font-mono text-muted-foreground">×{e.readCount}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="py-4 text-center text-[12px] text-muted-foreground">No events recorded</div>
+            )}
           </Panel>
 
           <Panel title="Officer Notes">
@@ -113,9 +158,34 @@ function Recheck() {
           </Panel>
 
           <div className="grid grid-cols-1 gap-2">
-            <button className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-success/90 hover:bg-success text-primary-foreground font-medium text-[13px]"><CheckCircle2 className="size-4" />Clear Bag</button>
-            <button className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-warning/90 hover:bg-warning text-primary-foreground font-medium text-[13px]"><PauseCircle className="size-4" />Hold Bag</button>
-            <button className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-danger hover:bg-danger/90 text-destructive-foreground font-medium text-[13px]"><ArrowUpRight className="size-4" />Send to Supervisor</button>
+            {currentBag && bagAlarm ? (
+              <>
+                <button onClick={() => { alarmService.resolve(bagAlarm.id, "CLEARED", "current-user"); setSearchTerm(""); }}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-success/90 hover:bg-success text-primary-foreground font-medium text-[13px]">
+                  <CheckCircle2 className="size-4" />Cleared
+                </button>
+                <button onClick={() => { alarmService.resolve(bagAlarm.id, "NOT_CLEARED", "current-user"); setSearchTerm(""); }}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-warning/90 hover:bg-warning text-primary-foreground font-medium text-[13px]">
+                  <PauseCircle className="size-4" />Not Cleared — Hold
+                </button>
+                <button onClick={() => { alarmService.resolve(bagAlarm.id, "DUTY_COLLECTED", "current-user"); setSearchTerm(""); }}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-info/90 hover:bg-info text-primary-foreground font-medium text-[13px]">
+                  <CheckCircle2 className="size-4" />Duty Collected
+                </button>
+                <button onClick={() => { alarmService.resolve(bagAlarm.id, "PROHIBITED_ITEM_SEIZED", "current-user"); setSearchTerm(""); }}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-danger hover:bg-danger/90 text-destructive-foreground font-medium text-[13px]">
+                  <AlertTriangle className="size-4" />Seized — Prohibited Item
+                </button>
+                <button onClick={() => { alarmService.resolve(bagAlarm.id, "ESCALATED", "current-user"); setSearchTerm(""); }}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-medium text-[13px]">
+                  <ArrowUpRight className="size-4" />Escalate to Supervisor
+                </button>
+              </>
+            ) : (
+              <div className="py-4 text-center text-[12px] text-muted-foreground">
+                {currentBag ? "No open alarm for this bag" : "No bag selected"}
+              </div>
+            )}
           </div>
         </div>
       </div>

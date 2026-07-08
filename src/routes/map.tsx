@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
-import { MAP_LOCATIONS, ACTIVITY } from "@/mocks/seed";
+import { MAP_LOCATIONS } from "@/mocks/seed";
 import { useAppStore } from "@/store/appStore";
 import { useState } from "react";
 import { Plus, Minus, Layers, Building2, Radio, AlertTriangle, X, Briefcase } from "lucide-react";
@@ -35,6 +35,24 @@ function LiveMap() {
     });
 
   const bag = bagsOnMap.find((b) => b.tag === selected);
+
+  const fullBag = bags.find((b) => b.iataCode === selected);
+  const bagEvents = fullBag
+    ? useAppStore.getState().events.filter((e) => e.epc === fullBag.epc)
+        .sort((a, b) => new Date(a.firstSeen).getTime() - new Date(b.firstSeen).getTime())
+    : [];
+  const firstEvent = bagEvents[0];
+  const lastEvent = bagEvents[bagEvents.length - 1];
+  const dwellMinutes = firstEvent && lastEvent
+    ? Math.round((new Date(lastEvent.lastSeen).getTime() - new Date(firstEvent.firstSeen).getTime()) / 60000)
+    : 0;
+
+  const readers = useAppStore((s) => s.readers);
+  const allEvents = useAppStore((s) => s.events);
+  const recentEvents = allEvents
+    .slice()
+    .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
+    .slice(0, 10);
 
   return (
     <div className="p-6">
@@ -158,9 +176,9 @@ function LiveMap() {
                 <dl className="grid grid-cols-3 gap-y-1.5 text-[12px]">
                   <dt className="col-span-1 text-muted-foreground">Flight</dt><dd className="col-span-2 font-mono">{bag.flight}</dd>
                   <dt className="col-span-1 text-muted-foreground">Passenger</dt><dd className="col-span-2">{bag.passenger}</dd>
-                  <dt className="col-span-1 text-muted-foreground">Location</dt><dd className="col-span-2">Custom Exit Gate 02</dd>
-                  <dt className="col-span-1 text-muted-foreground">First seen</dt><dd className="col-span-2 font-mono">08:12:04</dd>
-                  <dt className="col-span-1 text-muted-foreground">Dwell time</dt><dd className="col-span-2 font-mono text-warning">62 min</dd>
+                  <dt className="col-span-1 text-muted-foreground">Location</dt><dd className="col-span-2">{fullBag?.currentZone.replace(/_/g, " ") ?? "—"}</dd>
+                  <dt className="col-span-1 text-muted-foreground">First seen</dt><dd className="col-span-2 font-mono">{firstEvent ? new Date(firstEvent.firstSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</dd>
+                  <dt className="col-span-1 text-muted-foreground">Dwell time</dt><dd className={`col-span-2 font-mono ${dwellMinutes > 30 ? "text-warning" : ""}`}>{dwellMinutes} min</dd>
                 </dl>
                 <div className="flex gap-2 pt-1">
                   <a href="/target" className="flex-1 text-center text-[12px] px-2.5 py-1.5 rounded-md border border-border hover:bg-accent">Open profile</a>
@@ -174,15 +192,13 @@ function LiveMap() {
 
           <Panel title="Reader Status Overlay">
             <div className="space-y-1.5 text-[12px]">
-              {[
-                { n: "RDR-010 · Custom Exit Gate 01", s: "Online" },
-                { n: "RDR-011 · Custom Exit Gate 02", s: "Online" },
-                { n: "RDR-004 · Tagging Station 04", s: "Degraded" },
-                { n: "RDR-013 · Custom Exit Gate 04", s: "Offline" },
-              ].map((r) => (
-                <div key={r.n} className="flex items-center justify-between py-1 border-b border-border last:border-0">
-                  <div className="flex items-center gap-2"><Radio className="size-3 text-muted-foreground" />{r.n}</div>
-                  <StatusPill status={r.s} />
+              {readers.slice(0, 6).map((r) => (
+                <div key={r.id} className="flex items-center justify-between py-1 border-b border-border last:border-0">
+                  <div className="flex items-center gap-2">
+                    <Radio className="size-3 text-muted-foreground" />
+                    {r.id} · {r.name}
+                  </div>
+                  <StatusPill status={r.status === "ONLINE" ? "Online" : r.status === "DEGRADED" ? "Degraded" : "Offline"} />
                 </div>
               ))}
             </div>
@@ -190,11 +206,20 @@ function LiveMap() {
 
           <Panel title="Live Event Stream">
             <ul className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-              {ACTIVITY.map((a, i) => (
-                <li key={i} className="flex items-start gap-2 text-[11.5px]">
-                  <span className="font-mono text-muted-foreground">{a.time}</span>
-                  <AlertTriangle className={`size-3 mt-0.5 ${a.level === "danger" ? "text-danger" : a.level === "warn" ? "text-warning" : "text-info"}`} />
-                  <span className="flex-1">{a.text}</span>
+              {recentEvents.map((e) => (
+                <li key={e.id} className="flex items-start gap-2 text-[11.5px]">
+                  <span className="font-mono text-muted-foreground">
+                    {new Date(e.firstSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <AlertTriangle className={`size-3 mt-0.5 ${
+                    e.eventType.includes("ALARM") || e.eventType.includes("EXIT") ? "text-danger"
+                    : e.eventType.includes("RESTRICTED") || e.eventType.includes("ESCAPE") ? "text-warning"
+                    : "text-info"
+                  }`} />
+                  <span className="flex-1">
+                    {e.epc} — {e.eventType.replace(/_/g, " ").toLowerCase()}
+                    {" at "}{e.zone.replace(/_/g, " ")}
+                  </span>
                 </li>
               ))}
             </ul>

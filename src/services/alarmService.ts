@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import type { Alarm, AlarmOutcome, ResolutionAction } from "@/types";
 import { useAppStore } from "@/store/appStore";
 import { bagService } from "./bagService";
@@ -20,6 +21,9 @@ export const alarmService = {
       outcome: "OPEN",
     };
     useAppStore.getState().addAlarm(alarm);
+    toast.error(`Alarm at ${zone.replace(/_/g, " ")}`, {
+      description: `Bag ${bagId} — requires immediate attention`,
+    });
     try {
       bagService.transition(bagId, "ALARMED");
     } catch {
@@ -77,6 +81,10 @@ export const alarmService = {
       officerId,
       action,
       resolvedAt: new Date().toISOString(),
+    });
+
+    toast.success(`Alarm ${alarmId} resolved`, {
+      description: `Action: ${action.replace(/_/g, " ").toLowerCase()}`,
     });
 
     if (action === "ESCALATED") {

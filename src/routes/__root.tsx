@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppLayout } from "../components/AppLayout";
 import { ProtectedRoute } from "@/auth/protectedRoute";
 import { logout } from "@/services/authService";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -110,6 +111,7 @@ function RootComponent() {
           )}
         </ProtectedRoute>
       )}
+      <Toaster position="top-right" richColors />
     </QueryClientProvider>
   );
 }

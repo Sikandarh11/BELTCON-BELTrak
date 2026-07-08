@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Panel, PageHeader } from "@/components/AppLayout";
 import { useAppStore } from "@/store/appStore";
 import { Search, Download, Tag, ScanLine, AlertTriangle, BellRing } from "lucide-react";
@@ -10,8 +11,20 @@ export const Route = createFileRoute("/history")({
 
 function History() {
   const events = useAppStore((s) => s.events);
+  const bags = useAppStore((s) => s.bags);
+  const [searchTag, setSearchTag] = useState("ETB-240091");
+  const [searchFlight, setSearchFlight] = useState("");
 
-  const timeline = events
+  const matchingBag = bags.find(
+    (b) => b.iataCode === searchTag || b.flight === searchFlight
+  );
+  const matchingEpc = matchingBag?.epc;
+
+  const filteredEvents = matchingEpc
+    ? events.filter((e) => e.epc === matchingEpc)
+    : events;
+
+  const timeline = filteredEvents
     .slice()
     .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
     .map((e) => ({
@@ -42,11 +55,11 @@ function History() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-[12px]">
           <div>
             <div className="text-muted-foreground mb-1">Tag ID</div>
-            <input defaultValue="ETB-240091" className="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono" />
+            <input value={searchTag} onChange={(e) => setSearchTag(e.target.value)} className="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono" />
           </div>
           <div>
             <div className="text-muted-foreground mb-1">Flight Number</div>
-            <input defaultValue="SV452" className="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono" />
+            <input value={searchFlight} onChange={(e) => setSearchFlight(e.target.value)} className="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono" />
           </div>
           <div>
             <div className="text-muted-foreground mb-1">Passenger Name</div>
@@ -57,7 +70,7 @@ function History() {
             <input type="date" defaultValue="2026-06-17" className="w-full bg-background border border-border rounded px-2.5 py-1.5" />
           </div>
           <div className="flex items-end">
-            <button className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-medium">
+            <button onClick={() => {}} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-medium">
               <Search className="size-3.5" /> Search
             </button>
           </div>
@@ -65,7 +78,7 @@ function History() {
       </Panel>
 
       <div className="grid grid-cols-12 gap-4">
-        <Panel title="Timeline · ETB-240091" className="col-span-12 lg:col-span-7">
+        <Panel title={`Timeline · ${matchingBag?.iataCode ?? "All"}`} className="col-span-12 lg:col-span-7">
           <ol className="relative pl-6">
             <div className="absolute left-2 top-1 bottom-1 w-px bg-border" />
             {timeline.map((e, i) => {
@@ -90,21 +103,27 @@ function History() {
         <Panel title="Read Events · Table" className="col-span-12 lg:col-span-5">
           <table className="w-full text-[12px]">
             <thead className="text-[10px] uppercase text-muted-foreground border-b border-border">
-              <tr><th className="text-left px-3 py-2">Time</th><th className="text-left px-3 py-2">Reader</th><th className="text-left px-3 py-2">Antenna</th><th className="text-left px-3 py-2">RSSI</th></tr>
+              <tr>
+                <th className="text-left px-3 py-2">Time</th>
+                <th className="text-left px-3 py-2">Reader</th>
+                <th className="text-left px-3 py-2">Reads</th>
+                <th className="text-left px-3 py-2">RSSI</th>
+              </tr>
             </thead>
             <tbody>
-              {[
-                ["08:12:04","RDR-T02","A1","-42 dBm"],
-                ["08:15:51","RDR-001","A2","-38 dBm"],
-                ["08:23:11","RDR-004","A1","-44 dBm"],
-                ["08:32:29","RDR-019","A3","-51 dBm"],
-                ["08:45:02","RDR-022","A2","-39 dBm"],
-                ["09:14:22","RDR-022","A2","-37 dBm"],
-              ].map((r,i) => (
-                <tr key={i} className="border-b border-border last:border-0 hover:bg-accent/30">
-                  {r.map((c,j) => <td key={j} className="px-3 py-2 font-mono">{c}</td>)}
-                </tr>
-              ))}
+              {filteredEvents
+                .slice()
+                .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
+                .map((e) => (
+                  <tr key={e.id} className="border-b border-border last:border-0 hover:bg-accent/30">
+                    <td className="px-3 py-2 font-mono">
+                      {new Date(e.firstSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                    </td>
+                    <td className="px-3 py-2 font-mono">{e.readerId}</td>
+                    <td className="px-3 py-2 font-mono">{e.readCount}</td>
+                    <td className="px-3 py-2 font-mono">{e.rssi} dBm</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </Panel>
