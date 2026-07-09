@@ -11,11 +11,17 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import printCss from "../styles/print.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppLayout } from "../components/AppLayout";
 import { ProtectedRoute } from "@/auth/protectedRoute";
 import { logout } from "@/services/authService";
 import { Toaster } from "@/components/ui/sonner";
+import { useAppStore } from "@/store/appStore";
+import { startRealtime, stopRealtime } from "@/services/realtimeService";
+import { SessionProvider } from "@/auth/SessionContext";
+import { PageErrorBoundary } from "@/components/PageErrorBoundary";
+import { PageSkeleton } from "@/components/PageSkeleton";
 
 function NotFoundComponent() {
   return (
@@ -69,6 +75,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/images/beltcon-logo.jpeg" },
       { rel: "apple-touch-icon", href: "/images/beltcon-logo.jpeg" },
       { rel: "stylesheet", href: appCss },
+      { rel: "stylesheet", href: printCss },
     ],
   }),
   shellComponent: RootShell,
@@ -91,6 +98,16 @@ function RootComponent() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const navigate = useNavigate();
   const isAuthPage = pathname === "/login" || pathname === "/register";
+  const hydrated = useAppStore((s) => s.hydrated);
+
+  useEffect(() => {
+    if (!hydrated) {
+      useAppStore.getState().hydrate();
+    } else {
+      startRealtime();
+    }
+    return () => stopRealtime();
+  }, [hydrated]);
 
   async function handleLogout() {
     await logout().catch(() => undefined);
@@ -105,9 +122,13 @@ function RootComponent() {
       ) : (
         <ProtectedRoute>
           {(session) => (
-            <AppLayout currentUser={session.user} onLogout={handleLogout}>
-              <Outlet />
-            </AppLayout>
+            <SessionProvider user={session.user}>
+              <AppLayout currentUser={session.user} onLogout={handleLogout}>
+                <PageErrorBoundary pageName="current">
+                  {hydrated ? <Outlet /> : <PageSkeleton />}
+                </PageErrorBoundary>
+              </AppLayout>
+            </SessionProvider>
           )}
         </ProtectedRoute>
       )}

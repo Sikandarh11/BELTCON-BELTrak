@@ -3,6 +3,9 @@ import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
 import { useAppStore } from "@/store/appStore";
 import { useState } from "react";
 import { Radio, X, Wifi, Cpu, Activity } from "lucide-react";
+import { toast } from "sonner";
+import { useSession } from "@/auth/SessionContext";
+import { RoleGate } from "@/components/RoleGate";
 
 export const Route = createFileRoute("/readers")({
   head: () => ({ meta: [{ title: "RFID Readers · BELTrak" }] }),
@@ -10,20 +13,38 @@ export const Route = createFileRoute("/readers")({
 });
 
 function Readers() {
+  const session = useSession();
   const [sel, setSel] = useState<string | null>("RDR-019");
   const readers = useAppStore((s) => s.readers);
   const reader = readers.find(r => r.id === sel);
+  const allEvents = useAppStore((s) => s.events);
+
+  const total = readers.length;
+  const online = readers.filter((r) => r.status === "ONLINE").length;
+  const degraded = readers.filter((r) => r.status === "DEGRADED").length;
+  const offline = readers.filter((r) => r.status === "OFFLINE").length;
+
+  const readerLastEvent = reader
+    ? allEvents
+        .filter((e) => e.readerId === reader.id)
+        .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())[0]
+    : null;
+
+  const [configuring, setConfiguring] = useState(false);
+  const [configIp, setConfigIp] = useState("");
+  const [configZone, setConfigZone] = useState("");
 
   return (
+    <RoleGate userRole={session.role} requiredRole="Control Center Operator" pageName="RFID Reader Management">
     <div className="p-6">
-      <PageHeader title="RFID Reader Management" subtitle="44 portals across reclaim, customs, and back-of-house zones." />
+      <PageHeader title="RFID Reader Management" subtitle={`${total} readers across reclaim, customs, and back-of-house zones.`} />
 
       <div className="grid grid-cols-4 gap-3 mb-4 text-[12px]">
         {[
-          { l: "Total readers", v: 44, c: "text-foreground" },
-          { l: "Online", v: 38, c: "text-success" },
-          { l: "Degraded", v: 4, c: "text-warning" },
-          { l: "Offline", v: 2, c: "text-danger" },
+          { l: "Total readers", v: total, c: "text-foreground" },
+          { l: "Online", v: online, c: "text-success" },
+          { l: "Degraded", v: degraded, c: "text-warning" },
+          { l: "Offline", v: offline, c: "text-danger" },
         ].map((s) => (
           <div key={s.l} className="rounded-lg border border-border bg-panel/60 p-3">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.l}</div>
@@ -78,7 +99,7 @@ function Readers() {
               <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Wifi className="size-3.5" />IP Address</dt><dd className="font-mono">{reader.ip}</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">Firmware</dt><dd className="font-mono">7.4.1.240</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">Antennas</dt><dd className="font-mono">4 / 4 active</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Activity className="size-3.5" />Last Event</dt><dd className="font-mono">09:34:18</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Activity className="size-3.5" />Last Event</dt><dd className="font-mono">{readerLastEvent ? new Date(readerLastEvent.firstSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "No events"}</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">Uptime</dt><dd className="font-mono">37d 4h 22m</dd></div>
             </dl>
             <div className="mt-4">
@@ -93,12 +114,74 @@ function Readers() {
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <button className="text-[12px] px-2.5 py-1.5 rounded-md border border-border hover:bg-accent">Restart</button>
-              <button className="text-[12px] px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground font-medium">Configure</button>
+              <button
+                onClick={() => {
+                  if (!reader) return;
+                  useAppStore.getState().updateReader(reader.id, { status: "OFFLINE", readRate: 0 });
+                  toast.info(`${reader.id} restarting...`);
+                  setTimeout(() => {
+                    useAppStore.getState().updateReader(reader.id, { status: "ONLINE", readRate: 99 });
+                    toast.success(`${reader.id} back online`);
+                  }, 2000);
+                }}
+                className="text-[12px] px-2.5 py-1.5 rounded-md border border-border hover:bg-accent"
+              >
+                Restart
+              </button>
+              <button
+                onClick={() => {
+                  if (!reader) return;
+                  setConfigIp(reader.ip);
+                  setConfigZone(reader.zone);
+                  setConfiguring(true);
+                }}
+                className="text-[12px] px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground font-medium"
+              >
+                Configure
+              </button>
             </div>
+            {configuring && reader && (
+              <div className="mt-3 pt-3 border-t border-border space-y-2">
+                <div>
+                  <label className="text-[11px] text-muted-foreground">IP Address</label>
+                  <input
+                    value={configIp}
+                    onChange={(e) => setConfigIp(e.target.value)}
+                    className="w-full bg-background border border-border rounded px-2 py-1.5 font-mono text-[12px]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground">Zone</label>
+                  <input
+                    value={configZone}
+                    onChange={(e) => setConfigZone(e.target.value)}
+                    className="w-full bg-background border border-border rounded px-2 py-1.5 font-mono text-[12px]"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      useAppStore.getState().updateReader(reader.id, { ip: configIp, zone: configZone });
+                      setConfiguring(false);
+                      toast.success(`${reader.id} updated`);
+                    }}
+                    className="flex-1 text-[12px] px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground font-medium"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setConfiguring(false)}
+                    className="text-[12px] px-2.5 py-1.5 rounded-md border border-border hover:bg-accent"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </Panel>
         )}
       </div>
     </div>
+    </RoleGate>
   );
 }

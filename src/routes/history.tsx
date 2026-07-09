@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Panel, PageHeader } from "@/components/AppLayout";
 import { useAppStore } from "@/store/appStore";
 import { Search, Download, Tag, ScanLine, AlertTriangle, BellRing } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/history")({
   head: () => ({ meta: [{ title: "Query Tag History · BELTrak" }] }),
@@ -45,7 +46,27 @@ function History() {
         title="Query Tag History"
         subtitle="Trace the full lifecycle of any tagged bag across the facility."
         actions={
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-[12px] hover:bg-accent">
+          <button
+            onClick={() => {
+              const header = "Time,EPC,Reader,Zone,Event Type,Read Count,RSSI\n";
+              const rows = filteredEvents
+                .slice()
+                .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
+                .map((e) =>
+                  `${e.firstSeen},${e.epc},${e.readerId},${e.zone},${e.eventType},${e.readCount},${e.rssi}`
+                )
+                .join("\n");
+              const blob = new Blob([header + rows], { type: "text/csv" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `beltrak-events-${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success(`Exported ${filteredEvents.length} events`);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-[12px] hover:bg-accent"
+          >
             <Download className="size-3.5" /> Export CSV
           </button>
         }

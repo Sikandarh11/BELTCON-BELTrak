@@ -1,8 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
 import { useAppStore } from "@/store/appStore";
 import { alarmService } from "@/services/alarmService";
-import { Eye, Check, ArrowUpRight, X, Filter } from "lucide-react";
+import { useState } from "react";
+import { Eye, Check, ArrowUpRight, X } from "lucide-react";
+import { useSession } from "@/auth/SessionContext";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/alarms")({
   head: () => ({ meta: [{ title: "Notifications & Alarms · BELTrak" }] }),
@@ -10,8 +13,27 @@ export const Route = createFileRoute("/alarms")({
 });
 
 function Alarms() {
+  const session = useSession();
   const alarms = useAppStore((s) => s.alarms);
   const bags = useAppStore((s) => s.bags);
+  const navigate = useNavigate();
+
+  const [statusFilters, setStatusFilters] = useState<Set<string>>(
+    new Set(["OPEN", "UNDER_INVESTIGATION", "ESCALATED"])
+  );
+  const [flightFilter, setFlightFilter] = useState("");
+  const [zoneFilter, setZoneFilter] = useState("all");
+
+  const allZones = [...new Set(alarms.map((a) => a.zone))];
+
+  const filteredAlarms = alarms.filter((a) => {
+    const statusMatch = statusFilters.has(a.outcome) ||
+      (statusFilters.has("CLOSED") && !["OPEN", "UNDER_INVESTIGATION", "ESCALATED"].includes(a.outcome));
+    const flightMatch = !flightFilter ||
+      (bags.find((b) => b.id === a.bagId)?.flight?.toLowerCase().includes(flightFilter.toLowerCase()));
+    const zoneMatch = zoneFilter === "all" || a.zone === zoneFilter;
+    return statusMatch && flightMatch && zoneMatch;
+  });
 
   const active = alarms.filter((a) => a.outcome === "OPEN").length;
   const escalated = alarms.filter((a) => a.outcome === "ESCALATED").length;
@@ -57,32 +79,65 @@ function Alarms() {
           <div className="space-y-3 text-[12px]">
             <div>
               <div className="text-muted-foreground mb-1.5">Status</div>
-              {["Active","Escalated","Acknowledged","Closed"].map((s) => (
-                <label key={s} className="flex items-center gap-2 py-1"><input type="checkbox" defaultChecked={s!=="Closed"} className="accent-primary" /> {s}</label>
+              {[
+                { label: "Active", value: "OPEN" },
+                { label: "Escalated", value: "ESCALATED" },
+                { label: "Acknowledged", value: "UNDER_INVESTIGATION" },
+                { label: "Closed", value: "CLOSED" },
+              ].map((s) => (
+                <label key={s.value} className="flex items-center gap-2 py-1">
+                  <input
+                    type="checkbox"
+                    checked={statusFilters.has(s.value)}
+                    onChange={(e) => {
+                      const next = new Set(statusFilters);
+                      e.target.checked ? next.add(s.value) : next.delete(s.value);
+                      setStatusFilters(next);
+                    }}
+                    className="accent-primary"
+                  /> {s.label}
+                </label>
               ))}
             </div>
             <div>
-              <div className="text-muted-foreground mb-1.5">Date range</div>
-              <input type="date" defaultValue="2026-06-17" className="w-full bg-background border border-border rounded px-2 py-1.5" />
-            </div>
-            <div>
               <div className="text-muted-foreground mb-1.5">Flight</div>
-              <input placeholder="e.g. SV452" className="w-full bg-background border border-border rounded px-2 py-1.5" />
+              <input
+                placeholder="e.g. SV452"
+                value={flightFilter}
+                onChange={(e) => setFlightFilter(e.target.value)}
+                className="w-full bg-background border border-border rounded px-2 py-1.5"
+              />
             </div>
             <div>
               <div className="text-muted-foreground mb-1.5">Location</div>
-              <select className="w-full bg-background border border-border rounded px-2 py-1.5">
-                <option>All locations</option>
-                <option>Customs Exit Gate 1</option>
-                <option>Customs Exit Gate 2</option>
-                <option>Washroom North</option>
+              <select
+                value={zoneFilter}
+                onChange={(e) => setZoneFilter(e.target.value)}
+                className="w-full bg-background border border-border rounded px-2 py-1.5"
+              >
+                <option value="all">All locations</option>
+                {allZones.map((z) => (
+                  <option key={z} value={z}>{z.replace(/_/g, " ")}</option>
+                ))}
               </select>
             </div>
-            <button className="w-full inline-flex items-center justify-center gap-1.5 mt-2 px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground font-medium"><Filter className="size-3.5" />Apply filters</button>
+            <button
+              onClick={() => {
+                setStatusFilters(new Set(["OPEN", "UNDER_INVESTIGATION", "ESCALATED"]));
+                setFlightFilter("");
+                setZoneFilter("all");
+              }}
+              className="w-full inline-flex items-center justify-center gap-1.5 mt-2 px-2.5 py-1.5 rounded-md border border-border hover:bg-accent text-[12px]"
+            >
+              Clear filters
+            </button>
           </div>
         </Panel>
 
         <Panel className="col-span-12 lg:col-span-9 !p-0">
+          <div className="px-3 py-2 text-[11px] text-muted-foreground border-b border-border">
+            Showing {filteredAlarms.length} of {alarms.length} alarms
+          </div>
           <table className="w-full text-[12.5px]">
             <thead className="text-[10px] uppercase tracking-wider text-muted-foreground bg-background/40 border-b border-border">
               <tr>
@@ -92,7 +147,7 @@ function Alarms() {
               </tr>
             </thead>
             <tbody>
-              {alarms.map((a) => (
+              {filteredAlarms.map((a) => (
                 <tr key={a.id} className="border-b border-border hover:bg-accent/30">
                   <td className="px-3 py-2.5 font-mono text-primary">{a.id}</td>
                   <td className="px-3 py-2.5 font-mono text-muted-foreground">{new Date(a.triggeredAt).toLocaleTimeString()}</td>
@@ -104,10 +159,19 @@ function Alarms() {
                   <td className="px-3 py-2.5 text-muted-foreground">{a.acknowledgedBy ?? "Unassigned"}</td>
                   <td className="px-3 py-2.5">
                     <div className="flex gap-1">
-                      <button title="View" className="size-7 inline-flex items-center justify-center rounded hover:bg-accent"><Eye className="size-3.5" /></button>
-                      <button title="Acknowledge" onClick={() => alarmService.acknowledge(a.id, "Current Officer")} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-info"><Check className="size-3.5" /></button>
-                      <button title="Escalate" onClick={() => alarmService.escalate(a.id)} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-warning"><ArrowUpRight className="size-3.5" /></button>
-                      <button title="Close" onClick={() => alarmService.resolve(a.id, "CLEARED", "current-user")} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-muted-foreground"><X className="size-3.5" /></button>
+                      <button title="View" onClick={() => navigate({ to: "/target", search: { bagId: a.bagId } })} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent"><Eye className="size-3.5" /></button>
+                      <button title="Acknowledge" onClick={() => {
+                        try { alarmService.acknowledge(a.id, `${session.firstName} ${session.lastName}`); }
+                        catch (err: any) { toast.error(err.message || "Action failed"); }
+                      }} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-info"><Check className="size-3.5" /></button>
+                      <button title="Escalate" onClick={() => {
+                        try { alarmService.escalate(a.id); }
+                        catch (err: any) { toast.error(err.message || "Action failed"); }
+                      }} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-warning"><ArrowUpRight className="size-3.5" /></button>
+                      <button title="Close" onClick={() => {
+                        try { alarmService.resolve(a.id, "CLEARED", session.id); }
+                        catch (err: any) { toast.error(err.message || "Action failed"); }
+                      }} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-muted-foreground"><X className="size-3.5" /></button>
                     </div>
                   </td>
                 </tr>

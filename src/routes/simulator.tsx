@@ -8,6 +8,8 @@ import { FLIGHTS } from "@/mocks/seed";
 import { bagService } from "@/services/bagService";
 import { eventService } from "@/services/eventService";
 import { useAppStore } from "@/store/appStore";
+import { useSession } from "@/auth/SessionContext";
+import { RoleGate } from "@/components/RoleGate";
 
 export const Route = createFileRoute("/simulator")({
   head: () => ({ meta: [{ title: "Simulator · BELTrak" }] }),
@@ -39,6 +41,7 @@ type JourneyStop = { zone: string; reader: string; label: string };
 let flagCounter = 0;
 
 function Simulator() {
+  const session = useSession();
   const bags = useAppStore((s) => s.bags);
   const alarms = useAppStore((s) => s.alarms);
   const events = useAppStore((s) => s.events);
@@ -114,6 +117,7 @@ function Simulator() {
   }
 
   function handleReset() {
+    if (!confirm("Reset all data? This will delete all bags, alarms, events, and resolutions. Readers will return to default state.")) return;
     useAppStore.getState().reset();
     eventService.clearCache();
     setSelectedBagId(null);
@@ -122,6 +126,7 @@ function Simulator() {
   }
 
   return (
+    <RoleGate userRole={session.role} requiredRole="System Administrator" pageName="Simulator Panel">
     <div className="p-6">
       <PageHeader
         title="Simulator Panel"
@@ -302,5 +307,6 @@ function Simulator() {
         </div>
       </div>
     </div>
+    </RoleGate>
   );
 }

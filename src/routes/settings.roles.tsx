@@ -2,6 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader } from "@/components/AppLayout";
 import { ROLES, PERMISSIONS, ROLE_MATRIX } from "@/mocks/seed";
 import { Check, Minus, Plus } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { useSession } from "@/auth/SessionContext";
+import { RoleGate } from "@/components/RoleGate";
 
 export const Route = createFileRoute("/settings/roles")({
   head: () => ({ meta: [{ title: "Manage Roles · BELTrak" }] }),
@@ -9,7 +13,27 @@ export const Route = createFileRoute("/settings/roles")({
 });
 
 function ManageRoles() {
+  const session = useSession();
+  const [matrix, setMatrix] = useState<Record<string, Record<string, boolean>>>(
+    () => JSON.parse(JSON.stringify(ROLE_MATRIX))
+  );
+
+  function togglePerm(role: string, perm: string) {
+    setMatrix((prev) => ({
+      ...prev,
+      [role]: {
+        ...prev[role],
+        [perm]: !prev[role][perm],
+      },
+    }));
+  }
+
+  function handleSave() {
+    toast.success("Role permissions saved");
+  }
+
   return (
+    <RoleGate userRole={session.role} requiredRole="Airport Administrator" pageName="Manage Roles">
     <div className="p-6">
       <PageHeader
         title="Manage Roles"
@@ -32,11 +56,13 @@ function ManageRoles() {
                 <td className="px-4 py-2.5">{p}</td>
                 {ROLES.map(r => (
                   <td key={r} className="px-3 py-2.5 text-center">
-                    {ROLE_MATRIX[r][p] ? (
-                      <Check className="size-4 text-success inline-block" />
-                    ) : (
-                      <Minus className="size-4 text-muted-foreground/50 inline-block" />
-                    )}
+                    <button onClick={() => togglePerm(r, p)} className="hover:bg-accent rounded p-0.5">
+                      {matrix[r][p] ? (
+                        <Check className="size-4 text-success inline-block" />
+                      ) : (
+                        <Minus className="size-4 text-muted-foreground/50 inline-block" />
+                      )}
+                    </button>
                   </td>
                 ))}
               </tr>
@@ -45,16 +71,24 @@ function ManageRoles() {
         </table>
       </Panel>
 
+      <div className="mt-4 flex justify-end">
+        <button onClick={handleSave}
+          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-[12px] font-medium">
+          Save permissions
+        </button>
+      </div>
+
       <div className="mt-4 grid grid-cols-1 md:grid-cols-5 gap-3">
         {ROLES.map(r => (
           <div key={r} className="rounded-lg border border-border bg-panel/60 p-3">
             <div className="text-[13px] font-medium">{r}</div>
             <div className="text-[11px] text-muted-foreground mt-0.5">
-              {Object.values(ROLE_MATRIX[r]).filter(Boolean).length} / {PERMISSIONS.length} permissions
+              {Object.values(matrix[r]).filter(Boolean).length} / {PERMISSIONS.length} permissions
             </div>
           </div>
         ))}
       </div>
     </div>
+    </RoleGate>
   );
 }

@@ -29,6 +29,12 @@ export const alarmService = {
     } catch {
       // bag may already be alarmed
     }
+    useAppStore.getState().addAuditEntry({
+      action: "ALARM_RAISED",
+      userId: "system",
+      userName: "System",
+      detail: `Alarm ${alarm.id} at ${zone} for bag ${bagId}`,
+    });
     return alarm;
   },
 
@@ -49,6 +55,13 @@ export const alarmService = {
     try {
       bagService.transition(alarm.bagId, "UNDER_RECHECK");
     } catch {}
+
+    useAppStore.getState().addAuditEntry({
+      action: "ALARM_ACKNOWLEDGED",
+      userId: officerName,
+      userName: officerName,
+      detail: `Alarm ${alarmId} acknowledged at ${alarm.zone}`,
+    });
   },
 
   /**
@@ -61,6 +74,13 @@ export const alarmService = {
     try {
       bagService.transition(alarm.bagId, "ESCALATED");
     } catch {}
+
+    useAppStore.getState().addAuditEntry({
+      action: "ALARM_ESCALATED",
+      userId: "system",
+      userName: "System",
+      detail: `Alarm ${alarmId} escalated`,
+    });
   },
 
   /**
@@ -83,6 +103,13 @@ export const alarmService = {
       resolvedAt: new Date().toISOString(),
     });
     console.log(`[alarmService] Bag ${alarm.bagId} resolved with ${action} — future exit reads will be suppressed`);
+
+    store.addAuditEntry({
+      action: "ALARM_RESOLVED",
+      userId: officerId,
+      userName: officerId,
+      detail: `Alarm ${alarmId} resolved: ${action}`,
+    });
 
     toast.success(`Alarm ${alarmId} resolved`, {
       description: `Action: ${action.replace(/_/g, " ").toLowerCase()}`,

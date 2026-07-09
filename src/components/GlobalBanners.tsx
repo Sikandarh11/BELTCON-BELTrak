@@ -8,6 +8,19 @@ export function GlobalBanners() {
   const readers = useAppStore((s) => s.readers);
   const resetKey = useAppStore((s) => s.resetKey);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [offline, setOffline] = useState(false);
+
+  useEffect(() => {
+    const goOffline = () => setOffline(true);
+    const goOnline = () => setOffline(false);
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("online", goOnline);
+    setOffline(!navigator.onLine);
+    return () => {
+      window.removeEventListener("offline", goOffline);
+      window.removeEventListener("online", goOnline);
+    };
+  }, []);
 
   const openAlarms = alarms.filter((a) => a.outcome === "OPEN");
   const offlineReaders = readers.filter((r) => r.status === "OFFLINE");
@@ -26,6 +39,15 @@ export function GlobalBanners() {
 
   return (
     <div className="flex flex-col">
+      {offline && (
+        <div className="bg-muted text-muted-foreground px-4 py-1.5 flex items-center gap-3 text-[12px]">
+          <AlertTriangle className="size-3.5 shrink-0" />
+          <span className="flex-1">
+            You are offline — changes will sync when connection is restored
+          </span>
+        </div>
+      )}
+
       {/* Escape alert — full red, highest priority */}
       {escapeAlarms.length > 0 && !dismissed.has("escape") && (
         <div className="bg-danger text-destructive-foreground px-4 py-2 flex items-center gap-3 text-[13px] font-medium animate-pulse">

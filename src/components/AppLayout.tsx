@@ -2,37 +2,41 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Map, BellRing, History, Target, ScanLine, Radio, FileBarChart2, Tag,
   Settings, MapPinned, ShieldAlert, GitBranch, UserCog, Users, Search, Bell, ChevronDown,
-  CircleDot, Plane, Activity, LogOut, FlaskConical,
+  CircleDot, Plane, Activity, LogOut, FlaskConical, ScrollText, Menu,
 } from "lucide-react";
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { GlobalBanners } from "./GlobalBanners";
 import type { SessionUser } from "@/services/authService";
 import { useAppStore } from "@/store/appStore";
+import { roleIsAtLeast } from "@/services/roles";
 
-const NAV = [
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; badge?: number; minRole?: string };
+
+const NAV: { section: string; items: NavItem[] }[] = [
   { section: "Operations", items: [
     { to: "/", label: "Dashboard", icon: LayoutDashboard },
     { to: "/map", label: "Live Operations Map", icon: Map },
     { to: "/alarms", label: "Notifications & Alarms", icon: BellRing, badge: 4 },
     { to: "/history", label: "Query Tag History", icon: History },
     { to: "/tagging", label: "Tagging Station", icon: Tag },
-    { to: "/simulator", label: "Simulator", icon: Activity },
+    { to: "/simulator", label: "Simulator", icon: Activity, minRole: "System Administrator" },
     { to: "/target", label: "Target Information", icon: Target },
     { to: "/recheck", label: "Recheck Station", icon: ScanLine },
-    { to: "/readers", label: "RFID Readers", icon: Radio },
+    { to: "/readers", label: "RFID Readers", icon: Radio, minRole: "Control Center Operator" },
     { to: "/reports", label: "Reports", icon: FileBarChart2 },
   ]},
   { section: "Administration", items: [
-    { to: "/settings/system", label: "System Settings", icon: Settings },
-    { to: "/settings/map", label: "Map Settings", icon: MapPinned },
-    { to: "/settings/threats", label: "Threat Types", icon: ShieldAlert },
-    { to: "/settings/escalations", label: "Escalations", icon: GitBranch },
-    { to: "/settings/roles", label: "Manage Roles", icon: UserCog },
-    { to: "/settings/users", label: "Manage Users", icon: Users },
+    { to: "/settings/system", label: "System Settings", icon: Settings, minRole: "Airport Administrator" },
+    { to: "/settings/map", label: "Map Settings", icon: MapPinned, minRole: "Airport Administrator" },
+    { to: "/settings/threats", label: "Threat Types", icon: ShieldAlert, minRole: "Airport Administrator" },
+    { to: "/settings/escalations", label: "Escalations", icon: GitBranch, minRole: "Customs Supervisor" },
+    { to: "/settings/roles", label: "Manage Roles", icon: UserCog, minRole: "Airport Administrator" },
+    { to: "/settings/users", label: "Manage Users", icon: Users, minRole: "Airport Administrator" },
+    { to: "/settings/audit", label: "Audit Log", icon: ScrollText, minRole: "Airport Administrator" },
   ]},
   { section: "Developer", items: [
-    { to: "/simulator", label: "Simulator", icon: FlaskConical },
+    { to: "/simulator", label: "Simulator", icon: FlaskConical, minRole: "System Administrator" },
   ]},
 ];
 
@@ -40,11 +44,21 @@ export function AppLayout({ children, currentUser, onLogout }: { children: React
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const openAlarms = useAppStore((s) => s.alarms.filter((a) => a.outcome === "OPEN").length);
   const userInitials = currentUser ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.trim() || "U" : "SK";
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
+      {/* MOBILE HEADER */}
+      <div className="lg:hidden fixed top-0 inset-x-0 z-30 flex items-center justify-between px-4 py-3 border-b border-border bg-panel">
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2">
+          <Menu className="size-5" />
+        </button>
+        <span className="font-semibold text-[14px]">BELTrak</span>
+        <div className="size-5" />
+      </div>
+
       {/* SIDEBAR */}
-      <aside className="w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col">
+      <aside className={`w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex-col fixed lg:static inset-y-0 left-0 z-40 ${sidebarOpen ? "flex" : "hidden"} lg:flex`}>
         <div className="px-5 py-4 border-b border-sidebar-border flex items-center gap-2.5">
           <div className="size-9 rounded-md bg-primary/15 border border-primary/40 flex items-center justify-center">
             <Plane className="size-5 text-primary -rotate-45" />
@@ -61,13 +75,19 @@ export function AppLayout({ children, currentUser, onLogout }: { children: React
                 {g.section}
               </div>
               <ul className="space-y-0.5">
-                {g.items.map((it) => {
+                {g.items
+                  .filter((it) => {
+                    if (!it.minRole || !currentUser) return true;
+                    return roleIsAtLeast(currentUser.role, it.minRole);
+                  })
+                  .map((it) => {
                   const active = pathname === it.to;
                   const Icon = it.icon;
                   return (
                     <li key={it.to}>
                       <Link
                         to={it.to}
+                        onClick={() => setSidebarOpen(false)}
                         className={`group flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
                           active
                             ? "bg-sidebar-accent text-foreground shadow-[inset_2px_0_0_0] shadow-primary"
@@ -103,7 +123,7 @@ export function AppLayout({ children, currentUser, onLogout }: { children: React
       </aside>
 
       {/* MAIN */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 pt-12 lg:pt-0">
         {/* TOP HEADER */}
         <header className="h-14 shrink-0 border-b border-border bg-panel/60 backdrop-blur flex items-center px-4 gap-3">
           <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-border bg-background/50 text-[13px] hover:bg-accent">
@@ -200,6 +220,7 @@ export function StatusPill({ status }: { status: string }) {
     ALARM: "bg-danger/15 text-danger border-danger/30",
     TRACKING: "bg-info/15 text-info border-info/30",
     CONNECTED: "bg-success/15 text-success border-success/30",
+    SIMULATED: "bg-warning/15 text-warning border-warning/30",
   };
   return (
     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded border ${map[status] ?? "bg-muted text-muted-foreground border-border"}`}>

@@ -93,11 +93,11 @@ function TaggingStation() {
               value={manualIata}
               onChange={(e) => setManualIata(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleManualLookup()}
-              className="flex-1 bg-background border border-border rounded px-2.5 py-1.5 text-[12px] font-mono"
+              className="flex-1 bg-background border border-border rounded px-3 py-3 text-[14px] font-mono"
             />
             <button
               onClick={handleManualLookup}
-              className="px-2 py-1.5 rounded border border-border hover:bg-accent"
+              className="px-3 py-3 rounded border border-border hover:bg-accent"
             >
               <ScanLine className="size-3.5" />
             </button>
@@ -116,7 +116,7 @@ function TaggingStation() {
                       setSelectedBagId(b.id);
                       setEncodeResult("idle");
                     }}
-                    className={`w-full text-left px-3 py-2.5 rounded-md border text-[12px] transition-colors ${
+                    className={`w-full text-left px-4 py-4 rounded-md border text-[14px] transition-colors ${
                       selectedBagId === b.id
                         ? "border-primary bg-primary/5"
                         : "border-border hover:bg-accent/50"
@@ -176,7 +176,7 @@ function TaggingStation() {
                   <button
                     onClick={handleEncode}
                     disabled={encoding}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-primary text-primary-foreground font-medium text-[13px] disabled:opacity-50"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-4 rounded-md bg-primary text-primary-foreground font-medium text-[16px] disabled:opacity-50 min-h-[48px]"
                   >
                     {encoding ? (
                       <>

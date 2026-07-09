@@ -1,0 +1,102 @@
+@media print {
+  /* Hide everything non-essential */
+  nav,
+  aside,
+  button,
+  [role="banner"],
+  .no-print,
+  .global-banners,
+  header {
+    display: none !important;
+  }
+
+  /* Reset layout — full width, no sidebar */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt !important;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Remove card shadows and decorative borders */
+  .rounded-lg,
+  .rounded-md {
+    box-shadow: none !important;
+  }
+
+  /* Keep charts visible but prevent page breaks inside */
+  .recharts-responsive-container {
+    break-inside: avoid;
+  }
+
+  /* Make status pills print-friendly */
+  [class*="bg-danger"] {
+    background: #fee !important;
+    color: #c00 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  [class*="bg-success"] {
+    background: #efe !important;
+    color: #060 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  [class*="bg-warning"] {
+    background: #ffe !important;
+    color: #960 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Page header for print */
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ccc;
+  }
+
+  /* Table formatting */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 10pt;
+  }
+  th, td {
+    border: 0.5px solid #ccc;
+    padding: 4px 8px;
+  }
+
+  /* Ensure images/placeholders show */
+  .aspect-4\/3 {
+    break-inside: avoid;
+  }
+
+  /* Footer with timestamp */
+  @page {
+    margin: 1.5cm;
+    @bottom-center {
+      content: "BELTrak Report · Printed " attr(data-date);
+      font-size: 8pt;
+      color: #999;
+    }
+  }
+}
+
+/* Hidden in screen, visible in print */
+.print-only {
+  display: none;
+}
+@media print {
+  .print-only {
+    display: block !important;
+  }
+}

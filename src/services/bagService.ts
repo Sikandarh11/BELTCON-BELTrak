@@ -40,6 +40,12 @@ export const bagService = {
       currentZone: "TAGGING_STATION",
     };
     useAppStore.getState().upsertBag(bag);
+    useAppStore.getState().addAuditEntry({
+      action: "BAG_FLAGGED",
+      userId: "system",
+      userName: "BHS Simulator",
+      detail: `Bag ${bag.id} (${opts.iataCode}) flagged suspect`,
+    });
     return bag;
   },
 
@@ -51,6 +57,12 @@ export const bagService = {
     if (!bag) throw new Error(`Bag ${bagId} not found`);
     this.transition(bagId, "TAGGED");
     useAppStore.getState().updateBag(bagId, { epc });
+    useAppStore.getState().addAuditEntry({
+      action: "TAG_ENCODED",
+      userId: "system",
+      userName: "Tagging Station",
+      detail: `Bag ${bagId} tagged with EPC ${epc}`,
+    });
   },
 
   /**

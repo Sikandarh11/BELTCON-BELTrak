@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
 import { Save } from "lucide-react";
+import { toast } from "sonner";
+import { useSession } from "@/auth/SessionContext";
+import { RoleGate } from "@/components/RoleGate";
 
 export const Route = createFileRoute("/settings/system")({
   head: () => ({ meta: [{ title: "System Settings · BELTrak" }] }),
@@ -8,16 +11,17 @@ export const Route = createFileRoute("/settings/system")({
 });
 
 const INTEGRATIONS = [
-  { n: "BHS · Baggage Handling System", v: "v4.2.1", s: "CONNECTED" },
-  { n: "X-Ray System (Smiths Detection)", v: "HI-SCAN 10080", s: "CONNECTED" },
-  { n: "Passenger Information System (PIS)", v: "Amadeus Altéa", s: "CONNECTED" },
-  { n: "RFID Infrastructure (Impinj / Zebra)", v: "ItemSense 2024.3", s: "CONNECTED" },
-  { n: "CCTV Bridge (Milestone XProtect)", v: "2024 R2", s: "CONNECTED" },
-  { n: "Customs Declaration API", v: "v2", s: "CONNECTED" },
+  { n: "BHS · Baggage Handling System", v: "Simulated", s: "SIMULATED" },
+  { n: "X-Ray System (Smiths Detection)", v: "Simulated", s: "SIMULATED" },
+  { n: "RFID Infrastructure (ThingMagic IZAR)", v: "Simulated", s: "SIMULATED" },
+  { n: "CCTV Bridge", v: "Not connected", s: "PENDING" },
+  { n: "Customs Declaration API", v: "Not connected", s: "PENDING" },
 ];
 
 function SystemSettings() {
+  const session = useSession();
   return (
+    <RoleGate userRole={session.role} requiredRole="Airport Administrator" pageName="System Settings">
     <div className="p-6 max-w-6xl">
       <PageHeader title="System Settings" subtitle="Site profile, time, and external integrations." />
 
@@ -34,7 +38,12 @@ function SystemSettings() {
             <Field label="Date Format" v="DD/MM/YYYY HH:mm" mono />
           </div>
           <div className="mt-4 pt-4 border-t border-border flex justify-end">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-[12px] font-medium"><Save className="size-3.5" />Save changes</button>
+            <button
+              onClick={() => toast.success("Site profile saved")}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-[12px] font-medium"
+            >
+              <Save className="size-3.5" />Save changes
+            </button>
           </div>
         </Panel>
 
@@ -62,6 +71,7 @@ function SystemSettings() {
         </Panel>
       </div>
     </div>
+    </RoleGate>
   );
 }
 

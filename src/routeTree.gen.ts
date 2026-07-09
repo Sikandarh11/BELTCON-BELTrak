@@ -28,6 +28,7 @@ import { Route as SettingsSystemRouteImport } from './routes/settings.system'
 import { Route as SettingsRolesRouteImport } from './routes/settings.roles'
 import { Route as SettingsMapRouteImport } from './routes/settings.map'
 import { Route as SettingsEscalationsRouteImport } from './routes/settings.escalations'
+import { Route as SettingsAuditRouteImport } from './routes/settings.audit'
 
 const TargetRoute = TargetRouteImport.update({
   id: '/target',
@@ -124,6 +125,11 @@ const SettingsEscalationsRoute = SettingsEscalationsRouteImport.update({
   path: '/settings/escalations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsAuditRoute = SettingsAuditRouteImport.update({
+  id: '/settings/audit',
+  path: '/settings/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/simulator': typeof SimulatorRoute
   '/tagging': typeof TaggingRoute
   '/target': typeof TargetRoute
+  '/settings/audit': typeof SettingsAuditRoute
   '/settings/escalations': typeof SettingsEscalationsRoute
   '/settings/map': typeof SettingsMapRoute
   '/settings/roles': typeof SettingsRolesRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/simulator': typeof SimulatorRoute
   '/tagging': typeof TaggingRoute
   '/target': typeof TargetRoute
+  '/settings/audit': typeof SettingsAuditRoute
   '/settings/escalations': typeof SettingsEscalationsRoute
   '/settings/map': typeof SettingsMapRoute
   '/settings/roles': typeof SettingsRolesRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/simulator': typeof SimulatorRoute
   '/tagging': typeof TaggingRoute
   '/target': typeof TargetRoute
+  '/settings/audit': typeof SettingsAuditRoute
   '/settings/escalations': typeof SettingsEscalationsRoute
   '/settings/map': typeof SettingsMapRoute
   '/settings/roles': typeof SettingsRolesRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/simulator'
     | '/tagging'
     | '/target'
+    | '/settings/audit'
     | '/settings/escalations'
     | '/settings/map'
     | '/settings/roles'
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/simulator'
     | '/tagging'
     | '/target'
+    | '/settings/audit'
     | '/settings/escalations'
     | '/settings/map'
     | '/settings/roles'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/simulator'
     | '/tagging'
     | '/target'
+    | '/settings/audit'
     | '/settings/escalations'
     | '/settings/map'
     | '/settings/roles'
@@ -269,6 +281,7 @@ export interface RootRouteChildren {
   SimulatorRoute: typeof SimulatorRoute
   TaggingRoute: typeof TaggingRoute
   TargetRoute: typeof TargetRoute
+  SettingsAuditRoute: typeof SettingsAuditRoute
   SettingsEscalationsRoute: typeof SettingsEscalationsRoute
   SettingsMapRoute: typeof SettingsMapRoute
   SettingsRolesRoute: typeof SettingsRolesRoute
@@ -412,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsEscalationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/audit': {
+      id: '/settings/audit'
+      path: '/settings/audit'
+      fullPath: '/settings/audit'
+      preLoaderRoute: typeof SettingsAuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -429,6 +449,7 @@ const rootRouteChildren: RootRouteChildren = {
   SimulatorRoute: SimulatorRoute,
   TaggingRoute: TaggingRoute,
   TargetRoute: TargetRoute,
+  SettingsAuditRoute: SettingsAuditRoute,
   SettingsEscalationsRoute: SettingsEscalationsRoute,
   SettingsMapRoute: SettingsMapRoute,
   SettingsRolesRoute: SettingsRolesRoute,

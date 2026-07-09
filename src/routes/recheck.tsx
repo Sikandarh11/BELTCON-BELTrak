@@ -3,7 +3,11 @@ import { useState } from "react";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
 import { useAppStore } from "@/store/appStore";
 import { alarmService } from "@/services/alarmService";
+import type { ResolutionAction } from "@/types";
 import { ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, CheckCircle2, PauseCircle, ArrowUpRight, AlertTriangle } from "lucide-react";
+import { useSession } from "@/auth/SessionContext";
+import { RoleGate } from "@/components/RoleGate";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/recheck")({
   head: () => ({ meta: [{ title: "Recheck Station · BELTrak" }] }),
@@ -11,6 +15,7 @@ export const Route = createFileRoute("/recheck")({
 });
 
 function Recheck() {
+  const session = useSession();
   const bags = useAppStore((s) => s.bags);
   const alarms = useAppStore((s) => s.alarms);
   const events = useAppStore((s) => s.events);
@@ -34,7 +39,18 @@ function Recheck() {
       )
     : [];
 
+  function handleResolve(action: ResolutionAction) {
+    if (!bagAlarm) return;
+    try {
+      alarmService.resolve(bagAlarm.id, action, session.id);
+      setSearchTerm("");
+    } catch (err: any) {
+      toast.error(err.message || "Action failed");
+    }
+  }
+
   return (
+    <RoleGate userRole={session.role} requiredRole="Operations Officer" pageName="Recheck Station">
     <div className="p-6">
       <PageHeader
         title="Recheck Station · Bay 2"
@@ -47,7 +63,7 @@ function Recheck() {
           placeholder="Search by IATA code or EPC..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-[13px] font-mono"
+          className="flex-1 bg-background border border-border rounded-md px-3 py-3 text-[14px] font-mono min-h-[48px]"
         />
         <button
           onClick={() => setSearchTerm("")}
@@ -160,24 +176,24 @@ function Recheck() {
           <div className="grid grid-cols-1 gap-2">
             {currentBag && bagAlarm ? (
               <>
-                <button onClick={() => { alarmService.resolve(bagAlarm.id, "CLEARED", "current-user"); setSearchTerm(""); }}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-success/90 hover:bg-success text-primary-foreground font-medium text-[13px]">
+                <button onClick={() => handleResolve("CLEARED")}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-md bg-success/90 hover:bg-success text-primary-foreground font-medium text-[15px] min-h-[48px]">
                   <CheckCircle2 className="size-4" />Cleared
                 </button>
-                <button onClick={() => { alarmService.resolve(bagAlarm.id, "NOT_CLEARED", "current-user"); setSearchTerm(""); }}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-warning/90 hover:bg-warning text-primary-foreground font-medium text-[13px]">
+                <button onClick={() => handleResolve("NOT_CLEARED")}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-md bg-warning/90 hover:bg-warning text-primary-foreground font-medium text-[15px] min-h-[48px]">
                   <PauseCircle className="size-4" />Not Cleared — Hold
                 </button>
-                <button onClick={() => { alarmService.resolve(bagAlarm.id, "DUTY_COLLECTED", "current-user"); setSearchTerm(""); }}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-info/90 hover:bg-info text-primary-foreground font-medium text-[13px]">
+                <button onClick={() => handleResolve("DUTY_COLLECTED")}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-md bg-info/90 hover:bg-info text-primary-foreground font-medium text-[15px] min-h-[48px]">
                   <CheckCircle2 className="size-4" />Duty Collected
                 </button>
-                <button onClick={() => { alarmService.resolve(bagAlarm.id, "PROHIBITED_ITEM_SEIZED", "current-user"); setSearchTerm(""); }}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-danger hover:bg-danger/90 text-destructive-foreground font-medium text-[13px]">
+                <button onClick={() => handleResolve("PROHIBITED_ITEM_SEIZED")}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-md bg-danger hover:bg-danger/90 text-destructive-foreground font-medium text-[15px] min-h-[48px]">
                   <AlertTriangle className="size-4" />Seized — Prohibited Item
                 </button>
-                <button onClick={() => { alarmService.resolve(bagAlarm.id, "ESCALATED", "current-user"); setSearchTerm(""); }}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-medium text-[13px]">
+                <button onClick={() => handleResolve("ESCALATED")}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-medium text-[15px] min-h-[48px]">
                   <ArrowUpRight className="size-4" />Escalate to Supervisor
                 </button>
               </>
@@ -190,5 +206,6 @@ function Recheck() {
         </div>
       </div>
     </div>
+    </RoleGate>
   );
 }
