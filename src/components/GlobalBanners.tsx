@@ -38,7 +38,7 @@ export function GlobalBanners() {
   }, [resetKey]);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col no-print global-banners">
       {offline && (
         <div className="bg-muted text-muted-foreground px-4 py-1.5 flex items-center gap-3 text-[12px]">
           <AlertTriangle className="size-3.5 shrink-0" />

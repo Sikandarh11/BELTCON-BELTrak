@@ -91,7 +91,10 @@ function History() {
             <input type="date" defaultValue="2026-06-17" className="w-full bg-background border border-border rounded px-2.5 py-1.5" />
           </div>
           <div className="flex items-end">
-            <button onClick={() => {}} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-medium">
+            <button
+              onClick={() => toast.info(`${filteredEvents.length} event${filteredEvents.length !== 1 ? "s" : ""} found`)}
+              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-medium"
+            >
               <Search className="size-3.5" /> Search
             </button>
           </div>
