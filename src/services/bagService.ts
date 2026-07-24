@@ -24,11 +24,7 @@ export const bagService = {
    * Creates a new bag in IDENTIFIED status.
    * isSuspect is always true — binary flag, no threat levels.
    */
-  createBagFromSuspectFlag(opts: {
-    bhsUid: string;
-    iataCode: string;
-    flight: string;
-  }): Bag {
+  createBagFromSuspectFlag(opts: { bhsUid: string; iataCode: string; flight: string }): Bag {
     const bag: Bag = {
       id: `b${++bagCounter}`,
       bhsUid: opts.bhsUid,
@@ -74,9 +70,7 @@ export const bagService = {
     if (!bag) throw new Error(`Bag ${bagId} not found`);
     const allowed = TRANSITIONS[bag.status];
     if (!allowed.includes(newStatus)) {
-      throw new Error(
-        `Illegal transition: ${bag.status} → ${newStatus} for bag ${bagId}`,
-      );
+      throw new Error(`Illegal transition: ${bag.status} → ${newStatus} for bag ${bagId}`);
     }
     useAppStore.getState().updateBag(bagId, { status: newStatus });
   },
@@ -86,5 +80,15 @@ export const bagService = {
    */
   updateZone(bagId: string, zone: string): void {
     useAppStore.getState().updateBag(bagId, { currentZone: zone });
+  },
+
+  sendToRecheck(bagId: string, officerId: string): void {
+    this.transition(bagId, "UNDER_RECHECK");
+    useAppStore.getState().addAuditEntry({
+      action: "BAG_SENT_TO_RECHECK",
+      userId: officerId,
+      userName: officerId,
+      detail: `Bag ${bagId} routed to secondary inspection`,
+    });
   },
 };

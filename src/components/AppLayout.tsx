@@ -54,6 +54,7 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   badge?: number;
   minRole?: string;
+  workspaceMode?: WorkspaceMode;
 };
 
 const NAV: { section: string; items: NavItem[] }[] = [
@@ -65,7 +66,13 @@ const NAV: { section: string; items: NavItem[] }[] = [
       { to: "/alarms", label: "Notifications & Alarms", icon: BellRing, badge: 4 },
       { to: "/history", label: "Query Tag History", icon: History },
       { to: "/tagging", label: "Tagging Station", icon: Tag },
-      { to: "/simulator", label: "Simulator", icon: Activity, minRole: "System Administrator" },
+      {
+        to: "/ops/scan",
+        label: "Operator Scan",
+        icon: ScanLine,
+        minRole: "Operations Officer",
+        workspaceMode: "Operator",
+      },
       { to: "/target", label: "Target Information", icon: Target },
       { to: "/recheck", label: "Recheck Station", icon: ScanLine },
       { to: "/readers", label: "RFID Readers", icon: Radio, minRole: "Control Center Operator" },
@@ -75,6 +82,13 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Administration",
     items: [
+      {
+        to: "/admin/dashboard",
+        label: "Admin Overview",
+        icon: LayoutDashboard,
+        minRole: "Airport Administrator",
+        workspaceMode: "Admin",
+      },
       {
         to: "/settings/system",
         label: "System Settings",
@@ -120,9 +134,80 @@ const NAV: { section: string; items: NavItem[] }[] = [
     ],
   },
   {
+    section: "Supervisor",
+    items: [
+      {
+        to: "/supervisor/overview",
+        label: "Overview",
+        icon: ShieldAlert,
+        minRole: "Customs Supervisor",
+        workspaceMode: "Supervisor",
+      },
+    ],
+  },
+  {
+    section: "Audit",
+    items: [
+      {
+        to: "/audit/logs",
+        label: "Logs",
+        icon: ScrollText,
+        workspaceMode: "Auditor",
+      },
+    ],
+  },
+  {
     section: "Developer",
     items: [
-      { to: "/simulator", label: "Simulator", icon: FlaskConical, minRole: "System Administrator" },
+      {
+        to: "/dev/console",
+        label: "Console",
+        icon: FlaskConical,
+        minRole: "System Administrator",
+        workspaceMode: "Developer",
+      },
+      {
+        to: "/dev/api",
+        label: "API Explorer",
+        icon: GitBranch,
+        minRole: "System Administrator",
+        workspaceMode: "Developer",
+      },
+      {
+        to: "/dev/simulator",
+        label: "RFID Simulator",
+        icon: Activity,
+        minRole: "System Administrator",
+        workspaceMode: "Developer",
+      },
+      {
+        to: "/dev/events",
+        label: "Event Stream",
+        icon: Radio,
+        minRole: "System Administrator",
+        workspaceMode: "Developer",
+      },
+      {
+        to: "/dev/flags",
+        label: "Feature Flags",
+        icon: Settings,
+        minRole: "System Administrator",
+        workspaceMode: "Developer",
+      },
+      {
+        to: "/dev/logs",
+        label: "Logs & Traces",
+        icon: ScrollText,
+        minRole: "System Administrator",
+        workspaceMode: "Developer",
+      },
+      {
+        to: "/dev/db",
+        label: "DB Inspector",
+        icon: Search,
+        minRole: "System Administrator",
+        workspaceMode: "Developer",
+      },
     ],
   },
 ];
@@ -233,12 +318,22 @@ export function AppLayout({
   onLogout?: () => void | Promise<void>;
 }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const { workspaceMode } = useWorkspaceMode();
   const openAlarms = useAppStore((s) => s.alarms.filter((a) => a.outcome === "OPEN").length);
   const currentUser = session.user;
   const userInitials = currentUser
     ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.trim() || "U"
     : "SK";
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const visibleNavigation = NAV.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => {
+      const canonicalRoleAllowed =
+        !item.minRole || Boolean(currentUser && roleIsAtLeast(currentUser.role, item.minRole));
+      const workspaceModeAllowed = !item.workspaceMode || item.workspaceMode === workspaceMode;
+      return canonicalRoleAllowed && workspaceModeAllowed;
+    }),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -267,48 +362,43 @@ export function AppLayout({
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-5">
-          {NAV.map((g) => (
+          {visibleNavigation.map((g) => (
             <div key={g.section}>
               <div className="px-2.5 mb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground/80">
                 {g.section}
               </div>
               <ul className="space-y-0.5">
-                {g.items
-                  .filter((it) => {
-                    if (!it.minRole || !currentUser) return true;
-                    return roleIsAtLeast(currentUser.role, it.minRole);
-                  })
-                  .map((it) => {
-                    const active = pathname === it.to;
-                    const Icon = it.icon;
-                    return (
-                      <li key={it.to}>
-                        <Link
-                          to={it.to}
-                          onClick={() => setSidebarOpen(false)}
-                          className={`group flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
-                            active
-                              ? "bg-sidebar-accent text-foreground shadow-[inset_2px_0_0_0] shadow-primary"
-                              : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-foreground"
-                          }`}
-                        >
-                          <Icon
-                            className={`size-4 ${active ? "text-primary" : "text-sidebar-foreground/60 group-hover:text-foreground"}`}
-                          />
-                          <span className="flex-1 truncate">{it.label}</span>
-                          {"badge" in it && it.badge && it.to === "/alarms" && openAlarms > 0 ? (
-                            <span className="text-[10px] font-semibold rounded-full bg-danger/20 text-danger px-1.5 py-0.5 border border-danger/30">
-                              {openAlarms}
-                            </span>
-                          ) : "badge" in it && it.badge && it.to !== "/alarms" ? (
-                            <span className="text-[10px] font-semibold rounded-full bg-danger/20 text-danger px-1.5 py-0.5 border border-danger/30">
-                              {it.badge}
-                            </span>
-                          ) : null}
-                        </Link>
-                      </li>
-                    );
-                  })}
+                {g.items.map((it) => {
+                  const active = pathname === it.to;
+                  const Icon = it.icon;
+                  return (
+                    <li key={it.to}>
+                      <Link
+                        to={it.to}
+                        onClick={() => setSidebarOpen(false)}
+                        className={`group flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
+                          active
+                            ? "bg-sidebar-accent text-foreground shadow-[inset_2px_0_0_0] shadow-primary"
+                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-foreground"
+                        }`}
+                      >
+                        <Icon
+                          className={`size-4 ${active ? "text-primary" : "text-sidebar-foreground/60 group-hover:text-foreground"}`}
+                        />
+                        <span className="flex-1 truncate">{it.label}</span>
+                        {"badge" in it && it.badge && it.to === "/alarms" && openAlarms > 0 ? (
+                          <span className="text-[10px] font-semibold rounded-full bg-danger/20 text-danger px-1.5 py-0.5 border border-danger/30">
+                            {openAlarms}
+                          </span>
+                        ) : "badge" in it && it.badge && it.to !== "/alarms" ? (
+                          <span className="text-[10px] font-semibold rounded-full bg-danger/20 text-danger px-1.5 py-0.5 border border-danger/30">
+                            {it.badge}
+                          </span>
+                        ) : null}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}

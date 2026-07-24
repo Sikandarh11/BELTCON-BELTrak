@@ -31,7 +31,13 @@ import { Route as SettingsMapRouteImport } from './routes/settings.map'
 import { Route as SettingsEscalationsRouteImport } from './routes/settings.escalations'
 import { Route as SettingsAuditRouteImport } from './routes/settings.audit'
 import { Route as OpsScanRouteImport } from './routes/ops.scan'
+import { Route as DevSimulatorRouteImport } from './routes/dev.simulator'
+import { Route as DevLogsRouteImport } from './routes/dev.logs'
+import { Route as DevFlagsRouteImport } from './routes/dev.flags'
+import { Route as DevEventsRouteImport } from './routes/dev.events'
+import { Route as DevDbRouteImport } from './routes/dev.db'
 import { Route as DevConsoleRouteImport } from './routes/dev.console'
+import { Route as DevApiRouteImport } from './routes/dev.api'
 import { Route as AuditLogsRouteImport } from './routes/audit.logs'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 
@@ -145,9 +151,39 @@ const OpsScanRoute = OpsScanRouteImport.update({
   path: '/ops/scan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DevSimulatorRoute = DevSimulatorRouteImport.update({
+  id: '/dev/simulator',
+  path: '/dev/simulator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevLogsRoute = DevLogsRouteImport.update({
+  id: '/dev/logs',
+  path: '/dev/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevFlagsRoute = DevFlagsRouteImport.update({
+  id: '/dev/flags',
+  path: '/dev/flags',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevEventsRoute = DevEventsRouteImport.update({
+  id: '/dev/events',
+  path: '/dev/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevDbRoute = DevDbRouteImport.update({
+  id: '/dev/db',
+  path: '/dev/db',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DevConsoleRoute = DevConsoleRouteImport.update({
   id: '/dev/console',
   path: '/dev/console',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevApiRoute = DevApiRouteImport.update({
+  id: '/dev/api',
+  path: '/dev/api',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuditLogsRoute = AuditLogsRouteImport.update({
@@ -177,7 +213,13 @@ export interface FileRoutesByFullPath {
   '/target': typeof TargetRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/audit/logs': typeof AuditLogsRoute
+  '/dev/api': typeof DevApiRoute
   '/dev/console': typeof DevConsoleRoute
+  '/dev/db': typeof DevDbRoute
+  '/dev/events': typeof DevEventsRoute
+  '/dev/flags': typeof DevFlagsRoute
+  '/dev/logs': typeof DevLogsRoute
+  '/dev/simulator': typeof DevSimulatorRoute
   '/ops/scan': typeof OpsScanRoute
   '/settings/audit': typeof SettingsAuditRoute
   '/settings/escalations': typeof SettingsEscalationsRoute
@@ -204,7 +246,13 @@ export interface FileRoutesByTo {
   '/target': typeof TargetRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/audit/logs': typeof AuditLogsRoute
+  '/dev/api': typeof DevApiRoute
   '/dev/console': typeof DevConsoleRoute
+  '/dev/db': typeof DevDbRoute
+  '/dev/events': typeof DevEventsRoute
+  '/dev/flags': typeof DevFlagsRoute
+  '/dev/logs': typeof DevLogsRoute
+  '/dev/simulator': typeof DevSimulatorRoute
   '/ops/scan': typeof OpsScanRoute
   '/settings/audit': typeof SettingsAuditRoute
   '/settings/escalations': typeof SettingsEscalationsRoute
@@ -232,7 +280,13 @@ export interface FileRoutesById {
   '/target': typeof TargetRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/audit/logs': typeof AuditLogsRoute
+  '/dev/api': typeof DevApiRoute
   '/dev/console': typeof DevConsoleRoute
+  '/dev/db': typeof DevDbRoute
+  '/dev/events': typeof DevEventsRoute
+  '/dev/flags': typeof DevFlagsRoute
+  '/dev/logs': typeof DevLogsRoute
+  '/dev/simulator': typeof DevSimulatorRoute
   '/ops/scan': typeof OpsScanRoute
   '/settings/audit': typeof SettingsAuditRoute
   '/settings/escalations': typeof SettingsEscalationsRoute
@@ -261,7 +315,13 @@ export interface FileRouteTypes {
     | '/target'
     | '/admin/dashboard'
     | '/audit/logs'
+    | '/dev/api'
     | '/dev/console'
+    | '/dev/db'
+    | '/dev/events'
+    | '/dev/flags'
+    | '/dev/logs'
+    | '/dev/simulator'
     | '/ops/scan'
     | '/settings/audit'
     | '/settings/escalations'
@@ -288,7 +348,13 @@ export interface FileRouteTypes {
     | '/target'
     | '/admin/dashboard'
     | '/audit/logs'
+    | '/dev/api'
     | '/dev/console'
+    | '/dev/db'
+    | '/dev/events'
+    | '/dev/flags'
+    | '/dev/logs'
+    | '/dev/simulator'
     | '/ops/scan'
     | '/settings/audit'
     | '/settings/escalations'
@@ -315,7 +381,13 @@ export interface FileRouteTypes {
     | '/target'
     | '/admin/dashboard'
     | '/audit/logs'
+    | '/dev/api'
     | '/dev/console'
+    | '/dev/db'
+    | '/dev/events'
+    | '/dev/flags'
+    | '/dev/logs'
+    | '/dev/simulator'
     | '/ops/scan'
     | '/settings/audit'
     | '/settings/escalations'
@@ -343,7 +415,13 @@ export interface RootRouteChildren {
   TargetRoute: typeof TargetRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AuditLogsRoute: typeof AuditLogsRoute
+  DevApiRoute: typeof DevApiRoute
   DevConsoleRoute: typeof DevConsoleRoute
+  DevDbRoute: typeof DevDbRoute
+  DevEventsRoute: typeof DevEventsRoute
+  DevFlagsRoute: typeof DevFlagsRoute
+  DevLogsRoute: typeof DevLogsRoute
+  DevSimulatorRoute: typeof DevSimulatorRoute
   OpsScanRoute: typeof OpsScanRoute
   SettingsAuditRoute: typeof SettingsAuditRoute
   SettingsEscalationsRoute: typeof SettingsEscalationsRoute
@@ -511,11 +589,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OpsScanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dev/simulator': {
+      id: '/dev/simulator'
+      path: '/dev/simulator'
+      fullPath: '/dev/simulator'
+      preLoaderRoute: typeof DevSimulatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/logs': {
+      id: '/dev/logs'
+      path: '/dev/logs'
+      fullPath: '/dev/logs'
+      preLoaderRoute: typeof DevLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/flags': {
+      id: '/dev/flags'
+      path: '/dev/flags'
+      fullPath: '/dev/flags'
+      preLoaderRoute: typeof DevFlagsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/events': {
+      id: '/dev/events'
+      path: '/dev/events'
+      fullPath: '/dev/events'
+      preLoaderRoute: typeof DevEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/db': {
+      id: '/dev/db'
+      path: '/dev/db'
+      fullPath: '/dev/db'
+      preLoaderRoute: typeof DevDbRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dev/console': {
       id: '/dev/console'
       path: '/dev/console'
       fullPath: '/dev/console'
       preLoaderRoute: typeof DevConsoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/api': {
+      id: '/dev/api'
+      path: '/dev/api'
+      fullPath: '/dev/api'
+      preLoaderRoute: typeof DevApiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/audit/logs': {
@@ -551,7 +671,13 @@ const rootRouteChildren: RootRouteChildren = {
   TargetRoute: TargetRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AuditLogsRoute: AuditLogsRoute,
+  DevApiRoute: DevApiRoute,
   DevConsoleRoute: DevConsoleRoute,
+  DevDbRoute: DevDbRoute,
+  DevEventsRoute: DevEventsRoute,
+  DevFlagsRoute: DevFlagsRoute,
+  DevLogsRoute: DevLogsRoute,
+  DevSimulatorRoute: DevSimulatorRoute,
   OpsScanRoute: OpsScanRoute,
   SettingsAuditRoute: SettingsAuditRoute,
   SettingsEscalationsRoute: SettingsEscalationsRoute,

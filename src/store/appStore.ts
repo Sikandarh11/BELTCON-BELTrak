@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import type { Bag, Alarm, RfidEvent, Resolution, Reader } from "@/types";
-import { SEED_BAGS, SEED_ALARMS, SEED_EVENTS, SEED_READERS, USERS, ESCALATIONS } from "@/mocks/seed";
+import {
+  SEED_BAGS,
+  SEED_ALARMS,
+  SEED_EVENTS,
+  SEED_READERS,
+  USERS,
+  ESCALATIONS,
+} from "@/mocks/seed";
+import { createMockAuditEntries } from "@/mocks/workspace";
 import { persistenceService } from "@/services/persistenceService";
 
 export interface AppUser {
@@ -83,7 +91,7 @@ const INITIAL_STATE = {
     sla: e.sla,
     enabled: true,
   })),
-  auditLog: [] as AuditEntry[],
+  auditLog: createMockAuditEntries(),
   resetKey: 0,
   hydrated: false,
 };
@@ -175,20 +183,19 @@ export const useAppStore = create<AppState>((set) => ({
       };
     }),
 
-  addUser: (user) =>
-    set((s) => ({ users: [...s.users, user] })),
+  addUser: (user) => set((s) => ({ users: [...s.users, user] })),
 
   updateUser: (id, patch) =>
     set((s) => ({ users: s.users.map((u) => (u.id === id ? { ...u, ...patch } : u)) })),
 
-  deleteUser: (id) =>
-    set((s) => ({ users: s.users.filter((u) => u.id !== id) })),
+  deleteUser: (id) => set((s) => ({ users: s.users.filter((u) => u.id !== id) })),
 
-  addEscalationRule: (rule) =>
-    set((s) => ({ escalationRules: [...s.escalationRules, rule] })),
+  addEscalationRule: (rule) => set((s) => ({ escalationRules: [...s.escalationRules, rule] })),
 
   updateEscalationRule: (id, patch) =>
-    set((s) => ({ escalationRules: s.escalationRules.map((r) => (r.id === id ? { ...r, ...patch } : r)) })),
+    set((s) => ({
+      escalationRules: s.escalationRules.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    })),
 
   deleteEscalationRule: (id) =>
     set((s) => ({ escalationRules: s.escalationRules.filter((r) => r.id !== id) })),

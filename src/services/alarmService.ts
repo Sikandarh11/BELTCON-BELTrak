@@ -54,7 +54,9 @@ export const alarmService = {
 
     try {
       bagService.transition(alarm.bagId, "UNDER_RECHECK");
-    } catch {}
+    } catch {
+      // The bag may already be in the recheck flow.
+    }
 
     useAppStore.getState().addAuditEntry({
       action: "ALARM_ACKNOWLEDGED",
@@ -73,13 +75,28 @@ export const alarmService = {
     useAppStore.getState().updateAlarm(alarmId, { outcome: "ESCALATED" });
     try {
       bagService.transition(alarm.bagId, "ESCALATED");
-    } catch {}
+    } catch {
+      // The bag may already be escalated.
+    }
 
     useAppStore.getState().addAuditEntry({
       action: "ALARM_ESCALATED",
       userId: "system",
       userName: "System",
       detail: `Alarm ${alarmId} escalated`,
+    });
+  },
+
+  reassign(alarmId: string, officerName: string): void {
+    const alarm = useAppStore.getState().alarms.find((item) => item.id === alarmId);
+    if (!alarm) throw new Error(`Alarm ${alarmId} not found`);
+
+    useAppStore.getState().updateAlarm(alarmId, { acknowledgedBy: officerName });
+    useAppStore.getState().addAuditEntry({
+      action: "ALARM_REASSIGNED",
+      userId: officerName,
+      userName: officerName,
+      detail: `Alarm ${alarmId} reassigned to ${officerName}`,
     });
   },
 
@@ -102,7 +119,9 @@ export const alarmService = {
       action,
       resolvedAt: new Date().toISOString(),
     });
-    console.log(`[alarmService] Bag ${alarm.bagId} resolved with ${action} — future exit reads will be suppressed`);
+    console.log(
+      `[alarmService] Bag ${alarm.bagId} resolved with ${action} — future exit reads will be suppressed`,
+    );
 
     store.addAuditEntry({
       action: "ALARM_RESOLVED",
@@ -116,9 +135,17 @@ export const alarmService = {
     });
 
     if (action === "ESCALATED") {
-      try { bagService.transition(alarm.bagId, "ESCALATED"); } catch {}
+      try {
+        bagService.transition(alarm.bagId, "ESCALATED");
+      } catch {
+        // The alarm outcome remains the source of truth if the bag already advanced.
+      }
     } else {
-      try { bagService.transition(alarm.bagId, "RESOLVED"); } catch {}
+      try {
+        bagService.transition(alarm.bagId, "RESOLVED");
+      } catch {
+        // The alarm outcome remains the source of truth if the bag already advanced.
+      }
     }
   },
 };
