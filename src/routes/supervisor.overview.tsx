@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { RequireRole } from "@/auth/RequireRole";
+import { RequireWorkspaceMode } from "@/auth/RequireWorkspaceMode";
 import { RolePlaceholderPage } from "@/components/RolePlaceholderPage";
 
 export const Route = createFileRoute("/supervisor/overview")({
@@ -10,8 +10,8 @@ export const Route = createFileRoute("/supervisor/overview")({
 
 function SupervisorOverview() {
   return (
-    <RequireRole roles={["Supervisor"]}>
-      <RolePlaceholderPage role="Supervisor" />
-    </RequireRole>
+    <RequireWorkspaceMode modes={["Supervisor"]}>
+      <RolePlaceholderPage workspaceMode="Supervisor" />
+    </RequireWorkspaceMode>
   );
 }

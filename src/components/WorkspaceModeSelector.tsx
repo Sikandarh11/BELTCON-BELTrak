@@ -8,9 +8,14 @@ import {
 } from "lucide-react";
 import { forwardRef, useId, useImperativeHandle, useRef } from "react";
 
-import { APP_ROLES, ROLE_DETAILS, persistLastRole, type AppRole } from "@/auth/appRoles";
+import {
+  setLastMode,
+  WORKSPACE_MODES,
+  WORKSPACE_MODE_VALUES,
+  type WorkspaceMode,
+} from "@/auth/appRoles";
 
-const ROLE_ICONS: Record<AppRole, LucideIcon> = {
+const WORKSPACE_MODE_ICONS: Record<WorkspaceMode, LucideIcon> = {
   Admin: ShieldCheck,
   Developer: Code2,
   Operator: ScanLine,
@@ -18,24 +23,24 @@ const ROLE_ICONS: Record<AppRole, LucideIcon> = {
   Auditor: ScrollText,
 };
 
-export type RoleSelectorHandle = {
+export type WorkspaceModeSelectorHandle = {
   focus: () => void;
 };
 
-type RoleSelectorProps = {
-  label: string;
-  role: AppRole;
-  onRoleChange: (role: AppRole) => void;
+type WorkspaceModeSelectorProps = {
+  workspaceLabel: string;
+  workspaceMode: WorkspaceMode;
+  onWorkspaceModeChange: (workspaceMode: WorkspaceMode) => void;
 };
 
-export const RoleSelector = forwardRef<RoleSelectorHandle, RoleSelectorProps>(function RoleSelector(
-  { label, role, onRoleChange },
-  ref,
-) {
+export const WorkspaceModeSelector = forwardRef<
+  WorkspaceModeSelectorHandle,
+  WorkspaceModeSelectorProps
+>(function WorkspaceModeSelector({ workspaceLabel, workspaceMode, onWorkspaceModeChange }, ref) {
   const id = useId();
   const selectRef = useRef<HTMLSelectElement>(null);
   const firstButtonRef = useRef<HTMLButtonElement>(null);
-  const SelectedIcon = ROLE_ICONS[role];
+  const SelectedIcon = WORKSPACE_MODE_ICONS[workspaceMode];
 
   useImperativeHandle(ref, () => ({
     focus() {
@@ -50,15 +55,15 @@ export const RoleSelector = forwardRef<RoleSelectorHandle, RoleSelectorProps>(fu
     },
   }));
 
-  function selectRole(nextRole: AppRole) {
-    persistLastRole(nextRole);
-    onRoleChange(nextRole);
+  function selectWorkspaceMode(nextMode: WorkspaceMode) {
+    setLastMode(nextMode);
+    onWorkspaceModeChange(nextMode);
   }
 
   return (
     <div className="space-y-2">
       <label id={`${id}-label`} htmlFor={`${id}-select`} className="block text-sm text-slate-700">
-        {label}
+        {workspaceLabel}
       </label>
 
       <div className="relative sm:hidden">
@@ -69,12 +74,12 @@ export const RoleSelector = forwardRef<RoleSelectorHandle, RoleSelectorProps>(fu
         <select
           ref={selectRef}
           id={`${id}-select`}
-          value={role}
-          onChange={(event) => selectRole(event.target.value as AppRole)}
+          value={workspaceMode}
+          onChange={(event) => selectWorkspaceMode(event.target.value as WorkspaceMode)}
           aria-describedby={`${id}-help`}
           className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm font-medium text-slate-900 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
         >
-          {APP_ROLES.map((option) => (
+          {WORKSPACE_MODE_VALUES.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>
@@ -88,15 +93,15 @@ export const RoleSelector = forwardRef<RoleSelectorHandle, RoleSelectorProps>(fu
         </span>
       </div>
 
-      <div
-        role="group"
+      <fieldset
         aria-labelledby={`${id}-label`}
         aria-describedby={`${id}-help`}
         className="hidden grid-cols-5 gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-1 sm:grid"
       >
-        {APP_ROLES.map((option, index) => {
-          const Icon = ROLE_ICONS[option];
-          const selected = option === role;
+        <legend className="sr-only">{workspaceLabel}</legend>
+        {WORKSPACE_MODE_VALUES.map((option, index) => {
+          const Icon = WORKSPACE_MODE_ICONS[option];
+          const selected = option === workspaceMode;
 
           return (
             <button
@@ -104,7 +109,7 @@ export const RoleSelector = forwardRef<RoleSelectorHandle, RoleSelectorProps>(fu
               ref={index === 0 ? firstButtonRef : undefined}
               type="button"
               aria-pressed={selected}
-              onClick={() => selectRole(option)}
+              onClick={() => selectWorkspaceMode(option)}
               className={`inline-flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 text-[10px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 ${
                 selected
                   ? "border-transparent bg-primary text-primary-foreground shadow-sm"
@@ -116,10 +121,10 @@ export const RoleSelector = forwardRef<RoleSelectorHandle, RoleSelectorProps>(fu
             </button>
           );
         })}
-      </div>
+      </fieldset>
 
       <p id={`${id}-help`} aria-live="polite" className="text-xs text-slate-500">
-        {ROLE_DETAILS[role].helperText}
+        {WORKSPACE_MODES[workspaceMode].helperText}
       </p>
     </div>
   );

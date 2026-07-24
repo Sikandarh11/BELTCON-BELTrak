@@ -1,10 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, BadgeCheck, ShieldCheck, LockKeyhole, PlaneTakeoff, ShieldAlert } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  ShieldCheck,
+  LockKeyhole,
+  PlaneTakeoff,
+  ShieldAlert,
+} from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
-import { getLastRole, type AppRole } from "@/auth/appRoles";
-import { RoleSelector } from "@/components/RoleSelector";
+import { getLastMode, getWorkspaceLanding, type WorkspaceMode } from "@/auth/appRoles";
+import { WorkspaceModeSelector } from "@/components/WorkspaceModeSelector";
 import {
   AUTH_SESSION_KEY,
   register,
@@ -18,12 +25,14 @@ export const Route = createFileRoute("/register")({
   component: RegisterPage,
 });
 
-type RegisterFormState = Omit<RegisterInput, "registrationKey" | "role"> & { registrationKey: string };
+type RegisterFormState = Omit<RegisterInput, "registrationKey" | "workspaceMode"> & {
+  registrationKey: string;
+};
 
 function RegisterPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [role, setRole] = useState<AppRole>("Operator");
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("Operator");
   const [form, setForm] = useState<RegisterFormState>({
     firstName: "",
     lastName: "",
@@ -36,7 +45,7 @@ function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setRole(getLastRole("Operator"));
+    setWorkspaceMode(getLastMode("Operator"));
   }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -45,9 +54,12 @@ function RegisterPage() {
     setLoading(true);
 
     try {
-      const session = await register({ ...form, role });
+      const session = await register({ ...form, workspaceMode });
       queryClient.setQueryData(AUTH_SESSION_KEY, session);
-      navigate({ to: "/", replace: true });
+      navigate({
+        to: getWorkspaceLanding(workspaceMode),
+        replace: true,
+      });
     } catch (submissionError) {
       if (submissionError instanceof AuthApiError) {
         setError(submissionError.message);
@@ -66,8 +78,12 @@ function RegisterPage() {
         <section className="flex items-center justify-center px-6 py-8 lg:px-10 xl:px-16 xl:py-10">
           <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:p-8">
             <div className="mb-6">
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Create account</h2>
-              <p className="mt-2 text-sm text-slate-600">Registration is restricted to users with a valid access key.</p>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+                Create account
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Registration is restricted to users with a valid access key.
+              </p>
             </div>
 
             {error ? (
@@ -78,45 +94,105 @@ function RegisterPage() {
             ) : null}
 
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <RoleSelector
-                label="Register as"
-                role={role}
-                onRoleChange={setRole}
+              <WorkspaceModeSelector
+                workspaceLabel="Start as"
+                workspaceMode={workspaceMode}
+                onWorkspaceModeChange={setWorkspaceMode}
               />
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block space-y-2">
                   <span className="text-sm text-slate-700">First Name</span>
-                  <input required value={form.firstName} onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="First name" autoComplete="given-name" />
+                  <input
+                    required
+                    value={form.firstName}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, firstName: event.target.value }))
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+                    placeholder="First name"
+                    autoComplete="given-name"
+                  />
                 </label>
 
                 <label className="block space-y-2">
                   <span className="text-sm text-slate-700">Last Name</span>
-                  <input required value={form.lastName} onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Last name" autoComplete="family-name" />
+                  <input
+                    required
+                    value={form.lastName}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, lastName: event.target.value }))
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+                    placeholder="Last name"
+                    autoComplete="family-name"
+                  />
                 </label>
               </div>
 
               <label className="block space-y-2">
                 <span className="text-sm text-slate-700">Email Address</span>
-                <input type="email" required value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="name@ops.local" autoComplete="email" />
+                <input
+                  type="email"
+                  required
+                  value={form.email}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, email: event.target.value }))
+                  }
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+                  placeholder="name@ops.local"
+                  autoComplete="email"
+                />
               </label>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block space-y-2">
                   <span className="text-sm text-slate-700">Password</span>
-                  <input type="password" required minLength={12} value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Create password" autoComplete="new-password" />
+                  <input
+                    type="password"
+                    required
+                    minLength={12}
+                    value={form.password}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, password: event.target.value }))
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+                    placeholder="Create password"
+                    autoComplete="new-password"
+                  />
                 </label>
 
                 <label className="block space-y-2">
                   <span className="text-sm text-slate-700">Confirm Password</span>
-                  <input type="password" required value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Confirm password" autoComplete="new-password" />
+                  <input
+                    type="password"
+                    required
+                    value={form.confirmPassword}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, confirmPassword: event.target.value }))
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+                    placeholder="Confirm password"
+                    autoComplete="new-password"
+                  />
                 </label>
               </div>
 
               <label className="block space-y-2">
                 <span className="text-sm text-slate-700">Registration Key</span>
-                <input required value={form.registrationKey} onChange={(event) => setForm((current) => ({ ...current, registrationKey: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20" placeholder="Enter registration key" autoComplete="off" />
-                <p className="text-xs text-slate-500">Use the registration key issued by system administration.</p>
+                <input
+                  required
+                  value={form.registrationKey}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, registrationKey: event.target.value }))
+                  }
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+                  placeholder="Enter registration key"
+                  autoComplete="off"
+                />
+                <p className="text-xs text-slate-500">
+                  Use the registration key issued by system administration.
+                </p>
               </label>
 
               <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/8 p-4 text-xs leading-5 text-slate-600">
@@ -127,7 +203,11 @@ function RegisterPage() {
                 <p className="mt-2">{PASSWORD_REQUIREMENTS}</p>
               </div>
 
-              <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-70">
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-70"
+              >
                 {loading ? "Creating account..." : "Create secure account"}
                 <ArrowRight className="size-4" />
               </button>
@@ -135,7 +215,9 @@ function RegisterPage() {
 
             <div className="mt-6 flex items-center justify-between text-sm text-slate-600">
               <span>Already registered?</span>
-              <Link to="/login" className="font-medium text-cyan-600 hover:text-cyan-700">Sign in</Link>
+              <Link to="/login" className="font-medium text-cyan-600 hover:text-cyan-700">
+                Sign in
+              </Link>
             </div>
           </div>
         </section>
@@ -147,7 +229,9 @@ function RegisterPage() {
             </div>
             <div>
               <div className="text-lg font-semibold tracking-tight text-slate-900">BELTrak</div>
-              <div className="text-xs uppercase tracking-[0.28em] text-cyan-700/70">Operations Suspect Baggage Tracking System</div>
+              <div className="text-xs uppercase tracking-[0.28em] text-cyan-700/70">
+                Operations Suspect Baggage Tracking System
+              </div>
             </div>
           </div>
 
@@ -156,20 +240,38 @@ function RegisterPage() {
               <BadgeCheck className="size-3.5" />
               Controlled registration for the operations intranet
             </p>
-            <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl xl:text-6xl">Every account is validated before it touches the operations network.</h1>
+            <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl xl:text-6xl">
+              Every account is validated before it touches the operations network.
+            </h1>
             <p className="mt-5 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-              The registration key prevents unauthorized sign-ups, and every password is stored as a bcrypt hash inside the local JSON user database.
+              New accounts are created as Operations Officer. Your selected workspace above is a UI
+              preference and can be changed later.
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               {[
-                { title: "Unique identity", text: "Email and passport values must not duplicate an existing account.", icon: ShieldCheck },
-                { title: "Default role", text: "New users start as Operations Officer until administrators adjust access.", icon: BadgeCheck },
-                { title: "Session protection", text: "Sessions are long-lived (client-visible duration ~10 years); tokens are stored in HttpOnly cookies.", icon: LockKeyhole },
+                {
+                  title: "Unique identity",
+                  text: "Email addresses must not duplicate an existing account.",
+                  icon: ShieldCheck,
+                },
+                {
+                  title: "Default role",
+                  text: "New users start as Operations Officer until administrators adjust access.",
+                  icon: BadgeCheck,
+                },
+                {
+                  title: "Session protection",
+                  text: "Sessions are long-lived (client-visible duration ~10 years); tokens are stored in HttpOnly cookies.",
+                  icon: LockKeyhole,
+                },
               ].map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 backdrop-blur">
+                  <div
+                    key={item.title}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4 backdrop-blur"
+                  >
                     <Icon className="size-4 text-cyan-600" />
                     <div className="mt-3 text-sm font-medium text-slate-900">{item.title}</div>
                     <div className="mt-1 text-xs leading-5 text-slate-600">{item.text}</div>
@@ -179,7 +281,9 @@ function RegisterPage() {
             </div>
           </div>
 
-          <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Registration key required for all new accounts</div>
+          <div className="text-xs uppercase tracking-[0.24em] text-slate-500">
+            Registration key required for all new accounts
+          </div>
         </section>
       </div>
     </div>

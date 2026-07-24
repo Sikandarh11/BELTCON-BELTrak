@@ -1,18 +1,18 @@
 import { LogOut } from "lucide-react";
 
 import { useAuthSession } from "@/auth/SessionContext";
-import type { AppRole } from "@/auth/appRoles";
+import type { WorkspaceMode } from "@/auth/appRoles";
 
-export function RolePlaceholderPage({ role }: { role: AppRole }) {
+export function RolePlaceholderPage({ workspaceMode }: { workspaceMode: WorkspaceMode }) {
   const { logout } = useAuthSession();
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center p-6">
       <section className="w-full max-w-xl rounded-xl border border-border bg-panel p-8 text-center shadow-sm">
         <div className="mx-auto mb-5 flex size-12 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-sm font-semibold text-primary">
-          {role.slice(0, 2).toUpperCase()}
+          {workspaceMode.slice(0, 2).toUpperCase()}
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight">{role}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{workspaceMode}</h1>
         <p className="mt-3 text-sm text-muted-foreground">This role workspace is coming soon.</p>
         <button
           type="button"

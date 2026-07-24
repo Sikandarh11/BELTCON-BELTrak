@@ -1,9 +1,5 @@
 import { z } from "zod";
-import {
-  getLastRole,
-  persistLastRole,
-  type AppRole,
-} from "@/auth/appRoles";
+import { getLastMode, setLastMode, type WorkspaceMode } from "@/auth/appRoles";
 
 export const AUTH_COOKIE_NAME = "etb_auth_token";
 export const AUTH_SESSION_KEY = ["auth", "session"] as const;
@@ -48,8 +44,12 @@ export const registerSchema = z
     path: ["confirmPassword"],
   });
 
-export type LoginInput = z.infer<typeof loginSchema> & { role: AppRole };
-export type RegisterInput = z.infer<typeof registerSchema> & { role: AppRole };
+export type LoginInput = z.infer<typeof loginSchema> & {
+  workspaceMode: WorkspaceMode;
+};
+export type RegisterInput = z.infer<typeof registerSchema> & {
+  workspaceMode: WorkspaceMode;
+};
 
 export type SessionUser = {
   id: string;
@@ -64,10 +64,10 @@ export type SessionUser = {
 export type AuthSessionResponse = {
   user: SessionUser;
   expiresAt: string;
-  role: AppRole;
+  workspaceMode: WorkspaceMode;
 };
 
-type AuthSessionApiResponse = Omit<AuthSessionResponse, "role">;
+type AuthSessionApiResponse = Omit<AuthSessionResponse, "workspaceMode">;
 
 export class AuthApiError extends Error {
   fieldErrors?: Record<string, string>;
@@ -85,7 +85,10 @@ async function parseAuthError(response: Response): Promise<AuthApiError> {
   const fallbackMessage = response.status === 401 ? "Unauthorized" : "Request failed";
 
   try {
-    const body = (await response.json()) as { error?: string; fieldErrors?: Record<string, string> };
+    const body = (await response.json()) as {
+      error?: string;
+      fieldErrors?: Record<string, string>;
+    };
     return new AuthApiError(body.error ?? fallbackMessage, response.status, body.fieldErrors);
   } catch {
     return new AuthApiError(fallbackMessage, response.status);
@@ -115,8 +118,8 @@ export async function login(input: LoginInput) {
     body: JSON.stringify(input),
   });
 
-  persistLastRole(input.role);
-  return { ...session, role: input.role };
+  setLastMode(input.workspaceMode);
+  return { ...session, workspaceMode: input.workspaceMode };
 }
 
 export async function register(input: RegisterInput) {
@@ -125,13 +128,14 @@ export async function register(input: RegisterInput) {
     body: JSON.stringify(input),
   });
 
-  persistLastRole(input.role);
-  return { ...session, role: input.role };
+  setLastMode(input.workspaceMode);
+  return { ...session, workspaceMode: input.workspaceMode };
 }
 
 export async function fetchSession(): Promise<AuthSessionResponse> {
   const session = await authJsonRequest<AuthSessionApiResponse>("/api/auth/session");
-  return { ...session, role: getLastRole("Admin") };
+  // UI hint only, not server-authorized.
+  return { ...session, workspaceMode: getLastMode("Admin") };
 }
 
 export async function logout() {

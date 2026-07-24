@@ -1,15 +1,42 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Map, BellRing, History, Target, ScanLine, Radio, FileBarChart2, Tag,
-  Settings, MapPinned, ShieldAlert, GitBranch, UserCog, Users, Search, Bell, ChevronDown,
-  CircleDot, Plane, Activity, LogOut, FlaskConical, ScrollText, Menu, Repeat2, Copy,
-  Bug, Check,
+  LayoutDashboard,
+  Map,
+  BellRing,
+  History,
+  Target,
+  ScanLine,
+  Radio,
+  FileBarChart2,
+  Tag,
+  Settings,
+  MapPinned,
+  ShieldAlert,
+  GitBranch,
+  UserCog,
+  Users,
+  Search,
+  Bell,
+  ChevronDown,
+  CircleDot,
+  Plane,
+  Activity,
+  LogOut,
+  FlaskConical,
+  ScrollText,
+  Menu,
+  Repeat2,
+  Copy,
+  Bug,
+  Check,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { GlobalBanners } from "./GlobalBanners";
-import { DEBUG_STORAGE_KEY, FOCUS_ROLE_STORAGE_KEY, ROLE_DETAILS, type AppRole } from "@/auth/appRoles";
+import { FOCUS_MODE_KEY, WORKSPACE_MODES, type WorkspaceMode } from "@/auth/appRoles";
+import { useAuthSession, useWorkspaceMode } from "@/auth/SessionContext";
+import { useDebugFlag } from "@/hooks/useDebugFlag";
 import type { AuthSessionResponse } from "@/services/authService";
 import { useAppStore } from "@/store/appStore";
 import { roleIsAtLeast } from "@/services/roles";
@@ -21,36 +48,86 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; badge?: number; minRole?: string };
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  badge?: number;
+  minRole?: string;
+};
 
 const NAV: { section: string; items: NavItem[] }[] = [
-  { section: "Operations", items: [
-    { to: "/", label: "Dashboard", icon: LayoutDashboard },
-    { to: "/map", label: "Live Operations Map", icon: Map },
-    { to: "/alarms", label: "Notifications & Alarms", icon: BellRing, badge: 4 },
-    { to: "/history", label: "Query Tag History", icon: History },
-    { to: "/tagging", label: "Tagging Station", icon: Tag },
-    { to: "/simulator", label: "Simulator", icon: Activity, minRole: "System Administrator" },
-    { to: "/target", label: "Target Information", icon: Target },
-    { to: "/recheck", label: "Recheck Station", icon: ScanLine },
-    { to: "/readers", label: "RFID Readers", icon: Radio, minRole: "Control Center Operator" },
-    { to: "/reports", label: "Reports", icon: FileBarChart2 },
-  ]},
-  { section: "Administration", items: [
-    { to: "/settings/system", label: "System Settings", icon: Settings, minRole: "Airport Administrator" },
-    { to: "/settings/map", label: "Map Settings", icon: MapPinned, minRole: "Airport Administrator" },
-    { to: "/settings/threats", label: "Threat Types", icon: ShieldAlert, minRole: "Airport Administrator" },
-    { to: "/settings/escalations", label: "Escalations", icon: GitBranch, minRole: "Customs Supervisor" },
-    { to: "/settings/roles", label: "Manage Roles", icon: UserCog, minRole: "Airport Administrator" },
-    { to: "/settings/users", label: "Manage Users", icon: Users, minRole: "Airport Administrator" },
-    { to: "/settings/audit", label: "Audit Log", icon: ScrollText, minRole: "Airport Administrator" },
-  ]},
-  { section: "Developer", items: [
-    { to: "/simulator", label: "Simulator", icon: FlaskConical, minRole: "System Administrator" },
-  ]},
+  {
+    section: "Operations",
+    items: [
+      { to: "/", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/map", label: "Live Operations Map", icon: Map },
+      { to: "/alarms", label: "Notifications & Alarms", icon: BellRing, badge: 4 },
+      { to: "/history", label: "Query Tag History", icon: History },
+      { to: "/tagging", label: "Tagging Station", icon: Tag },
+      { to: "/simulator", label: "Simulator", icon: Activity, minRole: "System Administrator" },
+      { to: "/target", label: "Target Information", icon: Target },
+      { to: "/recheck", label: "Recheck Station", icon: ScanLine },
+      { to: "/readers", label: "RFID Readers", icon: Radio, minRole: "Control Center Operator" },
+      { to: "/reports", label: "Reports", icon: FileBarChart2 },
+    ],
+  },
+  {
+    section: "Administration",
+    items: [
+      {
+        to: "/settings/system",
+        label: "System Settings",
+        icon: Settings,
+        minRole: "Airport Administrator",
+      },
+      {
+        to: "/settings/map",
+        label: "Map Settings",
+        icon: MapPinned,
+        minRole: "Airport Administrator",
+      },
+      {
+        to: "/settings/threats",
+        label: "Threat Types",
+        icon: ShieldAlert,
+        minRole: "Airport Administrator",
+      },
+      {
+        to: "/settings/escalations",
+        label: "Escalations",
+        icon: GitBranch,
+        minRole: "Customs Supervisor",
+      },
+      {
+        to: "/settings/roles",
+        label: "Manage Roles",
+        icon: UserCog,
+        minRole: "Airport Administrator",
+      },
+      {
+        to: "/settings/users",
+        label: "Manage Users",
+        icon: Users,
+        minRole: "Airport Administrator",
+      },
+      {
+        to: "/settings/audit",
+        label: "Audit Log",
+        icon: ScrollText,
+        minRole: "Airport Administrator",
+      },
+    ],
+  },
+  {
+    section: "Developer",
+    items: [
+      { to: "/simulator", label: "Simulator", icon: FlaskConical, minRole: "System Administrator" },
+    ],
+  },
 ];
 
-const ROLE_CHIP_STYLES: Record<AppRole, string> = {
+const WORKSPACE_MODE_CHIP_STYLES: Record<WorkspaceMode, string> = {
   Admin: "border-primary/40 bg-primary/15 text-primary",
   Developer: "border-info/40 bg-info/15 text-info",
   Operator: "border-success/40 bg-success/15 text-success",
@@ -58,25 +135,17 @@ const ROLE_CHIP_STYLES: Record<AppRole, string> = {
   Auditor: "border-slate-400/50 bg-slate-200/60 text-slate-700",
 };
 
-function RoleModeIndicator({
-  session,
-  onLogout,
-}: {
-  session: AuthSessionResponse;
-  onLogout?: () => void | Promise<void>;
-}) {
-  const [debugEnabled, setDebugEnabled] = useState(false);
-  const isPrivileged = session.role === "Admin" || session.role === "Developer";
-  const isDeveloper = session.role === "Developer";
-  const chipClassName = `inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[10px] font-semibold tracking-[0.12em] ${ROLE_CHIP_STYLES[session.role]}`;
+function WorkspaceModeChip() {
+  const { user, tokenExpiry, logout } = useAuthSession();
+  const { workspaceMode } = useWorkspaceMode();
+  const { debugEnabled, setDebugEnabled } = useDebugFlag();
+  const isPrivilegedMode = workspaceMode === "Admin" || workspaceMode === "Developer";
+  const isDeveloperMode = workspaceMode === "Developer";
+  const chipClassName = `inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[10px] font-semibold tracking-[0.12em] ${WORKSPACE_MODE_CHIP_STYLES[workspaceMode]}`;
 
-  useEffect(() => {
-    setDebugEnabled(window.localStorage.getItem(DEBUG_STORAGE_KEY) === "true");
-  }, []);
-
-  function switchRole() {
-    window.sessionStorage.setItem(FOCUS_ROLE_STORAGE_KEY, "true");
-    void onLogout?.();
+  function switchWorkspaceMode() {
+    window.sessionStorage.setItem(FOCUS_MODE_KEY, "true");
+    void logout();
   }
 
   async function copySessionInfo() {
@@ -84,9 +153,9 @@ function RoleModeIndicator({
       await navigator.clipboard.writeText(
         JSON.stringify(
           {
-            user: session.user,
-            role: session.role,
-            tokenExpiry: session.expiresAt,
+            user,
+            workspaceMode,
+            tokenExpiry,
           },
           null,
           2,
@@ -100,21 +169,20 @@ function RoleModeIndicator({
 
   function toggleDebugOverlay() {
     const nextValue = !debugEnabled;
-    window.localStorage.setItem(DEBUG_STORAGE_KEY, String(nextValue));
     setDebugEnabled(nextValue);
     toast.success(`Debug overlay ${nextValue ? "enabled" : "disabled"}`);
   }
 
   const chipContent = (
     <>
-      <span>{ROLE_DETAILS[session.role].shortLabel}</span>
-      {isPrivileged ? <ChevronDown aria-hidden="true" className="size-3" /> : null}
+      <span>{WORKSPACE_MODES[workspaceMode].shortLabel}</span>
+      {isPrivilegedMode ? <ChevronDown aria-hidden="true" className="size-3" /> : null}
     </>
   );
 
-  if (!isPrivileged) {
+  if (!isPrivilegedMode) {
     return (
-      <span className={chipClassName} aria-label={`Current role: ${session.role}`}>
+      <span className={chipClassName} aria-label={`Current workspace mode: ${workspaceMode}`}>
         {chipContent}
       </span>
     );
@@ -126,17 +194,17 @@ function RoleModeIndicator({
         <button
           type="button"
           className={`${chipClassName} transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
-          aria-label={`Current role: ${session.role}. Open role menu`}
+          aria-label={`Current workspace mode: ${workspaceMode}. Open workspace menu`}
         >
           {chipContent}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem onSelect={switchRole}>
+        <DropdownMenuItem onSelect={switchWorkspaceMode}>
           <Repeat2 />
-          Switch role
+          Switch workspace
         </DropdownMenuItem>
-        {isDeveloper ? (
+        {isDeveloperMode ? (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => void copySessionInfo()}>
@@ -167,7 +235,9 @@ export function AppLayout({
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const openAlarms = useAppStore((s) => s.alarms.filter((a) => a.outcome === "OPEN").length);
   const currentUser = session.user;
-  const userInitials = currentUser ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.trim() || "U" : "SK";
+  const userInitials = currentUser
+    ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.trim() || "U"
+    : "SK";
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -178,18 +248,22 @@ export function AppLayout({
           <Menu className="size-5" />
         </button>
         <span className="font-semibold text-[14px]">BELTrak</span>
-        <RoleModeIndicator session={session} onLogout={onLogout} />
+        <div aria-hidden="true" className="size-9" />
       </div>
 
       {/* SIDEBAR */}
-      <aside className={`w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex-col fixed lg:static inset-y-0 left-0 z-40 ${sidebarOpen ? "flex" : "hidden"} lg:flex`}>
+      <aside
+        className={`w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex-col fixed lg:static inset-y-0 left-0 z-40 ${sidebarOpen ? "flex" : "hidden"} lg:flex`}
+      >
         <div className="px-5 py-4 border-b border-sidebar-border flex items-center gap-2.5">
           <div className="size-9 rounded-md bg-primary/15 border border-primary/40 flex items-center justify-center">
             <Plane className="size-5 text-primary -rotate-45" />
           </div>
           <div className="leading-tight">
             <div className="font-semibold tracking-tight text-[15px]">BELTrak</div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Operations Control</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              Operations Control
+            </div>
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-5">
@@ -205,34 +279,36 @@ export function AppLayout({
                     return roleIsAtLeast(currentUser.role, it.minRole);
                   })
                   .map((it) => {
-                  const active = pathname === it.to;
-                  const Icon = it.icon;
-                  return (
-                    <li key={it.to}>
-                      <Link
-                        to={it.to}
-                        onClick={() => setSidebarOpen(false)}
-                        className={`group flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
-                          active
-                            ? "bg-sidebar-accent text-foreground shadow-[inset_2px_0_0_0] shadow-primary"
-                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-foreground"
-                        }`}
-                      >
-                        <Icon className={`size-4 ${active ? "text-primary" : "text-sidebar-foreground/60 group-hover:text-foreground"}`} />
-                        <span className="flex-1 truncate">{it.label}</span>
-                        {"badge" in it && it.badge && it.to === "/alarms" && openAlarms > 0 ? (
-                          <span className="text-[10px] font-semibold rounded-full bg-danger/20 text-danger px-1.5 py-0.5 border border-danger/30">
-                            {openAlarms}
-                          </span>
-                        ) : "badge" in it && it.badge && it.to !== "/alarms" ? (
-                          <span className="text-[10px] font-semibold rounded-full bg-danger/20 text-danger px-1.5 py-0.5 border border-danger/30">
-                            {it.badge}
-                          </span>
-                        ) : null}
-                      </Link>
-                    </li>
-                  );
-                })}
+                    const active = pathname === it.to;
+                    const Icon = it.icon;
+                    return (
+                      <li key={it.to}>
+                        <Link
+                          to={it.to}
+                          onClick={() => setSidebarOpen(false)}
+                          className={`group flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
+                            active
+                              ? "bg-sidebar-accent text-foreground shadow-[inset_2px_0_0_0] shadow-primary"
+                              : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-foreground"
+                          }`}
+                        >
+                          <Icon
+                            className={`size-4 ${active ? "text-primary" : "text-sidebar-foreground/60 group-hover:text-foreground"}`}
+                          />
+                          <span className="flex-1 truncate">{it.label}</span>
+                          {"badge" in it && it.badge && it.to === "/alarms" && openAlarms > 0 ? (
+                            <span className="text-[10px] font-semibold rounded-full bg-danger/20 text-danger px-1.5 py-0.5 border border-danger/30">
+                              {openAlarms}
+                            </span>
+                          ) : "badge" in it && it.badge && it.to !== "/alarms" ? (
+                            <span className="text-[10px] font-semibold rounded-full bg-danger/20 text-danger px-1.5 py-0.5 border border-danger/30">
+                              {it.badge}
+                            </span>
+                          ) : null}
+                        </Link>
+                      </li>
+                    );
+                  })}
               </ul>
             </div>
           ))}
@@ -277,12 +353,16 @@ export function AppLayout({
             <Bell className="size-4" />
             <span className="absolute top-1 right-1 size-2 rounded-full bg-danger animate-pulse" />
           </button>
-          <RoleModeIndicator session={session} onLogout={onLogout} />
+          <WorkspaceModeChip />
           <div className="flex items-center gap-2 pl-3 border-l border-border">
-            <div className="size-8 rounded-full bg-linear-to-br from-primary to-info flex items-center justify-center text-[11px] font-semibold text-primary-foreground">{userInitials}</div>
+            <div className="size-8 rounded-full bg-linear-to-br from-primary to-info flex items-center justify-center text-[11px] font-semibold text-primary-foreground">
+              {userInitials}
+            </div>
             <div className="hidden md:block leading-tight">
-              <div className="text-[12px] font-medium">{currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Secure User"}</div>
-              <div className="text-[10px] text-muted-foreground">{session.role}</div>
+              <div className="text-[12px] font-medium">
+                {currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Secure User"}
+              </div>
+              <div className="text-[10px] text-muted-foreground">{session.user.role}</div>
             </div>
             <button
               type="button"
@@ -304,7 +384,15 @@ export function AppLayout({
   );
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: string;
+  subtitle?: string;
+  actions?: ReactNode;
+}) {
   return (
     <div className="flex items-end justify-between gap-4 mb-5">
       <div>
@@ -316,12 +404,24 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   );
 }
 
-export function Panel({ title, action, children, className = "" }: { title?: string; action?: ReactNode; children: ReactNode; className?: string }) {
+export function Panel({
+  title,
+  action,
+  children,
+  className = "",
+}: {
+  title?: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={`rounded-lg border border-border bg-panel/60 ${className}`}>
       {title && (
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
-          <div className="text-[12px] uppercase tracking-[0.14em] text-muted-foreground font-medium">{title}</div>
+          <div className="text-[12px] uppercase tracking-[0.14em] text-muted-foreground font-medium">
+            {title}
+          </div>
           {action}
         </div>
       )}
@@ -348,8 +448,12 @@ export function StatusPill({ status }: { status: string }) {
     SIMULATED: "bg-warning/15 text-warning border-warning/30",
   };
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded border ${map[status] ?? "bg-muted text-muted-foreground border-border"}`}>
-      <span className={`size-1.5 rounded-full ${status === "ACTIVE" || status === "ALARM" || status === "Offline" ? "bg-danger animate-pulse" : status === "Online" || status === "CONNECTED" || status === "Active" ? "bg-success" : status === "TRACKING" || status === "ACKNOWLEDGED" ? "bg-info" : "bg-warning"}`} />
+    <span
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded border ${map[status] ?? "bg-muted text-muted-foreground border-border"}`}
+    >
+      <span
+        className={`size-1.5 rounded-full ${status === "ACTIVE" || status === "ALARM" || status === "Offline" ? "bg-danger animate-pulse" : status === "Online" || status === "CONNECTED" || status === "Active" ? "bg-success" : status === "TRACKING" || status === "ACKNOWLEDGED" ? "bg-info" : "bg-warning"}`}
+      />
       {status}
     </span>
   );

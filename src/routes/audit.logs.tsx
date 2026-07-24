@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { RequireRole } from "@/auth/RequireRole";
+import { RequireWorkspaceMode } from "@/auth/RequireWorkspaceMode";
 import { RolePlaceholderPage } from "@/components/RolePlaceholderPage";
 
 export const Route = createFileRoute("/audit/logs")({
@@ -10,8 +10,8 @@ export const Route = createFileRoute("/audit/logs")({
 
 function AuditorLogs() {
   return (
-    <RequireRole roles={["Auditor"]}>
-      <RolePlaceholderPage role="Auditor" />
-    </RequireRole>
+    <RequireWorkspaceMode modes={["Auditor"]}>
+      <RolePlaceholderPage workspaceMode="Auditor" />
+    </RequireWorkspaceMode>
   );
 }

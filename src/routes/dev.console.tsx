@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { RequireRole } from "@/auth/RequireRole";
+import { RequireWorkspaceMode } from "@/auth/RequireWorkspaceMode";
 import { RolePlaceholderPage } from "@/components/RolePlaceholderPage";
 
 export const Route = createFileRoute("/dev/console")({
@@ -10,8 +10,8 @@ export const Route = createFileRoute("/dev/console")({
 
 function DeveloperConsole() {
   return (
-    <RequireRole roles={["Developer"]}>
-      <RolePlaceholderPage role="Developer" />
-    </RequireRole>
+    <RequireWorkspaceMode modes={["Developer"]}>
+      <RolePlaceholderPage workspaceMode="Developer" />
+    </RequireWorkspaceMode>
   );
 }

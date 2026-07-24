@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { RequireRole } from "@/auth/RequireRole";
+import { RequireWorkspaceMode } from "@/auth/RequireWorkspaceMode";
 import { RolePlaceholderPage } from "@/components/RolePlaceholderPage";
 
 export const Route = createFileRoute("/ops/scan")({
@@ -10,8 +10,8 @@ export const Route = createFileRoute("/ops/scan")({
 
 function OperatorScan() {
   return (
-    <RequireRole roles={["Operator"]}>
-      <RolePlaceholderPage role="Operator" />
-    </RequireRole>
+    <RequireWorkspaceMode modes={["Operator"]}>
+      <RolePlaceholderPage workspaceMode="Operator" />
+    </RequireWorkspaceMode>
   );
 }

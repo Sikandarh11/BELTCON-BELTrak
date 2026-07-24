@@ -1,21 +1,26 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, BadgeCheck, Shield, ShieldAlert, LockKeyhole, PlaneLanding } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Shield,
+  ShieldAlert,
+  LockKeyhole,
+  PlaneLanding,
+} from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import {
-  FOCUS_ROLE_STORAGE_KEY,
-  getLastRole,
-  getRoleDashboard,
-  type AppRole,
+  FOCUS_MODE_KEY,
+  getLastMode,
+  getWorkspaceLanding,
+  type WorkspaceMode,
 } from "@/auth/appRoles";
-import { RoleSelector, type RoleSelectorHandle } from "@/components/RoleSelector";
 import {
-  AUTH_SESSION_KEY,
-  login,
-  type LoginInput,
-  AuthApiError,
-} from "@/services/authService";
+  WorkspaceModeSelector,
+  type WorkspaceModeSelectorHandle,
+} from "@/components/WorkspaceModeSelector";
+import { AUTH_SESSION_KEY, login, type LoginInput, AuthApiError } from "@/services/authService";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Login · BELTrak" }] }),
@@ -25,18 +30,21 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const roleSelectorRef = useRef<RoleSelectorHandle>(null);
-  const [form, setForm] = useState<Omit<LoginInput, "role">>({ email: "", password: "" });
-  const [role, setRole] = useState<AppRole>("Admin");
+  const workspaceModeSelectorRef = useRef<WorkspaceModeSelectorHandle>(null);
+  const [form, setForm] = useState<Omit<LoginInput, "workspaceMode">>({
+    email: "",
+    password: "",
+  });
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("Admin");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setRole(getLastRole("Admin"));
+    setWorkspaceMode(getLastMode("Admin"));
 
-    if (window.sessionStorage.getItem(FOCUS_ROLE_STORAGE_KEY) === "true") {
-      window.sessionStorage.removeItem(FOCUS_ROLE_STORAGE_KEY);
-      window.requestAnimationFrame(() => roleSelectorRef.current?.focus());
+    if (window.sessionStorage.getItem(FOCUS_MODE_KEY) === "true") {
+      window.sessionStorage.removeItem(FOCUS_MODE_KEY);
+      window.requestAnimationFrame(() => workspaceModeSelectorRef.current?.focus());
     }
   }, []);
 
@@ -46,9 +54,12 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      const session = await login({ ...form, role });
+      const session = await login({ ...form, workspaceMode });
       queryClient.setQueryData(AUTH_SESSION_KEY, session);
-      navigate({ to: getRoleDashboard(role), replace: true });
+      navigate({
+        to: getWorkspaceLanding(workspaceMode),
+        replace: true,
+      });
     } catch (submissionError) {
       if (submissionError instanceof AuthApiError) {
         setError(submissionError.message);
@@ -71,7 +82,9 @@ function LoginPage() {
             </div>
             <div>
               <div className="text-lg font-semibold tracking-tight text-slate-900">BELTrak</div>
-              <div className="text-xs uppercase tracking-[0.28em] text-cyan-700/70">Operations Suspect Baggage Tracking System</div>
+              <div className="text-xs uppercase tracking-[0.28em] text-cyan-700/70">
+                Operations Suspect Baggage Tracking System
+              </div>
             </div>
           </div>
 
@@ -84,18 +97,34 @@ function LoginPage() {
               Operational visibility for baggage security and customs control.
             </h1>
             <p className="mt-5 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-              Sign in to the internal BELTrak portal to monitor suspect baggage, review alarms, and manage operations from a protected network.
+              Sign in to the internal BELTrak portal to monitor suspect baggage, review alarms, and
+              manage operations from a protected network.
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               {[
-                { title: "JWT session", text: "8-hour secure token with automatic expiry.", icon: BadgeCheck },
-                { title: "Account lock", text: "5 failed attempts trigger a 15-minute lockout.", icon: ShieldAlert },
-                { title: "File-backed MVP", text: "Local JSON storage for controlled intranet deployment.", icon: LockKeyhole },
+                {
+                  title: "JWT session",
+                  text: "8-hour secure token with automatic expiry.",
+                  icon: BadgeCheck,
+                },
+                {
+                  title: "Account lock",
+                  text: "5 failed attempts trigger a 15-minute lockout.",
+                  icon: ShieldAlert,
+                },
+                {
+                  title: "File-backed MVP",
+                  text: "Local JSON storage for controlled intranet deployment.",
+                  icon: LockKeyhole,
+                },
               ].map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 backdrop-blur">
+                  <div
+                    key={item.title}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4 backdrop-blur"
+                  >
                     <Icon className="size-4 text-cyan-600" />
                     <div className="mt-3 text-sm font-medium text-slate-900">{item.title}</div>
                     <div className="mt-1 text-xs leading-5 text-slate-600">{item.text}</div>
@@ -105,14 +134,18 @@ function LoginPage() {
             </div>
           </div>
 
-          <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Operations secure access only</div>
+          <div className="text-xs uppercase tracking-[0.24em] text-slate-500">
+            Operations secure access only
+          </div>
         </section>
 
         <section className="flex items-center justify-center px-6 py-8 lg:px-10 xl:px-16 xl:py-10">
           <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:p-8">
             <div className="mb-6">
               <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Sign in</h2>
-              <p className="mt-2 text-sm text-slate-600">Use your credentials to access the operations console.</p>
+              <p className="mt-2 text-sm text-slate-600">
+                Use your credentials to access the operations console.
+              </p>
             </div>
 
             {error ? (
@@ -123,11 +156,11 @@ function LoginPage() {
             ) : null}
 
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <RoleSelector
-                ref={roleSelectorRef}
-                label="Login as"
-                role={role}
-                onRoleChange={setRole}
+              <WorkspaceModeSelector
+                ref={workspaceModeSelectorRef}
+                workspaceLabel="Continue as"
+                workspaceMode={workspaceMode}
+                onWorkspaceModeChange={setWorkspaceMode}
               />
 
               <label className="block space-y-2">
@@ -136,7 +169,9 @@ function LoginPage() {
                   type="email"
                   required
                   value={form.email}
-                  onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, email: event.target.value }))
+                  }
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
                   placeholder="name@ops.local"
                   autoComplete="email"
@@ -149,7 +184,9 @@ function LoginPage() {
                   type="password"
                   required
                   value={form.password}
-                  onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, password: event.target.value }))
+                  }
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
                   placeholder="Enter your password"
                   autoComplete="current-password"
@@ -168,9 +205,14 @@ function LoginPage() {
 
             <div className="mt-6 flex items-center justify-between text-sm text-slate-600">
               <span>New user?</span>
-              <Link to="/register" className="font-medium text-cyan-600 hover:text-cyan-700">Register with a key</Link>
+              <Link to="/register" className="font-medium text-cyan-600 hover:text-cyan-700">
+                Register with a key
+              </Link>
             </div>
-            <a href="/" className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-transparent px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <a
+              href="/"
+              className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-transparent px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
               Back to home
             </a>
           </div>

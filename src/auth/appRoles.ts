@@ -1,68 +1,78 @@
-export const APP_ROLES = ["Admin", "Developer", "Operator", "Supervisor", "Auditor"] as const;
+export const WORKSPACE_MODE_VALUES = [
+  "Admin",
+  "Developer",
+  "Operator",
+  "Supervisor",
+  "Auditor",
+] as const;
 
-export type AppRole = (typeof APP_ROLES)[number];
+export type WorkspaceMode = (typeof WORKSPACE_MODE_VALUES)[number];
 
-export const LAST_ROLE_STORAGE_KEY = "sbts.lastRole";
-export const DEBUG_STORAGE_KEY = "sbts.debug";
-export const FOCUS_ROLE_STORAGE_KEY = "sbts.focusRole";
+export const LAST_MODE_KEY = "sbts.lastRole";
+export const DEBUG_KEY = "sbts.debug";
+export const FOCUS_MODE_KEY = "sbts.focusRole";
 
-export const ROLE_DETAILS: Record<
-  AppRole,
-  { helperText: string; shortLabel: string; dashboardPath: RoleDashboardPath }
+export const WORKSPACE_MODES: Record<
+  WorkspaceMode,
+  {
+    helperText: string;
+    shortLabel: string;
+    landingPath: WorkspaceLandingPath;
+  }
 > = {
   Admin: {
     helperText: "Full system access",
     shortLabel: "ADMIN",
-    dashboardPath: "/admin/dashboard",
+    landingPath: "/admin/dashboard",
   },
   Developer: {
     helperText: "Debug + config access",
     shortLabel: "DEV",
-    dashboardPath: "/dev/console",
+    landingPath: "/dev/console",
   },
   Operator: {
     helperText: "Day-to-day tag/scan operations",
     shortLabel: "OPERATOR",
-    dashboardPath: "/ops/scan",
+    landingPath: "/ops/scan",
   },
   Supervisor: {
     helperText: "Shift oversight + overrides",
     shortLabel: "SUPERVISOR",
-    dashboardPath: "/supervisor/overview",
+    landingPath: "/supervisor/overview",
   },
   Auditor: {
     helperText: "Read-only + logs",
     shortLabel: "AUDITOR",
-    dashboardPath: "/audit/logs",
+    landingPath: "/audit/logs",
   },
 };
 
-export type RoleDashboardPath =
+export type WorkspaceLandingPath =
   | "/admin/dashboard"
   | "/dev/console"
   | "/ops/scan"
   | "/supervisor/overview"
   | "/audit/logs";
 
-export function isAppRole(value: unknown): value is AppRole {
-  return typeof value === "string" && APP_ROLES.includes(value as AppRole);
+export function isWorkspaceMode(value: unknown): value is WorkspaceMode {
+  return typeof value === "string" && WORKSPACE_MODE_VALUES.includes(value as WorkspaceMode);
 }
 
-export function getLastRole(fallback: AppRole): AppRole {
+export function getLastMode(fallback: WorkspaceMode): WorkspaceMode {
   if (typeof window === "undefined") {
     return fallback;
   }
 
-  const storedRole = window.localStorage.getItem(LAST_ROLE_STORAGE_KEY);
-  return isAppRole(storedRole) ? storedRole : fallback;
+  const storedMode = window.localStorage.getItem(LAST_MODE_KEY);
+  return isWorkspaceMode(storedMode) ? storedMode : fallback;
 }
 
-export function persistLastRole(role: AppRole) {
+export function setLastMode(workspaceMode: WorkspaceMode) {
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(LAST_ROLE_STORAGE_KEY, role);
+    window.localStorage.setItem(LAST_MODE_KEY, workspaceMode);
   }
 }
 
-export function getRoleDashboard(role: AppRole): RoleDashboardPath {
-  return ROLE_DETAILS[role].dashboardPath;
+export function getWorkspaceLanding(workspaceMode: WorkspaceMode): WorkspaceLandingPath {
+  return WORKSPACE_MODES[workspaceMode].landingPath;
 }
