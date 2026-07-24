@@ -2,14 +2,24 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Map, BellRing, History, Target, ScanLine, Radio, FileBarChart2, Tag,
   Settings, MapPinned, ShieldAlert, GitBranch, UserCog, Users, Search, Bell, ChevronDown,
-  CircleDot, Plane, Activity, LogOut, FlaskConical, ScrollText, Menu,
+  CircleDot, Plane, Activity, LogOut, FlaskConical, ScrollText, Menu, Repeat2, Copy,
+  Bug, Check,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import { GlobalBanners } from "./GlobalBanners";
-import type { SessionUser } from "@/services/authService";
+import { DEBUG_STORAGE_KEY, FOCUS_ROLE_STORAGE_KEY, ROLE_DETAILS, type AppRole } from "@/auth/appRoles";
+import type { AuthSessionResponse } from "@/services/authService";
 import { useAppStore } from "@/store/appStore";
 import { roleIsAtLeast } from "@/services/roles";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; badge?: number; minRole?: string };
 
@@ -40,9 +50,123 @@ const NAV: { section: string; items: NavItem[] }[] = [
   ]},
 ];
 
-export function AppLayout({ children, currentUser, onLogout }: { children: ReactNode; currentUser?: SessionUser | null; onLogout?: () => void | Promise<void> }) {
+const ROLE_CHIP_STYLES: Record<AppRole, string> = {
+  Admin: "border-primary/40 bg-primary/15 text-primary",
+  Developer: "border-info/40 bg-info/15 text-info",
+  Operator: "border-success/40 bg-success/15 text-success",
+  Supervisor: "border-warning/50 bg-warning/15 text-amber-700",
+  Auditor: "border-slate-400/50 bg-slate-200/60 text-slate-700",
+};
+
+function RoleModeIndicator({
+  session,
+  onLogout,
+}: {
+  session: AuthSessionResponse;
+  onLogout?: () => void | Promise<void>;
+}) {
+  const [debugEnabled, setDebugEnabled] = useState(false);
+  const isPrivileged = session.role === "Admin" || session.role === "Developer";
+  const isDeveloper = session.role === "Developer";
+  const chipClassName = `inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[10px] font-semibold tracking-[0.12em] ${ROLE_CHIP_STYLES[session.role]}`;
+
+  useEffect(() => {
+    setDebugEnabled(window.localStorage.getItem(DEBUG_STORAGE_KEY) === "true");
+  }, []);
+
+  function switchRole() {
+    window.sessionStorage.setItem(FOCUS_ROLE_STORAGE_KEY, "true");
+    void onLogout?.();
+  }
+
+  async function copySessionInfo() {
+    try {
+      await navigator.clipboard.writeText(
+        JSON.stringify(
+          {
+            user: session.user,
+            role: session.role,
+            tokenExpiry: session.expiresAt,
+          },
+          null,
+          2,
+        ),
+      );
+      toast.success("Session info copied");
+    } catch {
+      toast.error("Unable to copy session info");
+    }
+  }
+
+  function toggleDebugOverlay() {
+    const nextValue = !debugEnabled;
+    window.localStorage.setItem(DEBUG_STORAGE_KEY, String(nextValue));
+    setDebugEnabled(nextValue);
+    toast.success(`Debug overlay ${nextValue ? "enabled" : "disabled"}`);
+  }
+
+  const chipContent = (
+    <>
+      <span>{ROLE_DETAILS[session.role].shortLabel}</span>
+      {isPrivileged ? <ChevronDown aria-hidden="true" className="size-3" /> : null}
+    </>
+  );
+
+  if (!isPrivileged) {
+    return (
+      <span className={chipClassName} aria-label={`Current role: ${session.role}`}>
+        {chipContent}
+      </span>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={`${chipClassName} transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+          aria-label={`Current role: ${session.role}. Open role menu`}
+        >
+          {chipContent}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem onSelect={switchRole}>
+          <Repeat2 />
+          Switch role
+        </DropdownMenuItem>
+        {isDeveloper ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => void copySessionInfo()}>
+              <Copy />
+              Copy session info
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={toggleDebugOverlay}>
+              <Bug />
+              Toggle debug overlay
+              {debugEnabled ? <Check className="ml-auto" /> : null}
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export function AppLayout({
+  children,
+  session,
+  onLogout,
+}: {
+  children: ReactNode;
+  session: AuthSessionResponse;
+  onLogout?: () => void | Promise<void>;
+}) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const openAlarms = useAppStore((s) => s.alarms.filter((a) => a.outcome === "OPEN").length);
+  const currentUser = session.user;
   const userInitials = currentUser ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.trim() || "U" : "SK";
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -54,7 +178,7 @@ export function AppLayout({ children, currentUser, onLogout }: { children: React
           <Menu className="size-5" />
         </button>
         <span className="font-semibold text-[14px]">BELTrak</span>
-        <div className="size-5" />
+        <RoleModeIndicator session={session} onLogout={onLogout} />
       </div>
 
       {/* SIDEBAR */}
@@ -153,11 +277,12 @@ export function AppLayout({ children, currentUser, onLogout }: { children: React
             <Bell className="size-4" />
             <span className="absolute top-1 right-1 size-2 rounded-full bg-danger animate-pulse" />
           </button>
+          <RoleModeIndicator session={session} onLogout={onLogout} />
           <div className="flex items-center gap-2 pl-3 border-l border-border">
             <div className="size-8 rounded-full bg-linear-to-br from-primary to-info flex items-center justify-center text-[11px] font-semibold text-primary-foreground">{userInitials}</div>
             <div className="hidden md:block leading-tight">
               <div className="text-[12px] font-medium">{currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Secure User"}</div>
-              <div className="text-[10px] text-muted-foreground">{currentUser?.role ?? "Session pending"}</div>
+              <div className="text-[10px] text-muted-foreground">{session.role}</div>
             </div>
             <button
               type="button"

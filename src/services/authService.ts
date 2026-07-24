@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  getLastRole,
+  persistLastRole,
+  type AppRole,
+} from "@/auth/appRoles";
 
 export const AUTH_COOKIE_NAME = "etb_auth_token";
 export const AUTH_SESSION_KEY = ["auth", "session"] as const;
@@ -43,8 +48,8 @@ export const registerSchema = z
     path: ["confirmPassword"],
   });
 
-export type LoginInput = z.infer<typeof loginSchema>;
-export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema> & { role: AppRole };
+export type RegisterInput = z.infer<typeof registerSchema> & { role: AppRole };
 
 export type SessionUser = {
   id: string;
@@ -59,7 +64,10 @@ export type SessionUser = {
 export type AuthSessionResponse = {
   user: SessionUser;
   expiresAt: string;
+  role: AppRole;
 };
+
+type AuthSessionApiResponse = Omit<AuthSessionResponse, "role">;
 
 export class AuthApiError extends Error {
   fieldErrors?: Record<string, string>;
@@ -102,21 +110,28 @@ async function authJsonRequest<T>(path: string, init?: RequestInit): Promise<T> 
 }
 
 export async function login(input: LoginInput) {
-  return authJsonRequest<AuthSessionResponse>("/api/auth/login", {
+  const session = await authJsonRequest<AuthSessionApiResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify(input),
   });
+
+  persistLastRole(input.role);
+  return { ...session, role: input.role };
 }
 
 export async function register(input: RegisterInput) {
-  return authJsonRequest<AuthSessionResponse>("/api/auth/register", {
+  const session = await authJsonRequest<AuthSessionApiResponse>("/api/auth/register", {
     method: "POST",
     body: JSON.stringify(input),
   });
+
+  persistLastRole(input.role);
+  return { ...session, role: input.role };
 }
 
-export async function fetchSession() {
-  return authJsonRequest<AuthSessionResponse>("/api/auth/session");
+export async function fetchSession(): Promise<AuthSessionResponse> {
+  const session = await authJsonRequest<AuthSessionApiResponse>("/api/auth/session");
+  return { ...session, role: getLastRole("Admin") };
 }
 
 export async function logout() {

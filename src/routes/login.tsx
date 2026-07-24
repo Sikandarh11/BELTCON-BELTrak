@@ -1,8 +1,21 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, BadgeCheck, Shield, ShieldAlert, LockKeyhole, PlaneLanding } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { login, type LoginInput, AuthApiError } from "@/services/authService";
+import {
+  FOCUS_ROLE_STORAGE_KEY,
+  getLastRole,
+  getRoleDashboard,
+  type AppRole,
+} from "@/auth/appRoles";
+import { RoleSelector, type RoleSelectorHandle } from "@/components/RoleSelector";
+import {
+  AUTH_SESSION_KEY,
+  login,
+  type LoginInput,
+  AuthApiError,
+} from "@/services/authService";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Login · BELTrak" }] }),
@@ -11,9 +24,21 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState<LoginInput>({ email: "", password: "" });
+  const queryClient = useQueryClient();
+  const roleSelectorRef = useRef<RoleSelectorHandle>(null);
+  const [form, setForm] = useState<Omit<LoginInput, "role">>({ email: "", password: "" });
+  const [role, setRole] = useState<AppRole>("Admin");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setRole(getLastRole("Admin"));
+
+    if (window.sessionStorage.getItem(FOCUS_ROLE_STORAGE_KEY) === "true") {
+      window.sessionStorage.removeItem(FOCUS_ROLE_STORAGE_KEY);
+      window.requestAnimationFrame(() => roleSelectorRef.current?.focus());
+    }
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -21,8 +46,9 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      await login(form);
-      navigate({ to: "/", replace: true });
+      const session = await login({ ...form, role });
+      queryClient.setQueryData(AUTH_SESSION_KEY, session);
+      navigate({ to: getRoleDashboard(role), replace: true });
     } catch (submissionError) {
       if (submissionError instanceof AuthApiError) {
         setError(submissionError.message);
@@ -97,6 +123,13 @@ function LoginPage() {
             ) : null}
 
             <form className="space-y-4" onSubmit={handleSubmit}>
+              <RoleSelector
+                ref={roleSelectorRef}
+                label="Login as"
+                role={role}
+                onRoleChange={setRole}
+              />
+
               <label className="block space-y-2">
                 <span className="text-sm text-slate-700">Email</span>
                 <input

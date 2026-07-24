@@ -1,18 +1,29 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, BadgeCheck, ShieldCheck, LockKeyhole, PlaneTakeoff, ShieldAlert } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
-import { register, type RegisterInput, AuthApiError, PASSWORD_REQUIREMENTS } from "@/services/authService";
+import { getLastRole, type AppRole } from "@/auth/appRoles";
+import { RoleSelector } from "@/components/RoleSelector";
+import {
+  AUTH_SESSION_KEY,
+  register,
+  type RegisterInput,
+  AuthApiError,
+  PASSWORD_REQUIREMENTS,
+} from "@/services/authService";
 
 export const Route = createFileRoute("/register")({
   head: () => ({ meta: [{ title: "Register · BELTrak" }] }),
   component: RegisterPage,
 });
 
-type RegisterFormState = Omit<RegisterInput, "registrationKey"> & { registrationKey: string };
+type RegisterFormState = Omit<RegisterInput, "registrationKey" | "role"> & { registrationKey: string };
 
 function RegisterPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [role, setRole] = useState<AppRole>("Operator");
   const [form, setForm] = useState<RegisterFormState>({
     firstName: "",
     lastName: "",
@@ -24,13 +35,18 @@ function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    setRole(getLastRole("Operator"));
+  }, []);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      await register(form);
+      const session = await register({ ...form, role });
+      queryClient.setQueryData(AUTH_SESSION_KEY, session);
       navigate({ to: "/", replace: true });
     } catch (submissionError) {
       if (submissionError instanceof AuthApiError) {
@@ -62,6 +78,12 @@ function RegisterPage() {
             ) : null}
 
             <form className="space-y-4" onSubmit={handleSubmit}>
+              <RoleSelector
+                label="Register as"
+                role={role}
+                onRoleChange={setRole}
+              />
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block space-y-2">
                   <span className="text-sm text-slate-700">First Name</span>
