@@ -1,11 +1,33 @@
 // Captures the original Error out-of-band so server.ts can recover the stack
 // when h3 has already swallowed the throw into a generic 500 Response.
 
+export type CapturedClientError = {
+  id: string;
+  message: string;
+  stack: string | null;
+  at: string;
+};
+
 let lastCapturedError: { error: unknown; at: number } | undefined;
+let capturedErrors: CapturedClientError[] = [];
+const listeners = new Set<() => void>();
 const TTL_MS = 5_000;
 
 function record(error: unknown) {
-  lastCapturedError = { error, at: Date.now() };
+  const now = Date.now();
+  const normalizedError = error instanceof Error ? error : new Error(String(error));
+
+  lastCapturedError = { error, at: now };
+  capturedErrors = [
+    {
+      id: `client-error-${now}-${capturedErrors.length}`,
+      message: normalizedError.message,
+      stack: normalizedError.stack ?? null,
+      at: new Date(now).toISOString(),
+    },
+    ...capturedErrors,
+  ].slice(0, 50);
+  listeners.forEach((listener) => listener());
 }
 
 if (typeof globalThis.addEventListener === "function") {
@@ -24,4 +46,18 @@ export function consumeLastCapturedError(): unknown {
   const { error } = lastCapturedError;
   lastCapturedError = undefined;
   return error;
+}
+
+export function getCapturedErrors(): readonly CapturedClientError[] {
+  return capturedErrors;
+}
+
+export function subscribeToCapturedErrors(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function clearCapturedErrors() {
+  capturedErrors = [];
+  listeners.forEach((listener) => listener());
 }

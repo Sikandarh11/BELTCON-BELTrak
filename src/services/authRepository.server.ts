@@ -52,6 +52,21 @@ function getTokenErrorMessage(tokenRes: any) {
   return tokenRes?.error_description ?? tokenRes?.error?.message ?? tokenRes?.error ?? tokenRes?.message ?? "Invalid email or password";
 }
 
+function validationErrorResponse(error: { flatten: () => { fieldErrors: Record<string, string[]> } }) {
+  const flattened = error.flatten();
+  const fieldErrors = Object.fromEntries(
+    Object.entries(flattened.fieldErrors)
+      .filter((entry): entry is [string, string[]] => Boolean(entry[1]?.[0]))
+      .map(([field, messages]) => [field, messages[0]]),
+  );
+  const message = Object.values(fieldErrors)[0] ?? "Validation failed";
+
+  return new Response(JSON.stringify({ error: message, fieldErrors }), {
+    status: 400,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
 async function supabaseRefreshTokenExchange(refreshToken: string) {
   const url = `${SUPABASE_URL}/auth/v1/token`;
   const body = new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken });
@@ -248,7 +263,7 @@ export async function handleAuthRequest(request: Request) {
 
     if (url.pathname === "/api/auth/login") {
       const parsed = loginSchema.safeParse(parsedBody);
-      if (!parsed.success) return new Response(JSON.stringify({ error: "Validation failed" }), { status: 400, headers: { "content-type": "application/json; charset=utf-8" } });
+      if (!parsed.success) return validationErrorResponse(parsed.error);
 
       const email = parsed.data.email.trim().toLowerCase();
       const tokenRes = await supabaseAuthTokenExchange(email, parsed.data.password);
@@ -307,7 +322,7 @@ export async function handleAuthRequest(request: Request) {
 
     // register
     const parsed = registerSchema.safeParse(parsedBody);
-    if (!parsed.success) return new Response(JSON.stringify({ error: "Validation failed" }), { status: 400, headers: { "content-type": "application/json; charset=utf-8" } });
+    if (!parsed.success) return validationErrorResponse(parsed.error);
 
     if (getRegistrationKey().length === 0) return new Response(JSON.stringify({ error: "Registration Key Invalid" }), { status: 500, headers: { "content-type": "application/json; charset=utf-8" } });
     if (parsed.data.registrationKey.trim() !== getRegistrationKey()) return new Response(JSON.stringify({ error: "Registration Key Invalid" }), { status: 403, headers: { "content-type": "application/json; charset=utf-8" } });

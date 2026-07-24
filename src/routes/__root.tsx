@@ -122,8 +122,8 @@ function RootComponent() {
       ) : (
         <ProtectedRoute>
           {(session) => (
-            <SessionProvider user={session.user}>
-              <AppLayout currentUser={session.user} onLogout={handleLogout}>
+            <SessionProvider session={session} onLogout={handleLogout}>
+              <AppLayout session={session} onLogout={handleLogout}>
                 <PageErrorBoundary pageName="current">
                   {hydrated ? <Outlet /> : <PageSkeleton />}
                 </PageErrorBoundary>
