@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import { ShieldAlert } from "lucide-react";
 
+import { hasUniversalWorkspaceAccess } from "@/auth/appRoles";
+import { useWorkspaceMode } from "@/auth/SessionContext";
+
 interface RoleGateProps {
   userRole: string;
   requiredRole: string;
@@ -9,6 +12,7 @@ interface RoleGateProps {
 }
 
 export function RoleGate({ userRole, requiredRole, children, pageName }: RoleGateProps) {
+  const { workspaceMode } = useWorkspaceMode();
   const order = [
     "Operations Officer",
     "Control Center Operator",
@@ -19,6 +23,12 @@ export function RoleGate({ userRole, requiredRole, children, pageName }: RoleGat
   const userRank = order.indexOf(userRole);
   const requiredRank = order.indexOf(requiredRole);
 
+  // UI-only developer override. Server/API authorization remains responsible
+  // for enforcing canonical-role permissions on protected operations.
+  if (hasUniversalWorkspaceAccess(workspaceMode)) {
+    return <>{children}</>;
+  }
+
   if (userRank === -1 || requiredRank === -1 || userRank < requiredRank) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -26,9 +36,8 @@ export function RoleGate({ userRole, requiredRole, children, pageName }: RoleGat
         <div className="text-lg font-semibold">Access Denied</div>
         <div className="text-[13px] text-muted-foreground mt-1 max-w-sm">
           {pageName ? `The ${pageName} page requires` : "This page requires"}{" "}
-          <span className="font-medium text-foreground">{requiredRole}</span>{" "}
-          role or higher. Your current role is{" "}
-          <span className="font-medium text-foreground">{userRole}</span>.
+          <span className="font-medium text-foreground">{requiredRole}</span> role or higher. Your
+          current role is <span className="font-medium text-foreground">{userRole}</span>.
         </div>
         <div className="mt-4 text-[12px] text-muted-foreground">
           Contact your Airport Administrator to request access.

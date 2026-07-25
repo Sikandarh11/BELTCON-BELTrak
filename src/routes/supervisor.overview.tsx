@@ -3,10 +3,12 @@ import { Check, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { RequireWorkspaceMode } from "@/auth/RequireWorkspaceMode";
-import { useSession } from "@/auth/SessionContext";
+import { hasUniversalWorkspaceAccess } from "@/auth/appRoles";
+import { useSession, useWorkspaceMode } from "@/auth/SessionContext";
 import { PageHeader, Panel, StatusPill } from "@/components/AppLayout";
 import { MockBadge } from "@/components/MockBadge";
 import { alarmService } from "@/services/alarmService";
+import { bagService } from "@/services/bagService";
 import { roleIsAtLeast } from "@/services/roles";
 import { useAppStore } from "@/store/appStore";
 
@@ -17,11 +19,13 @@ export const Route = createFileRoute("/supervisor/overview")({
 
 function SupervisorOverview() {
   const session = useSession();
+  const { workspaceMode } = useWorkspaceMode();
   const alarms = useAppStore((state) => state.alarms);
   const bags = useAppStore((state) => state.bags);
   const readers = useAppStore((state) => state.readers);
   const auditLog = useAppStore((state) => state.auditLog);
-  const canMutate = roleIsAtLeast(session.role, "Customs Supervisor");
+  const canMutate =
+    hasUniversalWorkspaceAccess(workspaceMode) || roleIsAtLeast(session.role, "Customs Supervisor");
   const officerName = `${session.firstName} ${session.lastName}`.trim();
 
   const escalationQueue = alarms
@@ -86,7 +90,7 @@ function SupervisorOverview() {
                     return (
                       <tr key={alarm.id} className="border-b border-border last:border-0">
                         <td className="px-4 py-3 font-mono text-primary">{alarm.id}</td>
-                        <td className="px-4 py-3 font-mono">{bag?.iataCode ?? alarm.bagId}</td>
+                        <td className="px-4 py-3 font-mono">{bag?.id ?? alarm.bagId}</td>
                         <td className="px-4 py-3">{alarm.zone.replace(/_/g, " ")}</td>
                         <td className="px-4 py-3">
                           <span className="rounded border border-danger/30 bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger">
@@ -115,14 +119,18 @@ function SupervisorOverview() {
                               type="button"
                               disabled={!canMutate}
                               onClick={() =>
-                                runCanonicalAction(() =>
-                                  alarmService.resolve(alarm.id, "CLEARED", session.id),
-                                )
+                                void bagService
+                                  .sendToRecheck(alarm.bagId, session.id)
+                                  .catch((error) =>
+                                    toast.error(
+                                      error instanceof Error ? error.message : "Action failed",
+                                    ),
+                                  )
                               }
                               className="inline-flex items-center gap-1 rounded border border-success/30 px-2 py-1 text-[10px] font-medium text-success disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               <X className="size-3" />
-                              Close
+                              Send to recheck
                             </button>
                             <button
                               type="button"

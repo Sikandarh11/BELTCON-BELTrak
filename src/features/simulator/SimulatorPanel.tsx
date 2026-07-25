@@ -1,14 +1,22 @@
-import { useState } from "react";
+import { useState, type ButtonHTMLAttributes, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Plus, Radio, Zap, RotateCcw, Play, Ghost, ToggleLeft, ToggleRight } from "lucide-react";
+import { Ghost, Plus, Play, Radio, RotateCcw, ToggleLeft, ToggleRight, Zap } from "lucide-react";
 
+import { useSession } from "@/auth/SessionContext";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
+import { RoleGate } from "@/components/RoleGate";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FLIGHTS } from "@/mocks/seed";
-import { bagService } from "@/services/bagService";
+import { bagService, type FlagSuspectInput } from "@/services/bagService";
 import { eventService } from "@/services/eventService";
 import { useAppStore } from "@/store/appStore";
-import { useSession } from "@/auth/SessionContext";
-import { RoleGate } from "@/components/RoleGate";
 
 const JOURNEY_ZONES = [
   { zone: "RECLAIM_BELT_1", reader: "RDR-001", label: "Reclaim Belt" },
@@ -30,58 +38,122 @@ const FULL_CLEARED_JOURNEY = [
   { zone: "HBSS_RECHECK", reader: "RDR-030", label: "Recheck Station" },
 ] as const;
 
+const SIM_ORIGINS = ["RUH", "JED", "DMM", "DXB"];
 type JourneyStop = { zone: string; reader: string; label: string };
 
 let flagCounter = 0;
 
+function nextSixDigits() {
+  flagCounter += 1;
+  return String((Date.now() + flagCounter) % 1_000_000).padStart(6, "0");
+}
+
+function createFlagForm(threatType = "Suspect Bag"): FlagSuspectInput {
+  const sequence = nextSixDigits();
+  return {
+    id: `ETB-SIM-${sequence}`,
+    bhsUid: `BHS-${sequence}`,
+    flightNo: FLIGHTS[0],
+    iataOrigin: "RUH",
+    passengerName: `SIM PAX ${flagCounter}`,
+    threatType,
+    notes: "",
+  };
+}
+
 export function SimulatorPanel() {
   const session = useSession();
-  const bags = useAppStore((s) => s.bags);
-  const alarms = useAppStore((s) => s.alarms);
-  const events = useAppStore((s) => s.events);
-  const readers = useAppStore((s) => s.readers);
+  const bags = useAppStore((state) => state.bags);
+  const alarms = useAppStore((state) => state.alarms);
+  const events = useAppStore((state) => state.events);
+  const readers = useAppStore((state) => state.readers);
+  const threatTypes = useAppStore((state) => state.threatTypes);
   const [selectedBagId, setSelectedBagId] = useState<string | null>(null);
   const [autoRunning, setAutoRunning] = useState(false);
+  const [flagModalOpen, setFlagModalOpen] = useState(false);
+  const [flagging, setFlagging] = useState(false);
+  const [batchCount, setBatchCount] = useState(3);
+  const [flagForm, setFlagForm] = useState<FlagSuspectInput>(() => createFlagForm(threatTypes[0]));
 
-  const activeBags = bags.filter(
-    (b) => b.epc && b.status !== "RESOLVED" && b.status !== "IDENTIFIED",
-  );
-  const selectedBag = selectedBagId ? bags.find((b) => b.id === selectedBagId) : null;
+  const activeBags = bags.filter((bag) => bag.status === "TAGGED" || bag.status === "IN_TRANSIT");
+  const identifiedBags = bags.filter((bag) => bag.status === "IDENTIFIED");
+  const selectedBag = selectedBagId ? (bags.find((bag) => bag.id === selectedBagId) ?? null) : null;
+  const selectedBagCanRead =
+    selectedBag?.status === "TAGGED" || selectedBag?.status === "IN_TRANSIT";
 
-  function handleFlagBag() {
-    flagCounter += 1;
-    const flight = FLIGHTS[Math.floor(Math.random() * FLIGHTS.length)];
-    const bag = bagService.createBagFromSuspectFlag({
-      bhsUid: `BHS-SIM-${String(flagCounter).padStart(3, "0")}`,
-      iataCode: `ETB-SIM-${String(flagCounter).padStart(3, "0")}`,
-      flight,
-    });
-    toast.info(`Suspect bag flagged: ${bag.iataCode}`, {
-      description: `Flight ${flight} → go to Tagging Station to encode`,
-    });
+  function openFlagModal() {
+    setFlagForm(createFlagForm(threatTypes[0]));
+    setFlagModalOpen(true);
   }
 
-  function handleZoneRead(zone: string, readerId: string) {
-    if (!selectedBag?.epc) {
+  async function handleFlagBag(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!/^[A-Za-z]{3}$/.test(flagForm.iataOrigin ?? "")) {
+      toast.error("IATA origin must be exactly three letters");
+      return;
+    }
+    setFlagging(true);
+    try {
+      const bag = await bagService.flagSuspect(flagForm);
+      toast.success(`Suspect bag flagged: ${bag.id} — go to Tagging Station`);
+      setFlagModalOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to flag suspect bag");
+    } finally {
+      setFlagging(false);
+    }
+  }
+
+  async function handleBatchFlag() {
+    const count = Math.max(1, Math.min(20, batchCount));
+    setFlagging(true);
+    try {
+      for (let index = 0; index < count; index += 1) {
+        const input = createFlagForm(
+          threatTypes[index % Math.max(1, threatTypes.length)] ?? "Suspect Bag",
+        );
+        await bagService.flagSuspect({
+          ...input,
+          flightNo: FLIGHTS[Math.floor(Math.random() * FLIGHTS.length)],
+          iataOrigin: SIM_ORIGINS[index % SIM_ORIGINS.length],
+        });
+      }
+      toast.success(`${count} suspect bags flagged — Tagging queue updated`);
+      setFlagModalOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to batch flag bags");
+    } finally {
+      setFlagging(false);
+    }
+  }
+
+  async function handleZoneRead(zone: string, readerId: string) {
+    if (!selectedBag || !selectedBagCanRead) {
+      toast.error("Tag this bag at Tagging Station first.");
+      return;
+    }
+    try {
+      await bagService.registerRead(selectedBag.id, zone, readerId);
+      toast.info(`RFID read registered: ${selectedBag.id}`, {
+        description: zone.replace(/_/g, " "),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Read failed");
+    }
+  }
+
+  async function handleBurstReads() {
+    if (!selectedBag?.epc || !selectedBagCanRead) {
       toast.error("Select a tagged bag first");
       return;
     }
-
-    const result = eventService.ingestRead(selectedBag.epc, readerId, zone);
-    toast.info(`Read result: ${result}`, {
-      description: `${selectedBag.iataCode} at ${zone.replace(/_/g, " ")}`,
-    });
-  }
-
-  function handleBurstReads() {
-    if (!selectedBag?.epc) {
-      toast.error("Select a tagged bag first");
-      return;
-    }
-
     let merged = 0;
     for (let index = 0; index < 15; index += 1) {
-      const result = eventService.ingestRead(selectedBag.epc, "RDR-021", "CUSTOMS_EXIT_GATE_1");
+      const result = await eventService.ingestRead(
+        selectedBag.epc,
+        "RDR-021",
+        "CUSTOMS_EXIT_GATE_1",
+      );
       if (result === "merged") merged += 1;
     }
     toast.info(`Burst: 15 reads → ${merged} merged, ${15 - merged} new`, {
@@ -89,44 +161,52 @@ export function SimulatorPanel() {
     });
   }
 
-  function handleForeignEpc() {
-    const result = eventService.ingestRead("EPC-FOREIGN-999", "RDR-021", "CUSTOMS_EXIT_GATE_1");
+  async function handleForeignEpc() {
+    const result = await eventService.ingestRead(
+      "EPC-FOREIGN-999",
+      "RDR-021",
+      "CUSTOMS_EXIT_GATE_1",
+    );
     toast.warning(`Foreign EPC result: ${result}`, {
       description: "Unregistered tag — read discarded, no alarm",
     });
   }
 
   function handleToggleReader(readerId: string) {
-    const reader = readers.find((item) => item.id === readerId);
+    const reader = readers.find((candidate) => candidate.id === readerId);
     if (!reader) return;
-
-    const newStatus = reader.status === "ONLINE" ? "OFFLINE" : "ONLINE";
-    useAppStore.getState().updateReader(readerId, { status: newStatus });
-    toast.info(`${reader.name} → ${newStatus}`);
+    const status = reader.status === "ONLINE" ? "OFFLINE" : "ONLINE";
+    useAppStore.getState().updateReader(readerId, { status });
+    toast.info(`${reader.name} → ${status}`);
   }
 
   async function handleAutoJourney(zones: readonly JourneyStop[]) {
-    if (!selectedBag?.epc) {
+    if (!selectedBag || !selectedBagCanRead) {
       toast.error("Select a tagged bag first");
       return;
     }
-
     setAutoRunning(true);
-    for (const stop of zones) {
-      eventService.ingestRead(selectedBag.epc, stop.reader, stop.zone);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      for (const stop of zones) {
+        await bagService.registerRead(selectedBag.id, stop.zone, stop.reader);
+        await new Promise((resolve) => window.setTimeout(resolve, 2_000));
+      }
+      toast.success("Journey complete");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Journey stopped");
+    } finally {
+      setAutoRunning(false);
     }
-    setAutoRunning(false);
-    toast.success("Journey complete");
   }
 
   function handleReset() {
     if (
-      !confirm(
+      !window.confirm(
         "Reset all data? This will delete all bags, alarms, events, and resolutions. Readers will return to default state.",
       )
-    )
+    ) {
       return;
+    }
     useAppStore.getState().reset();
     eventService.clearCache();
     setSelectedBagId(null);
@@ -140,12 +220,143 @@ export function SimulatorPanel() {
       requiredRole="System Administrator"
       pageName="Simulator Panel"
     >
+      <Dialog open={flagModalOpen} onOpenChange={setFlagModalOpen}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Flag suspect bag</DialogTitle>
+            <DialogDescription>
+              Simulate the payload received from the SBTS/BHS adaptor.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleFlagBag} className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FlagField label="Bag ID">
+                <input
+                  required
+                  value={flagForm.id}
+                  onChange={(event) =>
+                    setFlagForm((current) => ({ ...current, id: event.target.value }))
+                  }
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px]"
+                />
+              </FlagField>
+              <FlagField label="BHS UID">
+                <input
+                  value={flagForm.bhsUid ?? ""}
+                  onChange={(event) =>
+                    setFlagForm((current) => ({ ...current, bhsUid: event.target.value }))
+                  }
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px]"
+                />
+              </FlagField>
+              <FlagField label="Flight number">
+                <select
+                  value={flagForm.flightNo}
+                  onChange={(event) =>
+                    setFlagForm((current) => ({ ...current, flightNo: event.target.value }))
+                  }
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-[12px]"
+                >
+                  {FLIGHTS.map((flight) => (
+                    <option key={flight}>{flight}</option>
+                  ))}
+                </select>
+              </FlagField>
+              <FlagField label="IATA origin">
+                <input
+                  required
+                  maxLength={3}
+                  pattern="[A-Za-z]{3}"
+                  value={flagForm.iataOrigin ?? ""}
+                  onChange={(event) =>
+                    setFlagForm((current) => ({
+                      ...current,
+                      iataOrigin: event.target.value.toUpperCase(),
+                    }))
+                  }
+                  placeholder="RUH"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px] uppercase"
+                />
+              </FlagField>
+              <FlagField label="Passenger name">
+                <input
+                  value={flagForm.passengerName ?? ""}
+                  onChange={(event) =>
+                    setFlagForm((current) => ({
+                      ...current,
+                      passengerName: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-[12px]"
+                />
+              </FlagField>
+              <FlagField label="Threat type">
+                <select
+                  value={flagForm.threatType}
+                  onChange={(event) =>
+                    setFlagForm((current) => ({ ...current, threatType: event.target.value }))
+                  }
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-[12px]"
+                >
+                  {threatTypes.map((threatType) => (
+                    <option key={threatType}>{threatType}</option>
+                  ))}
+                </select>
+              </FlagField>
+            </div>
+            <FlagField label="Notes">
+              <textarea
+                rows={3}
+                value={flagForm.notes ?? ""}
+                onChange={(event) =>
+                  setFlagForm((current) => ({ ...current, notes: event.target.value }))
+                }
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-[12px]"
+              />
+            </FlagField>
+            <DialogFooter>
+              <button
+                type="submit"
+                disabled={flagging}
+                className="rounded-md bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                {flagging ? "Flagging…" : "Flag as Suspect"}
+              </button>
+            </DialogFooter>
+          </form>
+          <div className="border-t border-border pt-4">
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Batch flag
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={batchCount}
+                onChange={(event) => setBatchCount(Number(event.target.value))}
+                className="w-20 rounded-md border border-border bg-background px-3 py-2 text-[12px]"
+              />
+              <button
+                type="button"
+                disabled={flagging}
+                onClick={() => void handleBatchFlag()}
+                className="rounded-md border border-border px-3 py-2 text-[12px] font-medium hover:bg-accent disabled:opacity-50"
+              >
+                Flag {Math.max(1, Math.min(20, batchCount))} random bags
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="p-6">
         <PageHeader
           title="Simulator Panel"
           subtitle="Mock external systems — BHS flag, RFID reads, reader health"
           actions={
             <button
+              type="button"
               onClick={handleReset}
               className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[12px] hover:bg-accent"
             >
@@ -159,11 +370,11 @@ export function SimulatorPanel() {
           <div className="col-span-12 space-y-4 lg:col-span-3">
             <Panel title="BHS — Flag Suspect Bag">
               <p className="mb-3 text-[12px] text-muted-foreground">
-                Simulates a BHS controller flagging a bag as suspect. Creates an IDENTIFIED bag → go
-                to Tagging Station to encode.
+                Submit the adaptor payload, then tag the IDENTIFIED bag at Tagging Station.
               </p>
               <button
-                onClick={handleFlagBag}
+                type="button"
+                onClick={openFlagModal}
                 className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2.5 text-[13px] font-medium text-primary-foreground"
               >
                 <Plus className="size-4" />
@@ -174,13 +385,16 @@ export function SimulatorPanel() {
             <Panel title="Select Active Bag">
               {activeBags.length === 0 ? (
                 <div className="py-4 text-center text-[12px] text-muted-foreground">
-                  No tagged bags — flag + encode one first
+                  {identifiedBags.length > 0
+                    ? "Tag this bag at Tagging Station first."
+                    : "No tagged bags — flag + encode one first"}
                 </div>
               ) : (
                 <ul className="max-h-64 space-y-1.5 overflow-y-auto">
                   {activeBags.map((bag) => (
                     <li key={bag.id}>
                       <button
+                        type="button"
                         onClick={() => setSelectedBagId(bag.id)}
                         className={`w-full rounded-md border px-3 py-2 text-left text-[12px] ${
                           selectedBagId === bag.id
@@ -189,19 +403,11 @@ export function SimulatorPanel() {
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-mono font-semibold">{bag.iataCode}</span>
-                          <StatusPill
-                            status={
-                              bag.status === "ALARMED" || bag.status === "ESCALATED"
-                                ? "ACTIVE"
-                                : bag.status === "RESOLVED"
-                                  ? "Online"
-                                  : "ACKNOWLEDGED"
-                            }
-                          />
+                          <span className="font-mono font-semibold">{bag.id}</span>
+                          <StatusPill status="ACKNOWLEDGED" />
                         </div>
                         <div className="mt-0.5 text-muted-foreground">
-                          {bag.epc} · {bag.currentZone.replace(/_/g, " ")}
+                          {bag.epc} · {(bag.lastSeenZone ?? "TAGGING_STATION").replace(/_/g, " ")}
                         </div>
                       </button>
                     </li>
@@ -217,6 +423,11 @@ export function SimulatorPanel() {
                 Simulate a reader detecting the selected bag at a zone.
                 {!selectedBag && " Select a bag first."}
               </p>
+              {selectedBag?.status === "IDENTIFIED" ? (
+                <div className="mb-3 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-[11px] text-warning">
+                  Tag this bag at Tagging Station first.
+                </div>
+              ) : null}
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { zone: "RECLAIM_BELT_1", reader: "RDR-001", label: "Reclaim Belt 1" },
@@ -231,9 +442,10 @@ export function SimulatorPanel() {
                   { zone: "HBSS_RECHECK", reader: "RDR-030", label: "Recheck Station" },
                 ].map((zone) => (
                   <button
+                    type="button"
                     key={zone.zone}
-                    onClick={() => handleZoneRead(zone.zone, zone.reader)}
-                    disabled={!selectedBag?.epc}
+                    onClick={() => void handleZoneRead(zone.zone, zone.reader)}
+                    disabled={!selectedBagCanRead}
                     className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-2 text-[12px] font-medium disabled:opacity-30 ${
                       zone.zone.includes("EXIT") || zone.zone.includes("EMERGENCY")
                         ? "border-danger/30 text-danger hover:bg-danger/5"
@@ -253,30 +465,27 @@ export function SimulatorPanel() {
                 seconds.
               </p>
               <div className="grid grid-cols-1 gap-2">
-                <button
+                <JourneyButton
                   onClick={() => void handleAutoJourney(JOURNEY_ZONES)}
-                  disabled={!selectedBag?.epc || autoRunning}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2.5 text-[13px] font-medium text-primary-foreground disabled:opacity-40"
+                  disabled={!selectedBagCanRead || autoRunning}
+                  className="bg-primary text-primary-foreground"
                 >
-                  <Play className="size-4" />
                   Journey A — Reclaim → Hall → Exit (alarm)
-                </button>
-                <button
+                </JourneyButton>
+                <JourneyButton
                   onClick={() => void handleAutoJourney(RESTRICTED_JOURNEY)}
-                  disabled={!selectedBag?.epc || autoRunning}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-warning px-3 py-2.5 text-[13px] font-medium text-primary-foreground disabled:opacity-40"
+                  disabled={!selectedBagCanRead || autoRunning}
+                  className="bg-warning text-primary-foreground"
                 >
-                  <Play className="size-4" />
                   Journey C — Reclaim → Employee Exit → Emergency Door
-                </button>
-                <button
+                </JourneyButton>
+                <JourneyButton
                   onClick={() => void handleAutoJourney(FULL_CLEARED_JOURNEY)}
-                  disabled={!selectedBag?.epc || autoRunning}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-primary px-3 py-2.5 text-[13px] font-medium text-primary disabled:opacity-40"
+                  disabled={!selectedBagCanRead || autoRunning}
+                  className="border border-primary text-primary"
                 >
-                  <Play className="size-4" />
                   Journey Full — Reclaim → Exit → Recheck (alarm + ack needed)
-                </button>
+                </JourneyButton>
                 {autoRunning ? (
                   <div className="animate-pulse text-center text-[12px] text-muted-foreground">
                     Journey running...
@@ -290,15 +499,17 @@ export function SimulatorPanel() {
             <Panel title="Edge Case Tests">
               <div className="space-y-2">
                 <button
-                  onClick={handleBurstReads}
-                  disabled={!selectedBag?.epc}
+                  type="button"
+                  onClick={() => void handleBurstReads()}
+                  disabled={!selectedBagCanRead}
                   className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-[12px] hover:bg-accent disabled:opacity-30"
                 >
                   <Zap className="size-3.5" />
                   Burst 15 reads (test dedup)
                 </button>
                 <button
-                  onClick={handleForeignEpc}
+                  type="button"
+                  onClick={() => void handleForeignEpc()}
                   className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-[12px] hover:bg-accent"
                 >
                   <Ghost className="size-3.5" />
@@ -315,7 +526,7 @@ export function SimulatorPanel() {
                     className="flex items-center justify-between border-b border-border py-1.5 text-[12px] last:border-0"
                   >
                     <span className="flex-1 truncate">{reader.name}</span>
-                    <button onClick={() => handleToggleReader(reader.id)}>
+                    <button type="button" onClick={() => handleToggleReader(reader.id)}>
                       {reader.status === "ONLINE" ? (
                         <ToggleRight className="size-5 text-success" />
                       ) : (
@@ -333,14 +544,15 @@ export function SimulatorPanel() {
                 <dd className="font-mono font-semibold">{bags.length}</dd>
                 <dt className="text-muted-foreground">Active bags</dt>
                 <dd className="font-mono font-semibold">
-                  {
-                    bags.filter((bag) => bag.status !== "RESOLVED" && bag.status !== "IDENTIFIED")
-                      .length
-                  }
+                  {bags.filter((bag) => !["RESOLVED", "IDENTIFIED"].includes(bag.status)).length}
                 </dd>
                 <dt className="text-muted-foreground">Open alarms</dt>
                 <dd className="font-mono font-semibold text-danger">
-                  {alarms.filter((alarm) => alarm.outcome === "OPEN").length}
+                  {
+                    alarms.filter((alarm) =>
+                      ["OPEN", "UNDER_INVESTIGATION", "ESCALATED"].includes(alarm.outcome),
+                    ).length
+                  }
                 </dd>
                 <dt className="text-muted-foreground">Total events</dt>
                 <dd className="font-mono font-semibold">{events.length}</dd>
@@ -354,5 +566,27 @@ export function SimulatorPanel() {
         </div>
       </div>
     </RoleGate>
+  );
+}
+
+function FlagField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block text-[11px] font-medium text-muted-foreground">
+      <span className="mb-1 block">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function JourneyButton({ children, className, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className={`inline-flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-2.5 text-[13px] font-medium disabled:opacity-40 ${className ?? ""}`}
+    >
+      <Play className="size-4" />
+      {children}
+    </button>
   );
 }

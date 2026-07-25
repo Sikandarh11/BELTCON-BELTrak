@@ -2,7 +2,11 @@ import { Navigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { useWorkspaceMode } from "@/auth/SessionContext";
-import { getWorkspaceLanding, type WorkspaceMode } from "@/auth/appRoles";
+import {
+  getWorkspaceLanding,
+  hasUniversalWorkspaceAccess,
+  type WorkspaceMode,
+} from "@/auth/appRoles";
 
 /**
  * NAVIGATION GUARD ONLY. This checks a client-selected workspace mode
@@ -18,6 +22,10 @@ export function RequireWorkspaceMode({
   children: ReactNode;
 }) {
   const { workspaceMode } = useWorkspaceMode();
+
+  if (hasUniversalWorkspaceAccess(workspaceMode)) {
+    return <>{children}</>;
+  }
 
   if (!modes.includes(workspaceMode)) {
     return <Navigate to={getWorkspaceLanding(workspaceMode)} replace />;

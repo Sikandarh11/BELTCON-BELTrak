@@ -76,3 +76,11 @@ export function setLastMode(workspaceMode: WorkspaceMode) {
 export function getWorkspaceLanding(workspaceMode: WorkspaceMode): WorkspaceLandingPath {
   return WORKSPACE_MODES[workspaceMode].landingPath;
 }
+
+/**
+ * Developer mode is an explicit frontend override for diagnostics and testing.
+ * Server APIs must still enforce canonical-role authorization independently.
+ */
+export function hasUniversalWorkspaceAccess(workspaceMode: WorkspaceMode): boolean {
+  return workspaceMode === "Developer";
+}

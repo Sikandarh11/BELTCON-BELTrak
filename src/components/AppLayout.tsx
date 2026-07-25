@@ -34,7 +34,12 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { GlobalBanners } from "./GlobalBanners";
-import { FOCUS_MODE_KEY, WORKSPACE_MODES, type WorkspaceMode } from "@/auth/appRoles";
+import {
+  FOCUS_MODE_KEY,
+  WORKSPACE_MODES,
+  hasUniversalWorkspaceAccess,
+  type WorkspaceMode,
+} from "@/auth/appRoles";
 import { useAuthSession, useWorkspaceMode } from "@/auth/SessionContext";
 import { useDebugFlag } from "@/hooks/useDebugFlag";
 import type { AuthSessionResponse } from "@/services/authService";
@@ -319,6 +324,7 @@ export function AppLayout({
 }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { workspaceMode } = useWorkspaceMode();
+  const hasUniversalAccess = hasUniversalWorkspaceAccess(workspaceMode);
   const openAlarms = useAppStore((s) => s.alarms.filter((a) => a.outcome === "OPEN").length);
   const currentUser = session.user;
   const userInitials = currentUser
@@ -328,6 +334,7 @@ export function AppLayout({
   const visibleNavigation = NAV.map((group) => ({
     ...group,
     items: group.items.filter((item) => {
+      if (hasUniversalAccess) return true;
       const canonicalRoleAllowed =
         !item.minRole || Boolean(currentUser && roleIsAtLeast(currentUser.role, item.minRole));
       const workspaceModeAllowed = !item.workspaceMode || item.workspaceMode === workspaceMode;

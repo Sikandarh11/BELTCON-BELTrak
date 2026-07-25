@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEv
 import { toast } from "sonner";
 
 import { useAuthSession, useSession, useWorkspaceMode } from "@/auth/SessionContext";
+import { hasUniversalWorkspaceAccess } from "@/auth/appRoles";
 import { Panel, StatusPill } from "@/components/AppLayout";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -256,12 +257,15 @@ export function StoreDiagnosticsPanel() {
 
 export function ErrorLogPanel() {
   const session = useSession();
+  const { workspaceMode } = useWorkspaceMode();
   const errors = useSyncExternalStore(
     subscribeToCapturedErrors,
     getCapturedErrors,
     () => EMPTY_ERRORS,
   );
-  const canClear = roleIsAtLeast(session.role, "System Administrator");
+  const canClear =
+    hasUniversalWorkspaceAccess(workspaceMode) ||
+    roleIsAtLeast(session.role, "System Administrator");
 
   function clearErrors() {
     if (!canClear) {
@@ -336,8 +340,11 @@ function readFeatureFlags(): FeatureFlags {
 
 export function FeatureFlagsPanel() {
   const session = useSession();
+  const { workspaceMode } = useWorkspaceMode();
   const [flags, setFlags] = useState<FeatureFlags>(readFeatureFlags);
-  const canMutate = roleIsAtLeast(session.role, "System Administrator");
+  const canMutate =
+    hasUniversalWorkspaceAccess(workspaceMode) ||
+    roleIsAtLeast(session.role, "System Administrator");
 
   useEffect(() => {
     function syncFlags() {
@@ -420,6 +427,7 @@ function getEventSeverity(eventType: string, zone: string): EventSeverity {
 
 export function EventStreamPanel() {
   const session = useSession();
+  const { workspaceMode } = useWorkspaceMode();
   const events = useAppStore((state) => state.events);
   const bags = useAppStore((state) => state.bags);
   const [typeFilter, setTypeFilter] = useState("all");
@@ -427,7 +435,9 @@ export function EventStreamPanel() {
   const [epc, setEpc] = useState(() => bags.find((bag) => bag.epc)?.epc ?? "");
   const [readerId, setReaderId] = useState("RDR-DEV-01");
   const [zone, setZone] = useState("ARRIVAL_HALL");
-  const canMutate = roleIsAtLeast(session.role, "System Administrator");
+  const canMutate =
+    hasUniversalWorkspaceAccess(workspaceMode) ||
+    roleIsAtLeast(session.role, "System Administrator");
   const eventTypes = useMemo(
     () => [...new Set(events.map((event) => event.eventType))].sort(),
     [events],
@@ -444,13 +454,13 @@ export function EventStreamPanel() {
     )
     .slice(0, 100);
 
-  function fireTestEvent(event: FormEvent<HTMLFormElement>) {
+  async function fireTestEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canMutate) {
       toast.error("System Administrator role is required to fire test events.");
       return;
     }
-    const result = eventService.ingestRead(epc.trim(), readerId.trim(), zone.trim());
+    const result = await eventService.ingestRead(epc.trim(), readerId.trim(), zone.trim());
     toast.info(`Test event: ${result}`);
   }
 
@@ -613,13 +623,16 @@ const AUTH_ENDPOINTS = [
 
 export function ApiExplorerPanel() {
   const session = useSession();
+  const { workspaceMode } = useWorkspaceMode();
   const [endpointPath, setEndpointPath] = useState<string>(AUTH_ENDPOINTS[2].path);
   const selectedEndpoint =
     AUTH_ENDPOINTS.find((endpoint) => endpoint.path === endpointPath) ?? AUTH_ENDPOINTS[2];
   const [body, setBody] = useState<string>(selectedEndpoint.body);
   const [response, setResponse] = useState("No request sent.");
   const [sending, setSending] = useState(false);
-  const canMutate = roleIsAtLeast(session.role, "System Administrator");
+  const canMutate =
+    hasUniversalWorkspaceAccess(workspaceMode) ||
+    roleIsAtLeast(session.role, "System Administrator");
   const canSend = selectedEndpoint.method === "GET" || canMutate;
 
   async function sendRequest() {

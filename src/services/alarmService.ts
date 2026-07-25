@@ -1,49 +1,50 @@
 import { toast } from "sonner";
 import type { Alarm, AlarmOutcome, ResolutionAction } from "@/types";
 import { useAppStore } from "@/store/appStore";
-import { bagService } from "./bagService";
 
-let alarmCounter = 8000;
-let resCounter = 100;
+type OpenAlarmInput = {
+  bagId: string;
+  zone: string;
+  severity: Alarm["severity"];
+};
+
+let alarmCounter = 8_000;
 
 export const alarmService = {
-  /**
-   * Creates alarm + transitions bag to ALARMED.
-   * Called by eventService when exit/restricted zone read fires.
-   */
-  raiseAlarm(bagId: string, zone: string): Alarm {
+  open(input: OpenAlarmInput): Alarm {
+    const existing = useAppStore
+      .getState()
+      .alarms.find(
+        (alarm) =>
+          alarm.bagId === input.bagId &&
+          ["OPEN", "UNDER_INVESTIGATION", "ESCALATED"].includes(alarm.outcome),
+      );
+    if (existing) return existing;
+
     const alarm: Alarm = {
-      id: `A-${++alarmCounter}`,
-      bagId,
-      zone,
+      id: `A-${Date.now()}-${++alarmCounter}`,
+      bagId: input.bagId,
+      zone: input.zone,
       triggeredAt: new Date().toISOString(),
       acknowledgedBy: null,
       outcome: "OPEN",
+      severity: input.severity,
     };
     useAppStore.getState().addAlarm(alarm);
-    toast.error(`Alarm at ${zone.replace(/_/g, " ")}`, {
-      description: `Bag ${bagId} — requires immediate attention`,
+    toast.error(`Alarm at ${input.zone.replace(/_/g, " ")}`, {
+      description: `Bag ${input.bagId} — requires immediate attention`,
     });
-    try {
-      bagService.transition(bagId, "ALARMED");
-    } catch {
-      // bag may already be alarmed
-    }
     useAppStore.getState().addAuditEntry({
       action: "ALARM_RAISED",
       userId: "system",
       userName: "System",
-      detail: `Alarm ${alarm.id} at ${zone} for bag ${bagId}`,
+      detail: `Alarm ${alarm.id} at ${input.zone} for bag ${input.bagId}`,
     });
     return alarm;
   },
 
-  /**
-   * Officer clicks "Acknowledge" → alarm goes UNDER_INVESTIGATION,
-   * bag goes UNDER_RECHECK.
-   */
   acknowledge(alarmId: string, officerName: string): void {
-    const alarm = useAppStore.getState().alarms.find((a) => a.id === alarmId);
+    const alarm = useAppStore.getState().alarms.find((candidate) => candidate.id === alarmId);
     if (!alarm) throw new Error(`Alarm ${alarmId} not found`);
     if (alarm.outcome !== "OPEN") return;
 
@@ -51,13 +52,6 @@ export const alarmService = {
       acknowledgedBy: officerName,
       outcome: "UNDER_INVESTIGATION",
     });
-
-    try {
-      bagService.transition(alarm.bagId, "UNDER_RECHECK");
-    } catch {
-      // The bag may already be in the recheck flow.
-    }
-
     useAppStore.getState().addAuditEntry({
       action: "ALARM_ACKNOWLEDGED",
       userId: officerName,
@@ -66,19 +60,10 @@ export const alarmService = {
     });
   },
 
-  /**
-   * Escalate alarm to supervisor.
-   */
   escalate(alarmId: string): void {
-    const alarm = useAppStore.getState().alarms.find((a) => a.id === alarmId);
-    if (!alarm) return;
+    const alarm = useAppStore.getState().alarms.find((candidate) => candidate.id === alarmId);
+    if (!alarm) throw new Error(`Alarm ${alarmId} not found`);
     useAppStore.getState().updateAlarm(alarmId, { outcome: "ESCALATED" });
-    try {
-      bagService.transition(alarm.bagId, "ESCALATED");
-    } catch {
-      // The bag may already be escalated.
-    }
-
     useAppStore.getState().addAuditEntry({
       action: "ALARM_ESCALATED",
       userId: "system",
@@ -88,9 +73,8 @@ export const alarmService = {
   },
 
   reassign(alarmId: string, officerName: string): void {
-    const alarm = useAppStore.getState().alarms.find((item) => item.id === alarmId);
+    const alarm = useAppStore.getState().alarms.find((candidate) => candidate.id === alarmId);
     if (!alarm) throw new Error(`Alarm ${alarmId} not found`);
-
     useAppStore.getState().updateAlarm(alarmId, { acknowledgedBy: officerName });
     useAppStore.getState().addAuditEntry({
       action: "ALARM_REASSIGNED",
@@ -100,52 +84,15 @@ export const alarmService = {
     });
   },
 
-  /**
-   * Resolve alarm with one of 5 outcomes.
-   * Also creates a Resolution record and sets bag to RESOLVED
-   * (except ESCALATED which keeps bag ESCALATED).
-   */
-  resolve(alarmId: string, action: ResolutionAction, officerId: string): void {
-    const store = useAppStore.getState();
-    const alarm = store.alarms.find((a) => a.id === alarmId);
+  close(alarmId: string, action: ResolutionAction, officerName: string): void {
+    const alarm = useAppStore.getState().alarms.find((candidate) => candidate.id === alarmId);
     if (!alarm) throw new Error(`Alarm ${alarmId} not found`);
-
-    store.updateAlarm(alarmId, { outcome: action as unknown as AlarmOutcome });
-
-    store.addResolution({
-      id: `res-${++resCounter}`,
-      bagId: alarm.bagId,
-      officerId,
-      action,
-      resolvedAt: new Date().toISOString(),
+    useAppStore.getState().updateAlarm(alarmId, {
+      outcome: action as AlarmOutcome,
+      acknowledgedBy: alarm.acknowledgedBy ?? officerName,
     });
-    console.log(
-      `[alarmService] Bag ${alarm.bagId} resolved with ${action} — future exit reads will be suppressed`,
-    );
-
-    store.addAuditEntry({
-      action: "ALARM_RESOLVED",
-      userId: officerId,
-      userName: officerId,
-      detail: `Alarm ${alarmId} resolved: ${action}`,
-    });
-
-    toast.success(`Alarm ${alarmId} resolved`, {
+    toast.success(`Alarm ${alarmId} closed`, {
       description: `Action: ${action.replace(/_/g, " ").toLowerCase()}`,
     });
-
-    if (action === "ESCALATED") {
-      try {
-        bagService.transition(alarm.bagId, "ESCALATED");
-      } catch {
-        // The alarm outcome remains the source of truth if the bag already advanced.
-      }
-    } else {
-      try {
-        bagService.transition(alarm.bagId, "RESOLVED");
-      } catch {
-        // The alarm outcome remains the source of truth if the bag already advanced.
-      }
-    }
   },
 };

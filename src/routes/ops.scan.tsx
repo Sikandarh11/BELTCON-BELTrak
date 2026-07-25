@@ -38,16 +38,14 @@ function OperatorScan() {
     )
     .slice(0, 20);
 
-  function handleScan(event: FormEvent<HTMLFormElement>) {
+  async function handleScan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedTag = tagId.trim().toLowerCase();
     if (!normalizedTag) return;
 
     const bag = bags.find(
       (item) =>
-        item.id.toLowerCase() === normalizedTag ||
-        item.iataCode.toLowerCase() === normalizedTag ||
-        item.epc?.toLowerCase() === normalizedTag,
+        item.id.toLowerCase() === normalizedTag || item.epc?.toLowerCase() === normalizedTag,
     );
 
     setSearched(true);
@@ -55,15 +53,15 @@ function OperatorScan() {
 
     if (!bag) return;
     if (bag.epc) {
-      eventService.ingestRead(bag.epc, "OPS-SCAN", "OPERATIONS_SCAN");
+      await eventService.ingestRead(bag.epc, "OPS-SCAN", "OPERATIONS_SCAN");
     }
-    toast.success(`Scanned ${bag.iataCode}`);
+    toast.success(`Scanned ${bag.id}`);
   }
 
-  function sendToRecheck() {
+  async function sendToRecheck() {
     if (!selectedBag) return;
     try {
-      bagService.sendToRecheck(selectedBag.id, session.id);
+      await bagService.sendToRecheck(selectedBag.id, session.id);
       void navigate({ to: "/recheck", search: { bagId: selectedBag.id } });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to route bag to recheck");
@@ -117,9 +115,7 @@ function OperatorScan() {
                 <div className="grid gap-4 md:grid-cols-[1fr_auto]">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-lg font-semibold">
-                        {selectedBag.iataCode}
-                      </span>
+                      <span className="font-mono text-lg font-semibold">{selectedBag.id}</span>
                       <StatusPill status={selectedBag.status} />
                     </div>
                     <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-[12px] sm:grid-cols-4">
@@ -129,11 +125,13 @@ function OperatorScan() {
                       </div>
                       <div>
                         <dt className="text-muted-foreground">Flight</dt>
-                        <dd className="mt-0.5 font-mono">{selectedBag.flight}</dd>
+                        <dd className="mt-0.5 font-mono">{selectedBag.flightNo}</dd>
                       </div>
                       <div>
                         <dt className="text-muted-foreground">Last seen</dt>
-                        <dd className="mt-0.5">{selectedBag.currentZone.replace(/_/g, " ")}</dd>
+                        <dd className="mt-0.5">
+                          {selectedBag.lastSeenZone?.replace(/_/g, " ") ?? "—"}
+                        </dd>
                       </div>
                       <div>
                         <dt className="text-muted-foreground">Alarms</dt>
@@ -160,7 +158,8 @@ function OperatorScan() {
                   >
                     <button
                       type="button"
-                      onClick={sendToRecheck}
+                      onClick={() => void sendToRecheck()}
+                      disabled={selectedBag.status !== "ALARMED"}
                       className="inline-flex items-center justify-center gap-2 self-center rounded-md bg-warning px-4 py-2.5 text-[13px] font-semibold text-primary-foreground"
                     >
                       <Send className="size-4" />

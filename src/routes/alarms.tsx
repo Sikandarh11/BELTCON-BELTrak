@@ -2,8 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
 import { useAppStore } from "@/store/appStore";
 import { alarmService } from "@/services/alarmService";
+import { bagService } from "@/services/bagService";
 import { useState } from "react";
-import { Eye, Check, ArrowUpRight, X } from "lucide-react";
+import { Eye, Check, ArrowUpRight, Send } from "lucide-react";
 import { useSession } from "@/auth/SessionContext";
 import { toast } from "sonner";
 
@@ -19,34 +20,50 @@ function Alarms() {
   const navigate = useNavigate();
 
   const [statusFilters, setStatusFilters] = useState<Set<string>>(
-    new Set(["OPEN", "UNDER_INVESTIGATION", "ESCALATED"])
+    new Set(["OPEN", "UNDER_INVESTIGATION", "ESCALATED"]),
   );
   const [flightFilter, setFlightFilter] = useState("");
   const [zoneFilter, setZoneFilter] = useState("all");
 
   const allZones = [...new Set(alarms.map((a) => a.zone))];
 
-  const filteredAlarms = alarms.filter((a) => {
-    const statusMatch = statusFilters.has(a.outcome) ||
-      (statusFilters.has("CLOSED") && !["OPEN", "UNDER_INVESTIGATION", "ESCALATED"].includes(a.outcome));
-    const flightMatch = !flightFilter ||
-      (bags.find((b) => b.id === a.bagId)?.flight?.toLowerCase().includes(flightFilter.toLowerCase()));
-    const zoneMatch = zoneFilter === "all" || a.zone === zoneFilter;
-    return statusMatch && flightMatch && zoneMatch;
-  });
+  const isClosed = (outcome: string) =>
+    !["OPEN", "UNDER_INVESTIGATION", "ESCALATED"].includes(outcome);
+  const filteredAlarms = alarms
+    .filter((a) => {
+      const statusMatch =
+        statusFilters.has(a.outcome) ||
+        (statusFilters.has("CLOSED") &&
+          !["OPEN", "UNDER_INVESTIGATION", "ESCALATED"].includes(a.outcome));
+      const flightMatch =
+        !flightFilter ||
+        bags
+          .find((b) => b.id === a.bagId)
+          ?.flightNo?.toLowerCase()
+          .includes(flightFilter.toLowerCase());
+      const zoneMatch = zoneFilter === "all" || a.zone === zoneFilter;
+      return statusMatch && flightMatch && zoneMatch;
+    })
+    .sort(
+      (first, second) =>
+        new Date(second.triggeredAt).getTime() - new Date(first.triggeredAt).getTime(),
+    );
 
   const active = alarms.filter((a) => a.outcome === "OPEN").length;
   const escalated = alarms.filter((a) => a.outcome === "ESCALATED").length;
   const acked = alarms.filter((a) => a.outcome === "UNDER_INVESTIGATION").length;
-  const closed = alarms.filter((a) =>
-    !["OPEN", "UNDER_INVESTIGATION", "ESCALATED"].includes(a.outcome)
+  const closed = alarms.filter(
+    (a) => !["OPEN", "UNDER_INVESTIGATION", "ESCALATED"].includes(a.outcome),
   ).length;
 
   const outcomeToStatus = (o: string) =>
-    o === "OPEN" ? "ACTIVE"
-      : o === "UNDER_INVESTIGATION" ? "ACKNOWLEDGED"
-      : o === "ESCALATED" ? "ESCALATED"
-      : "CLOSED";
+    o === "OPEN"
+      ? "ACTIVE"
+      : o === "UNDER_INVESTIGATION"
+        ? "ACKNOWLEDGED"
+        : o === "ESCALATED"
+          ? "ESCALATED"
+          : "CLOSED";
 
   return (
     <div className="p-6">
@@ -91,11 +108,16 @@ function Alarms() {
                     checked={statusFilters.has(s.value)}
                     onChange={(e) => {
                       const next = new Set(statusFilters);
-                      e.target.checked ? next.add(s.value) : next.delete(s.value);
+                      if (e.target.checked) {
+                        next.add(s.value);
+                      } else {
+                        next.delete(s.value);
+                      }
                       setStatusFilters(next);
                     }}
                     className="accent-primary"
-                  /> {s.label}
+                  />{" "}
+                  {s.label}
                 </label>
               ))}
             </div>
@@ -117,7 +139,9 @@ function Alarms() {
               >
                 <option value="all">All locations</option>
                 {allZones.map((z) => (
-                  <option key={z} value={z}>{z.replace(/_/g, " ")}</option>
+                  <option key={z} value={z}>
+                    {z.replace(/_/g, " ")}
+                  </option>
                 ))}
               </select>
             </div>
@@ -141,37 +165,117 @@ function Alarms() {
           <table className="w-full text-[12.5px]">
             <thead className="text-[10px] uppercase tracking-wider text-muted-foreground bg-background/40 border-b border-border">
               <tr>
-                {["Alarm ID","Time","Tag ID","Flight","Reader Location","Threat Type","Status","Officer","Actions"].map(h => (
-                  <th key={h} className="text-left font-medium px-3 py-2.5">{h}</th>
+                {[
+                  "Alarm ID",
+                  "Time",
+                  "Tag ID",
+                  "Flight",
+                  "Reader Location",
+                  "Threat Type",
+                  "Status",
+                  "Officer",
+                  "Actions",
+                ].map((h) => (
+                  <th key={h} className="text-left font-medium px-3 py-2.5">
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filteredAlarms.map((a) => (
-                <tr key={a.id} className="border-b border-border hover:bg-accent/30">
+                <tr
+                  key={a.id}
+                  onClick={() => navigate({ to: "/target", search: { bagId: a.bagId } })}
+                  className="cursor-pointer border-b border-border hover:bg-accent/30"
+                >
                   <td className="px-3 py-2.5 font-mono text-primary">{a.id}</td>
-                  <td className="px-3 py-2.5 font-mono text-muted-foreground">{new Date(a.triggeredAt).toLocaleTimeString()}</td>
-                  <td className="px-3 py-2.5 font-mono">{bags.find((b) => b.id === a.bagId)?.iataCode ?? "—"}</td>
-                  <td className="px-3 py-2.5 font-mono">{bags.find((b) => b.id === a.bagId)?.flight ?? "—"}</td>
+                  <td className="px-3 py-2.5 font-mono text-muted-foreground">
+                    {new Date(a.triggeredAt).toLocaleTimeString()}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono">
+                    {bags.find((b) => b.id === a.bagId)?.id ?? "—"}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono">
+                    {bags.find((b) => b.id === a.bagId)?.flightNo ?? "—"}
+                  </td>
                   <td className="px-3 py-2.5">{a.zone.replace(/_/g, " ")}</td>
-                  <td className="px-3 py-2.5">Suspect Bag</td>
-                  <td className="px-3 py-2.5"><StatusPill status={outcomeToStatus(a.outcome)} /></td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{a.acknowledgedBy ?? "Unassigned"}</td>
+                  <td className="px-3 py-2.5">
+                    <span className="block">
+                      {bags.find((b) => b.id === a.bagId)?.threatType ?? "Suspect Bag"}
+                    </span>
+                    <span className="text-[10px] font-semibold uppercase text-danger">
+                      {a.severity}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <StatusPill status={outcomeToStatus(a.outcome)} />
+                  </td>
+                  <td className="px-3 py-2.5 text-muted-foreground">
+                    {a.acknowledgedBy ?? "Unassigned"}
+                  </td>
                   <td className="px-3 py-2.5">
                     <div className="flex gap-1">
-                      <button title="View" onClick={() => navigate({ to: "/target", search: { bagId: a.bagId } })} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent"><Eye className="size-3.5" /></button>
-                      <button title="Acknowledge" onClick={() => {
-                        try { alarmService.acknowledge(a.id, `${session.firstName} ${session.lastName}`); }
-                        catch (err: any) { toast.error(err.message || "Action failed"); }
-                      }} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-info"><Check className="size-3.5" /></button>
-                      <button title="Escalate" onClick={() => {
-                        try { alarmService.escalate(a.id); }
-                        catch (err: any) { toast.error(err.message || "Action failed"); }
-                      }} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-warning"><ArrowUpRight className="size-3.5" /></button>
-                      <button title="Close" onClick={() => {
-                        try { alarmService.resolve(a.id, "CLEARED", session.id); }
-                        catch (err: any) { toast.error(err.message || "Action failed"); }
-                      }} className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-muted-foreground"><X className="size-3.5" /></button>
+                      <button
+                        title="View"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate({ to: "/target", search: { bagId: a.bagId } });
+                        }}
+                        className="size-7 inline-flex items-center justify-center rounded hover:bg-accent"
+                      >
+                        <Eye className="size-3.5" />
+                      </button>
+                      <button
+                        title="Acknowledge"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          try {
+                            alarmService.acknowledge(
+                              a.id,
+                              `${session.firstName} ${session.lastName}`,
+                            );
+                          } catch (err: unknown) {
+                            toast.error(err instanceof Error ? err.message : "Action failed");
+                          }
+                        }}
+                        className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-info"
+                      >
+                        <Check className="size-3.5" />
+                      </button>
+                      <button
+                        title="Escalate"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          try {
+                            alarmService.escalate(a.id);
+                          } catch (err: unknown) {
+                            toast.error(err instanceof Error ? err.message : "Action failed");
+                          }
+                        }}
+                        className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-warning"
+                      >
+                        <ArrowUpRight className="size-3.5" />
+                      </button>
+                      {!isClosed(a.outcome) ? (
+                        <button
+                          title="Send to Recheck"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void bagService
+                              .sendToRecheck(a.bagId, `${session.firstName} ${session.lastName}`)
+                              .then(() => toast.success(`${a.bagId} sent to recheck`))
+                              .catch((error) =>
+                                toast.error(
+                                  error instanceof Error ? error.message : "Action failed",
+                                ),
+                              );
+                          }}
+                          className="size-7 inline-flex items-center justify-center rounded hover:bg-accent text-warning"
+                        >
+                          <Send className="size-3.5" />
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>

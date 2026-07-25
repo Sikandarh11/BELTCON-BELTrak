@@ -3,8 +3,20 @@ import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
 import { HOURLY_TAGS, ALARM_TREND, TRAFFIC_TREND } from "@/mocks/seed";
 import { useAppStore } from "@/store/appStore";
 import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, CartesianGrid,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
 } from "recharts";
 import { TrendingUp, TrendingDown, Download, RefreshCw } from "lucide-react";
 
@@ -13,9 +25,18 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-const axis = { tick: { fill: "rgb(150,160,180)", fontSize: 11 }, axisLine: { stroke: "rgb(60,70,90)" }, tickLine: false } as const;
+const axis = {
+  tick: { fill: "rgb(150,160,180)", fontSize: 11 },
+  axisLine: { stroke: "rgb(60,70,90)" },
+  tickLine: false,
+} as const;
 const tooltipStyle = {
-  contentStyle: { background: "oklch(0.22 0.02 250)", border: "1px solid oklch(0.30 0.02 250)", borderRadius: 6, fontSize: 12 },
+  contentStyle: {
+    background: "oklch(0.22 0.02 250)",
+    border: "1px solid oklch(0.30 0.02 250)",
+    borderRadius: 6,
+    fontSize: 12,
+  },
   labelStyle: { color: "rgb(200,210,230)" },
 } as const;
 
@@ -26,18 +47,46 @@ function Dashboard() {
   const events = useAppStore((s) => s.events);
 
   const readerHealth = [
-    { name: "Healthy", value: readers.filter((r) => r.status === "ONLINE").length, color: "bg-success" },
-    { name: "Degraded", value: readers.filter((r) => r.status === "DEGRADED").length, color: "bg-warning" },
-    { name: "Offline", value: readers.filter((r) => r.status === "OFFLINE").length, color: "bg-danger" },
+    {
+      name: "Healthy",
+      value: readers.filter((r) => r.status === "ONLINE").length,
+      color: "bg-success",
+    },
+    {
+      name: "Degraded",
+      value: readers.filter((r) => r.status === "DEGRADED").length,
+      color: "bg-warning",
+    },
+    {
+      name: "Offline",
+      value: readers.filter((r) => r.status === "OFFLINE").length,
+      color: "bg-danger",
+    },
   ].filter((r) => r.value > 0);
 
   const statusDist = [
     { name: "Alarmed", value: bags.filter((b) => b.status === "ALARMED").length, color: "#E0524D" },
-    { name: "In Transit", value: bags.filter((b) => ["TAGGED", "IN_ARRIVAL_HALL", "AT_EXIT"].includes(b.status)).length, color: "#3B82F6" },
-    { name: "Under Recheck", value: bags.filter((b) => b.status === "UNDER_RECHECK").length, color: "#F2A93B" },
-    { name: "Resolved", value: bags.filter((b) => b.status === "RESOLVED").length, color: "#2E9E5B" },
-    { name: "Escalated", value: bags.filter((b) => b.status === "ESCALATED" || b.status === "ESCAPE_ALERT").length, color: "#8B5CF6" },
-    { name: "Pending Tag", value: bags.filter((b) => b.status === "IDENTIFIED").length, color: "#94A3B8" },
+    {
+      name: "In Transit",
+      value: bags.filter((b) => ["TAGGED", "IN_TRANSIT"].includes(b.status)).length,
+      color: "#3B82F6",
+    },
+    {
+      name: "Under Recheck",
+      value: bags.filter((b) => b.status === "AT_RECHECK").length,
+      color: "#F2A93B",
+    },
+    {
+      name: "Resolved",
+      value: bags.filter((b) => b.status === "RESOLVED").length,
+      color: "#2E9E5B",
+    },
+    { name: "Lost", value: bags.filter((b) => b.status === "LOST").length, color: "#8B5CF6" },
+    {
+      name: "Pending Tag",
+      value: bags.filter((b) => b.status === "IDENTIFIED").length,
+      color: "#94A3B8",
+    },
   ].filter((s) => s.value > 0);
 
   const liveActivity = events
@@ -45,13 +94,14 @@ function Dashboard() {
     .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
     .slice(0, 8)
     .map((e) => {
-      const level = e.eventType.includes("ALARM") || e.eventType.includes("EXIT")
-        ? "danger"
-        : e.eventType.includes("ESCAPE") || e.eventType.includes("RESTRICTED")
-        ? "warn"
-        : e.eventType === "TAG_ENCODED"
-        ? "success"
-        : "info";
+      const level =
+        e.eventType.includes("ALARM") || e.eventType.includes("EXIT")
+          ? "danger"
+          : e.eventType.includes("ESCAPE") || e.eventType.includes("RESTRICTED")
+            ? "warn"
+            : e.eventType === "TAG_ENCODED"
+              ? "success"
+              : "info";
       return {
         text: `${e.epc} — ${e.eventType.replace(/_/g, " ").toLowerCase()} at ${e.zone.replace(/_/g, " ")}`,
         time: new Date(e.firstSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -60,19 +110,47 @@ function Dashboard() {
     });
 
   const kpis = [
-    { label: "Suspect Bags Tagged Today", value: bags.filter((b) => b.status !== "IDENTIFIED").length, delta: "", tone: "primary" },
-    { label: "Active Suspect Bags", value: bags.filter((b) => b.status !== "RESOLVED").length, delta: "", tone: "warning" },
-    { label: "Alarms Raised Today", value: alarms.length, delta: `${alarms.filter((a) => a.outcome === "OPEN").length} unresolved`, tone: "danger" },
-    { label: "Bags Cleared", value: alarms.filter((a) => a.outcome === "CLEARED").length, delta: "", tone: "success" },
-    { label: "Online RFID Readers", value: `${readers.filter((r) => r.status === "ONLINE").length} / ${readers.length}`, delta: `${readers.filter((r) => r.status === "OFFLINE").length} offline`, tone: "info" },
+    {
+      label: "Suspect Bags Tagged Today",
+      value: bags.filter((b) => b.status !== "IDENTIFIED").length,
+      delta: "",
+      tone: "primary",
+    },
+    {
+      label: "Active Suspect Bags",
+      value: bags.filter((b) => b.status !== "RESOLVED").length,
+      delta: "",
+      tone: "warning",
+    },
+    {
+      label: "Alarms Raised Today",
+      value: alarms.length,
+      delta: `${alarms.filter((a) => a.outcome === "OPEN").length} unresolved`,
+      tone: "danger",
+    },
+    {
+      label: "Bags Cleared",
+      value: alarms.filter((a) => a.outcome === "CLEARED").length,
+      delta: "",
+      tone: "success",
+    },
+    {
+      label: "Online RFID Readers",
+      value: `${readers.filter((r) => r.status === "ONLINE").length} / ${readers.length}`,
+      delta: `${readers.filter((r) => r.status === "OFFLINE").length} offline`,
+      tone: "info",
+    },
     { label: "Portal Gates Online", value: "6 / 6", delta: "All operational", tone: "success" },
   ];
 
   const outcomeToStatus = (o: string) =>
-    o === "OPEN" ? "ACTIVE"
-      : o === "UNDER_INVESTIGATION" ? "ACKNOWLEDGED"
-      : o === "ESCALATED" ? "ESCALATED"
-      : "CLOSED";
+    o === "OPEN"
+      ? "ACTIVE"
+      : o === "UNDER_INVESTIGATION"
+        ? "ACKNOWLEDGED"
+        : o === "ESCALATED"
+          ? "ESCALATED"
+          : "CLOSED";
 
   return (
     <div className="p-6">
@@ -81,8 +159,14 @@ function Dashboard() {
         subtitle="Real-time baggage and flow visibility"
         actions={
           <div className="flex gap-2">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-[12px] hover:bg-accent"><RefreshCw className="size-3.5" />Refresh</button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-[12px] font-medium"><Download className="size-3.5" />Export shift report</button>
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-[12px] hover:bg-accent">
+              <RefreshCw className="size-3.5" />
+              Refresh
+            </button>
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-[12px] font-medium">
+              <Download className="size-3.5" />
+              Export shift report
+            </button>
           </div>
         }
       />
@@ -91,16 +175,33 @@ function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
         {kpis.map((k) => {
           const toneText: Record<string, string> = {
-            primary: "text-primary", warning: "text-warning", danger: "text-danger",
-            success: "text-success", info: "text-info",
+            primary: "text-primary",
+            warning: "text-warning",
+            danger: "text-danger",
+            success: "text-success",
+            info: "text-info",
           };
           return (
-            <div key={k.label} className="rounded-lg border border-border bg-panel/60 p-3.5 relative overflow-hidden">
-              <div className={`absolute inset-x-0 top-0 h-0.5 ${toneText[k.tone]}`} style={{ background: "currentColor" }} />
-              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{k.label}</div>
-              <div className={`mt-1.5 text-2xl font-semibold tracking-tight ${toneText[k.tone]}`}>{k.value}</div>
+            <div
+              key={k.label}
+              className="rounded-lg border border-border bg-panel/60 p-3.5 relative overflow-hidden"
+            >
+              <div
+                className={`absolute inset-x-0 top-0 h-0.5 ${toneText[k.tone]}`}
+                style={{ background: "currentColor" }}
+              />
+              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                {k.label}
+              </div>
+              <div className={`mt-1.5 text-2xl font-semibold tracking-tight ${toneText[k.tone]}`}>
+                {k.value}
+              </div>
               <div className="mt-1 text-[11px] text-muted-foreground flex items-center gap-1">
-                {k.tone === "success" || k.tone === "primary" ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+                {k.tone === "success" || k.tone === "primary" ? (
+                  <TrendingUp className="size-3" />
+                ) : (
+                  <TrendingDown className="size-3" />
+                )}
                 {k.delta}
               </div>
             </div>
@@ -119,11 +220,21 @@ function Dashboard() {
                     <stop offset="100%" stopColor="rgb(31,184,201)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.30 0.02 250)" vertical={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="oklch(0.30 0.02 250)"
+                  vertical={false}
+                />
                 <XAxis dataKey="h" {...axis} />
                 <YAxis {...axis} />
                 <Tooltip {...tooltipStyle} />
-                <Area type="monotone" dataKey="v" stroke="rgb(31,184,201)" strokeWidth={2} fill="url(#g1)" />
+                <Area
+                  type="monotone"
+                  dataKey="v"
+                  stroke="rgb(31,184,201)"
+                  strokeWidth={2}
+                  fill="url(#g1)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -133,11 +244,15 @@ function Dashboard() {
           <div className="h-56">
             <ResponsiveContainer>
               <BarChart data={ALARM_TREND}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.30 0.02 250)" vertical={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="oklch(0.30 0.02 250)"
+                  vertical={false}
+                />
                 <XAxis dataKey="d" {...axis} />
                 <YAxis {...axis} />
                 <Tooltip {...tooltipStyle} />
-                <Bar dataKey="v" fill="oklch(0.65 0.25 25)" radius={[3,3,0,0]} />
+                <Bar dataKey="v" fill="oklch(0.65 0.25 25)" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -147,8 +262,16 @@ function Dashboard() {
           <div className="h-56 flex">
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={statusDist} dataKey="value" innerRadius={48} outerRadius={78} paddingAngle={2}>
-                  {statusDist.map((e, i) => <Cell key={i} fill={e.color} />)}
+                <Pie
+                  data={statusDist}
+                  dataKey="value"
+                  innerRadius={48}
+                  outerRadius={78}
+                  paddingAngle={2}
+                >
+                  {statusDist.map((e, i) => (
+                    <Cell key={i} fill={e.color} />
+                  ))}
                 </Pie>
                 <Tooltip {...tooltipStyle} />
               </PieChart>
@@ -169,11 +292,21 @@ function Dashboard() {
           <div className="h-52">
             <ResponsiveContainer>
               <LineChart data={TRAFFIC_TREND}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.30 0.02 250)" vertical={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="oklch(0.30 0.02 250)"
+                  vertical={false}
+                />
                 <XAxis dataKey="t" {...axis} />
                 <YAxis {...axis} />
                 <Tooltip {...tooltipStyle} />
-                <Line type="monotone" dataKey="pax" stroke="oklch(0.72 0.15 230)" strokeWidth={2} dot={{ r: 3 }} />
+                <Line
+                  type="monotone"
+                  dataKey="pax"
+                  stroke="oklch(0.72 0.15 230)"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -197,38 +330,63 @@ function Dashboard() {
               );
             })}
             <div className="pt-2 border-t border-border text-[11px] text-muted-foreground">
-              Last health sweep: <span className="font-mono text-foreground">{new Date().toLocaleTimeString()}</span>
+              Last health sweep:{" "}
+              <span className="font-mono text-foreground">{new Date().toLocaleTimeString()}</span>
             </div>
           </div>
         </Panel>
 
         <Panel title="Live Activity Feed" className="col-span-12 xl:col-span-7">
           <ul className="divide-y divide-border -my-2">
-            {liveActivity.length > 0 ? liveActivity.map((a, i) => {
-              const dot = a.level === "danger" ? "bg-danger" : a.level === "warn" ? "bg-warning" : a.level === "success" ? "bg-success" : "bg-info";
-              return (
-                <li key={i} className="py-2.5 flex items-start gap-3">
-                  <span className={`mt-1.5 size-2 rounded-full ${dot} ${a.level === "danger" ? "animate-pulse" : ""}`} />
-                  <div className="flex-1 text-[13px]">{a.text}</div>
-                  <span className="font-mono text-[11px] text-muted-foreground">{a.time}</span>
-                </li>
-              );
-            }) : (
+            {liveActivity.length > 0 ? (
+              liveActivity.map((a, i) => {
+                const dot =
+                  a.level === "danger"
+                    ? "bg-danger"
+                    : a.level === "warn"
+                      ? "bg-warning"
+                      : a.level === "success"
+                        ? "bg-success"
+                        : "bg-info";
+                return (
+                  <li key={i} className="py-2.5 flex items-start gap-3">
+                    <span
+                      className={`mt-1.5 size-2 rounded-full ${dot} ${a.level === "danger" ? "animate-pulse" : ""}`}
+                    />
+                    <div className="flex-1 text-[13px]">{a.text}</div>
+                    <span className="font-mono text-[11px] text-muted-foreground">{a.time}</span>
+                  </li>
+                );
+              })
+            ) : (
               <li className="py-4 text-[13px] text-muted-foreground">No events recorded yet</li>
             )}
           </ul>
         </Panel>
 
-        <Panel title="Recent Alarms" action={<a href="/alarms" className="text-[11px] text-primary hover:underline">View all →</a>} className="col-span-12 xl:col-span-5">
+        <Panel
+          title="Recent Alarms"
+          action={
+            <a href="/alarms" className="text-[11px] text-primary hover:underline">
+              View all →
+            </a>
+          }
+          className="col-span-12 xl:col-span-5"
+        >
           <ul className="space-y-2">
             {alarms.slice(0, 5).map((a) => {
               const bag = bags.find((b) => b.id === a.bagId);
               return (
-                <li key={a.id} className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-accent/40">
+                <li
+                  key={a.id}
+                  className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-accent/40"
+                >
                   <span className="font-mono text-[11px] text-muted-foreground w-14">{a.id}</span>
                   <div className="flex-1 min-w-0">
                     <div className="text-[12.5px] truncate">Suspect Bag</div>
-                    <div className="text-[11px] text-muted-foreground truncate">{a.zone.replace(/_/g, " ")} · {bag?.flight ?? "—"}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {a.zone.replace(/_/g, " ")} · {bag?.flightNo ?? "—"}
+                    </div>
                   </div>
                   <StatusPill status={outcomeToStatus(a.outcome)} />
                 </li>

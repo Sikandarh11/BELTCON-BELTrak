@@ -7,6 +7,7 @@ import {
   SEED_READERS,
   USERS,
   ESCALATIONS,
+  THREAT_TYPES,
 } from "@/mocks/seed";
 import { createMockAuditEntries } from "@/mocks/workspace";
 import { persistenceService } from "@/services/persistenceService";
@@ -47,6 +48,7 @@ interface AppState {
   users: AppUser[];
   escalationRules: EscalationRule[];
   auditLog: AuditEntry[];
+  threatTypes: string[];
   resetKey: number;
   hydrated: boolean;
 
@@ -66,6 +68,7 @@ interface AppState {
   updateEscalationRule: (id: string, patch: Partial<EscalationRule>) => void;
   deleteEscalationRule: (id: string) => void;
   addAuditEntry: (entry: Omit<AuditEntry, "id" | "timestamp">) => void;
+  setThreatTypes: (threatTypes: string[]) => void;
   reset: () => void;
 }
 
@@ -92,6 +95,7 @@ const INITIAL_STATE = {
     enabled: true,
   })),
   auditLog: createMockAuditEntries(),
+  threatTypes: [...THREAT_TYPES],
   resetKey: 0,
   hydrated: false,
 };
@@ -207,6 +211,8 @@ export const useAppStore = create<AppState>((set) => ({
         ...s.auditLog,
       ].slice(0, 500),
     })),
+
+  setThreatTypes: (threatTypes) => set({ threatTypes }),
 
   reset: () => {
     persistenceService.resetAll();

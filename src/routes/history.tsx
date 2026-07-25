@@ -16,28 +16,31 @@ function History() {
   const [searchTag, setSearchTag] = useState("ETB-240091");
   const [searchFlight, setSearchFlight] = useState("");
 
-  const matchingBag = bags.find(
-    (b) => b.iataCode === searchTag || b.flight === searchFlight
-  );
+  const matchingBag = bags.find((b) => b.id === searchTag || b.flightNo === searchFlight);
   const matchingEpc = matchingBag?.epc;
 
-  const filteredEvents = matchingEpc
-    ? events.filter((e) => e.epc === matchingEpc)
-    : events;
+  const filteredEvents = matchingEpc ? events.filter((e) => e.epc === matchingEpc) : events;
 
   const timeline = filteredEvents
     .slice()
     .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
     .map((e) => ({
       time: new Date(e.firstSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      event: e.eventType === "TAG_ENCODED" ? "Tagged at Station"
-           : e.eventType === "ALARM_TRIGGERED" ? "Alarm raised"
-           : e.eventType === "CUSTOMS_EXIT_DETECTED" ? "Detected at Exit Gate"
-           : `Read at ${e.zone.replace(/_/g, " ")}`,
+      event:
+        e.eventType === "TAG_ENCODED"
+          ? "Tagged at Station"
+          : e.eventType === "ALARM_TRIGGERED"
+            ? "Alarm raised"
+            : e.eventType === "CUSTOMS_EXIT_DETECTED"
+              ? "Detected at Exit Gate"
+              : `Read at ${e.zone.replace(/_/g, " ")}`,
       loc: `${e.readerId} / ${e.zone.replace(/_/g, " ")}`,
-      icon: e.eventType === "TAG_ENCODED" ? "tag"
-          : e.eventType.includes("ALARM") || e.eventType.includes("EXIT") ? "alarm"
-          : "scan",
+      icon:
+        e.eventType === "TAG_ENCODED"
+          ? "tag"
+          : e.eventType.includes("ALARM") || e.eventType.includes("EXIT")
+            ? "alarm"
+            : "scan",
     }));
 
   return (
@@ -52,8 +55,9 @@ function History() {
               const rows = filteredEvents
                 .slice()
                 .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
-                .map((e) =>
-                  `${e.firstSeen},${e.epc},${e.readerId},${e.zone},${e.eventType},${e.readCount},${e.rssi}`
+                .map(
+                  (e) =>
+                    `${e.firstSeen},${e.epc},${e.readerId},${e.zone},${e.eventType},${e.readCount},${e.rssi}`,
                 )
                 .join("\n");
               const blob = new Blob([header + rows], { type: "text/csv" });
@@ -76,23 +80,42 @@ function History() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-[12px]">
           <div>
             <div className="text-muted-foreground mb-1">Tag ID</div>
-            <input value={searchTag} onChange={(e) => setSearchTag(e.target.value)} className="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono" />
+            <input
+              value={searchTag}
+              onChange={(e) => setSearchTag(e.target.value)}
+              className="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono"
+            />
           </div>
           <div>
             <div className="text-muted-foreground mb-1">Flight Number</div>
-            <input value={searchFlight} onChange={(e) => setSearchFlight(e.target.value)} className="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono" />
+            <input
+              value={searchFlight}
+              onChange={(e) => setSearchFlight(e.target.value)}
+              className="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono"
+            />
           </div>
           <div>
             <div className="text-muted-foreground mb-1">Passenger Name</div>
-            <input defaultValue="Ahmed Al-Harbi" className="w-full bg-background border border-border rounded px-2.5 py-1.5" />
+            <input
+              defaultValue="Ahmed Al-Harbi"
+              className="w-full bg-background border border-border rounded px-2.5 py-1.5"
+            />
           </div>
           <div>
             <div className="text-muted-foreground mb-1">Date Range</div>
-            <input type="date" defaultValue="2026-06-17" className="w-full bg-background border border-border rounded px-2.5 py-1.5" />
+            <input
+              type="date"
+              defaultValue="2026-06-17"
+              className="w-full bg-background border border-border rounded px-2.5 py-1.5"
+            />
           </div>
           <div className="flex items-end">
             <button
-              onClick={() => toast.info(`${filteredEvents.length} event${filteredEvents.length !== 1 ? "s" : ""} found`)}
+              onClick={() =>
+                toast.info(
+                  `${filteredEvents.length} event${filteredEvents.length !== 1 ? "s" : ""} found`,
+                )
+              }
               className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-medium"
             >
               <Search className="size-3.5" /> Search
@@ -102,20 +125,40 @@ function History() {
       </Panel>
 
       <div className="grid grid-cols-12 gap-4">
-        <Panel title={`Timeline · ${matchingBag?.iataCode ?? "All"}`} className="col-span-12 lg:col-span-7">
+        <Panel
+          title={`Timeline · ${matchingBag?.id ?? "All"}`}
+          className="col-span-12 lg:col-span-7"
+        >
           {timeline.length === 0 && (
             <div className="py-12 text-center text-[13px] text-muted-foreground">
               No events match
             </div>
           )}
           <ol className="relative pl-6">
-            {timeline.length > 0 && <div className="absolute left-2 top-1 bottom-1 w-px bg-border" />}
+            {timeline.length > 0 && (
+              <div className="absolute left-2 top-1 bottom-1 w-px bg-border" />
+            )}
             {timeline.map((e, i) => {
-              const Icon = e.icon === "tag" ? Tag : e.icon === "scan" ? ScanLine : e.icon === "alert" ? AlertTriangle : BellRing;
-              const color = e.icon === "alarm" ? "bg-danger/15 text-danger border-danger/30" : e.icon === "alert" ? "bg-warning/15 text-warning border-warning/30" : "bg-info/15 text-info border-info/30";
+              const Icon =
+                e.icon === "tag"
+                  ? Tag
+                  : e.icon === "scan"
+                    ? ScanLine
+                    : e.icon === "alert"
+                      ? AlertTriangle
+                      : BellRing;
+              const color =
+                e.icon === "alarm"
+                  ? "bg-danger/15 text-danger border-danger/30"
+                  : e.icon === "alert"
+                    ? "bg-warning/15 text-warning border-warning/30"
+                    : "bg-info/15 text-info border-info/30";
               return (
                 <li key={i} className="relative pb-4 last:pb-0">
-                  <div className={`absolute size-7 rounded-full border ${color} flex items-center justify-center`} style={{ left: "-18px" }}>
+                  <div
+                    className={`absolute size-7 rounded-full border ${color} flex items-center justify-center`}
+                    style={{ left: "-18px" }}
+                  >
                     <Icon className="size-3.5" />
                   </div>
                   <div className="flex items-center gap-2 ml-2">
@@ -144,9 +187,16 @@ function History() {
                 .slice()
                 .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
                 .map((e) => (
-                  <tr key={e.id} className="border-b border-border last:border-0 hover:bg-accent/30">
+                  <tr
+                    key={e.id}
+                    className="border-b border-border last:border-0 hover:bg-accent/30"
+                  >
                     <td className="px-3 py-2 font-mono">
-                      {new Date(e.firstSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                      {new Date(e.firstSeen).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      })}
                     </td>
                     <td className="px-3 py-2 font-mono">{e.readerId}</td>
                     <td className="px-3 py-2 font-mono">{e.readCount}</td>
