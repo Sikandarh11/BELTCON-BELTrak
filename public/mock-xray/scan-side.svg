@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title description">
+  <title id="title">Mock X-ray side view</title>
+  <desc id="description">Synthetic baggage X-ray side view for HBSS integration development.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07162f"/>
+      <stop offset="1" stop-color="#102f54"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="640" height="400" rx="18" fill="url(#background)"/>
+  <g opacity=".18" stroke="#7dd3fc">
+    <path d="M0 80h640M0 160h640M0 240h640M0 320h640"/>
+    <path d="M80 0v400M160 0v400M240 0v400M320 0v400M400 0v400M480 0v400M560 0v400"/>
+  </g>
+  <rect x="98" y="92" width="444" height="224" rx="44" fill="#38bdf8" opacity=".12" stroke="#bae6fd" stroke-width="6"/>
+  <path d="M158 91c15-58 95-62 111 0" fill="none" stroke="#bae6fd" stroke-width="12" opacity=".55"/>
+  <g filter="url(#glow)">
+    <ellipse cx="235" cy="210" rx="88" ry="66" fill="#fb923c" opacity=".58"/>
+    <path d="M205 154l57 26-18 77-64-28z" fill="#fde047" opacity=".54"/>
+    <circle cx="391" cy="186" r="44" fill="#60a5fa" opacity=".72"/>
+    <rect x="351" y="238" width="112" height="34" rx="12" fill="#c084fc" opacity=".58"/>
+    <path d="M442 122l28 31-22 27-31-38z" fill="#f8fafc" opacity=".72"/>
+  </g>
+  <g fill="#dbeafe" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+    <text x="28" y="38" font-size="22" font-weight="700">MOCK X-RAY</text>
+    <text x="28" y="62" font-size="13" opacity=".72">HBSS SIDE VIEW · NOT FOR OPERATIONAL USE</text>
+    <text x="505" y="374" font-size="12" opacity=".7">VIEW 01 / SIDE</text>
+  </g>
+  <path d="M28 350h164" stroke="#38bdf8" stroke-width="3"/>
+  <text x="28" y="375" fill="#7dd3fc" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">SYNTHETIC SCAN ASSET</text>
+</svg>

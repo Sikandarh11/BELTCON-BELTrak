@@ -1,15 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
-import type { Bag, BagStatus, Alarm, RfidEvent, Resolution, Reader } from "@/types";
-
-type BagRow = {
-  id: string;
-  bhs_uid: string | null;
-  epc: string | null;
-  flight: string;
-  status: string;
-  current_zone: string | null;
-  created_at: string | null;
-};
+import type { Bag, Alarm, RfidEvent, Resolution, Reader } from "@/types";
+import { bagStatusToRow, bagToRow, rowToBag } from "./bagPersistenceMappings";
 
 type AlarmRow = {
   id: string;
@@ -51,61 +42,6 @@ type ReaderRow = {
 };
 
 // Column name mapping: TS camelCase ↔ SQL snake_case
-function bagStatusToRow(status: BagStatus) {
-  const legacyStatus: Record<BagStatus, string> = {
-    IDENTIFIED: "IDENTIFIED",
-    TAGGED: "TAGGED",
-    IN_TRANSIT: "IN_ARRIVAL_HALL",
-    ALARMED: "ALARMED",
-    AT_RECHECK: "UNDER_RECHECK",
-    RESOLVED: "RESOLVED",
-    LOST: "MISSING",
-  };
-  return legacyStatus[status];
-}
-
-function rowStatusToBag(status: string): BagStatus {
-  if (status === "IN_ARRIVAL_HALL" || status === "AT_EXIT") return "IN_TRANSIT";
-  if (status === "UNDER_RECHECK") return "AT_RECHECK";
-  if (status === "MISSING") return "LOST";
-  if (status === "ESCAPE_ALERT" || status === "ESCALATED") return "ALARMED";
-  if (
-    status === "IDENTIFIED" ||
-    status === "TAGGED" ||
-    status === "ALARMED" ||
-    status === "RESOLVED"
-  ) {
-    return status;
-  }
-  return "IDENTIFIED";
-}
-
-function bagToRow(b: Bag) {
-  return {
-    id: b.id,
-    bhs_uid: b.bhsUid ?? b.id,
-    iata_code: b.id,
-    epc: b.epc ?? null,
-    flight: b.flightNo,
-    is_suspect: true,
-    status: bagStatusToRow(b.status),
-    current_zone: b.lastSeenZone ?? "TAGGING_STATION",
-    created_at: b.flaggedAt,
-  };
-}
-function rowToBag(r: BagRow): Bag {
-  return {
-    id: r.id,
-    bhsUid: r.bhs_uid ?? undefined,
-    epc: r.epc ?? undefined,
-    flightNo: r.flight,
-    status: rowStatusToBag(r.status),
-    flaggedAt: r.created_at ?? new Date(0).toISOString(),
-    lastSeenZone: r.current_zone ?? undefined,
-    threatType: "Suspect Bag",
-  };
-}
-
 function alarmToRow(a: Alarm) {
   return {
     id: a.id,
@@ -208,6 +144,19 @@ export const persistenceService = {
       supabase.from("readers").select("*").order("id"),
     ]);
 
+    const reads = [
+      ["bags", bagsRes.error],
+      ["alarms", alarmsRes.error],
+      ["RFID events", eventsRes.error],
+      ["resolutions", resRes.error],
+      ["readers", readersRes.error],
+    ] as const;
+    for (const [resource, error] of reads) {
+      if (error) {
+        throw new Error(`[persist] load ${resource}: ${error.message}`, { cause: error });
+      }
+    }
+
     const alarms = (alarmsRes.data || []).map(rowToAlarm);
     const events = (eventsRes.data || []).map(rowToEvent);
     const bags = (bagsRes.data || []).map(rowToBag).map((bag) => {
@@ -246,8 +195,20 @@ export const persistenceService = {
     if (patch.epc !== undefined) row.epc = patch.epc;
     if (patch.flightNo !== undefined) row.flight = patch.flightNo;
     if (patch.bhsUid !== undefined) row.bhs_uid = patch.bhsUid;
-    if (patch.flaggedAt !== undefined) row.created_at = patch.flaggedAt;
+    if (patch.sourceSystem !== undefined) row.source_system = patch.sourceSystem;
+    if (patch.iataCode !== undefined) row.iata_code = patch.iataCode;
+    if (patch.iataOrigin !== undefined) row.iata_origin = patch.iataOrigin;
+    if (patch.passengerName !== undefined) row.passenger_name = patch.passengerName;
+    if (patch.threatType !== undefined) row.threat_type = patch.threatType;
+    if (patch.threatLevel !== undefined) row.threat_level = patch.threatLevel;
+    if (patch.screeningStation !== undefined) row.screening_station = patch.screeningStation;
+    if (patch.screenedAt !== undefined) row.screened_at = patch.screenedAt;
+    if (patch.flaggedAt !== undefined) row.flagged_at = patch.flaggedAt;
+    if (patch.taggedAt !== undefined) row.tagged_at = patch.taggedAt;
+    if (patch.notes !== undefined) row.notes = patch.notes;
+    if (patch.updatedAt !== undefined) row.updated_at = patch.updatedAt;
     if (Object.keys(row).length === 0) return;
+    row.updated_at = patch.updatedAt ?? new Date().toISOString();
     const { error } = await supabase.from("bags").update(row).eq("id", id);
     if (error) console.error("[persist] updateBag:", error.message);
   },

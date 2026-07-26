@@ -1,6 +1,7 @@
 import type { Bag, BagStatus, ResolutionAction, RfidEvent } from "@/types";
 import { useAppStore } from "@/store/appStore";
 import { alarmService } from "@/services/alarmService";
+import { encodeBagTag } from "@/services/bags/taggingClient";
 
 export type FlagSuspectInput = {
   id: string;
@@ -70,36 +71,26 @@ export const bagService = {
   },
 
   async encodeTag(bagId: string, epc: string): Promise<Bag> {
-    const store = useAppStore.getState();
-    const bag = getBag(bagId);
-    const normalizedEpc = epc.trim().toUpperCase();
-
-    if (bag.status !== "IDENTIFIED") {
-      throw new Error(`${bag.id} is ${bag.status}; only IDENTIFIED bags can be tagged`);
-    }
-    if (!normalizedEpc) throw new Error("EPC is required");
-    if (
-      store.bags.some(
-        (candidate) => candidate.id !== bagId && candidate.epc?.toUpperCase() === normalizedEpc,
-      )
-    ) {
-      throw new Error(`EPC ${normalizedEpc} is already bound to another bag`);
-    }
-
-    const taggedAt = new Date().toISOString();
-    const taggedBag = updateLifecycle(bagId, "TAGGED", {
-      epc: normalizedEpc,
-      taggedAt,
-      lastSeenAt: taggedAt,
+    const taggedBag = await encodeBagTag(bagId, epc);
+    return {
+      id: taggedBag.id,
+      sourceSystem: taggedBag.sourceSystem,
+      bhsUid: taggedBag.bhsUid,
+      iataCode: taggedBag.iataCode ?? undefined,
+      iataOrigin: taggedBag.iataOrigin ?? undefined,
+      epc: taggedBag.epc ?? undefined,
+      flightNo: taggedBag.flightNo,
+      passengerName: taggedBag.passengerName ?? undefined,
+      threatType: taggedBag.threatType ?? undefined,
+      threatLevel: taggedBag.threatLevel ?? undefined,
+      screeningStation: taggedBag.screeningStation ?? undefined,
+      screenedAt: taggedBag.screenedAt ?? undefined,
+      status: taggedBag.status,
+      flaggedAt: taggedBag.flaggedAt,
+      taggedAt: taggedBag.taggedAt ?? undefined,
       lastSeenZone: "TAGGING_STATION",
-    });
-    store.addAuditEntry({
-      action: "TAG_ENCODED",
-      userId: "tagging-station",
-      userName: "Tagging Station",
-      detail: `Officer Tagging Station tagged ${bag.id} with ${normalizedEpc}`,
-    });
-    return taggedBag;
+      updatedAt: taggedBag.updatedAt ?? undefined,
+    };
   },
 
   async registerRead(bagId: string, zone: string, readerId: string): Promise<void> {

@@ -1,56 +1,222 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
-import { useAppStore } from "@/store/appStore";
-import { bagService } from "@/services/bagService";
-import type { ResolutionAction } from "@/types";
-import {
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle2,
-  PauseCircle,
-  ArrowUpRight,
-  AlertTriangle,
-} from "lucide-react";
-import { useSession } from "@/auth/SessionContext";
-import { RoleGate } from "@/components/RoleGate";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, ArrowUpRight, CheckCircle2, PauseCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+
+import { useSession } from "@/auth/SessionContext";
+import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
+import { RoleGate } from "@/components/RoleGate";
+import { Skeleton } from "@/components/ui/skeleton";
+import { XrayEmptyState } from "@/components/xray/XrayEmptyState";
+import { XrayViewer } from "@/components/xray/XrayViewer";
+import { bagService } from "@/services/bagService";
+import { roleIsAtLeast } from "@/services/roles";
+import { getXrayForBag, refreshXrayForBag } from "@/services/xray/xrayClient";
+import { useAppStore } from "@/store/appStore";
+import type { Bag, ResolutionAction, XrayScan } from "@/types";
 
 export const Route = createFileRoute("/recheck")({
   head: () => ({ meta: [{ title: "Recheck Station · BELTrak" }] }),
   component: Recheck,
 });
 
+interface RecheckXrayContentProps {
+  bag: Bag | null;
+  scan: XrayScan | null;
+  loading: boolean;
+  error: string | null;
+  onReload: () => void;
+}
+
+function RecheckXrayContent({ bag, scan, loading, error, onReload }: RecheckXrayContentProps) {
+  if (!bag) {
+    return <XrayEmptyState kind="no-bag" />;
+  }
+
+  if (!bag.bhsUid) {
+    return <XrayEmptyState kind="no-bhs-uid" showManualInspectionWarning />;
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-112 flex-col justify-between bg-muted/20 p-6" aria-live="polite">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-36" />
+          <Skeleton className="h-5 w-12" />
+        </div>
+        <Skeleton className="mx-auto h-72 w-4/5" />
+        <div className="grid grid-cols-3 gap-3">
+          <Skeleton className="h-12" />
+          <Skeleton className="h-12" />
+          <Skeleton className="h-12" />
+        </div>
+        <span className="sr-only">Loading the latest X-ray scan</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <XrayEmptyState
+        kind="error"
+        description={error}
+        action={
+          <button
+            type="button"
+            onClick={onReload}
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-[12px] font-medium hover:bg-accent"
+          >
+            <RefreshCw className="size-3.5" aria-hidden="true" />
+            Load stored scan again
+          </button>
+        }
+        showManualInspectionWarning
+      />
+    );
+  }
+
+  if (!scan) {
+    return <XrayEmptyState kind="not-requested" showManualInspectionWarning />;
+  }
+
+  switch (scan.status) {
+    case "AVAILABLE":
+      return <XrayViewer bagId={bag.id} scan={scan} />;
+    case "PENDING":
+      return <XrayEmptyState kind="pending" showManualInspectionWarning />;
+    case "NOT_FOUND":
+      return <XrayEmptyState kind="missing" showManualInspectionWarning />;
+    case "FAILED":
+      return (
+        <XrayEmptyState
+          kind="failed"
+          description={scan.errorMessage ?? undefined}
+          showManualInspectionWarning
+        />
+      );
+    case "ARCHIVED":
+      return (
+        <XrayEmptyState
+          kind="missing"
+          title="X-ray scan archived"
+          description="The latest stored scan is archived and is not available for review."
+          showManualInspectionWarning
+        />
+      );
+  }
+}
+
 function Recheck() {
   const session = useSession();
-  const bags = useAppStore((s) => s.bags);
-  const alarms = useAppStore((s) => s.alarms);
-  const events = useAppStore((s) => s.events);
+  const bags = useAppStore((state) => state.bags);
+  const alarms = useAppStore((state) => state.alarms);
+  const events = useAppStore((state) => state.events);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [notes, setNotes] = useState(
     "Organic dense mass located in left quadrant. Recommend physical search.",
   );
+  const [xrayScan, setXrayScan] = useState<XrayScan | null>(null);
+  const [xrayLoading, setXrayLoading] = useState(false);
+  const [xrayRefreshing, setXrayRefreshing] = useState(false);
+  const [xrayError, setXrayError] = useState<string | null>(null);
+  const [xrayLookupAttempt, setXrayLookupAttempt] = useState(0);
+  const activeXrayBagIdRef = useRef<string | null>(null);
 
   const recheckBags = bags.filter((bag) => bag.status === "AT_RECHECK");
-  const currentBag = searchTerm
-    ? recheckBags.find((bag) => bag.id === searchTerm || bag.epc === searchTerm)
-    : (recheckBags[0] ?? null);
-
-  const bagAlarm = currentBag
-    ? alarms.find(
-        (a) => a.bagId === currentBag.id && a.outcome !== "CLEARED" && a.outcome !== "SUPPRESSED",
-      )
-    : null;
+  const currentBag =
+    (searchTerm
+      ? recheckBags.find((bag) => bag.id === searchTerm || bag.epc === searchTerm)
+      : recheckBags[0]) ?? null;
+  const currentXrayBagId = currentBag?.id ?? null;
+  const currentXrayBhsUid = currentBag?.bhsUid ?? null;
 
   const bagEvents = currentBag
     ? events
-        .filter((e) => e.epc === currentBag.epc)
-        .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
+        .filter((event) => event.epc === currentBag.epc)
+        .sort(
+          (first, second) =>
+            new Date(second.firstSeen).getTime() - new Date(first.firstSeen).getTime(),
+        )
     : [];
+
+  const canRefreshXray = roleIsAtLeast(session.role, "Operations Officer");
+
+  useEffect(() => {
+    let cancelled = false;
+    activeXrayBagIdRef.current = currentXrayBagId;
+    setXrayScan(null);
+    setXrayError(null);
+
+    if (!currentXrayBagId || !currentXrayBhsUid) {
+      setXrayLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setXrayLoading(true);
+    void getXrayForBag(currentXrayBagId)
+      .then((scan) => {
+        if (!cancelled) {
+          setXrayScan(scan);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setXrayError(error instanceof Error ? error.message : "Unable to load the X-ray scan");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setXrayLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentXrayBagId, currentXrayBhsUid, xrayLookupAttempt]);
+
+  async function handleXrayRefresh() {
+    if (!currentBag || !currentBag.bhsUid || xrayRefreshing || !canRefreshXray) {
+      return;
+    }
+
+    const bagId = currentBag.id;
+    setXrayRefreshing(true);
+    setXrayError(null);
+
+    try {
+      const refreshedScan = await refreshXrayForBag(bagId);
+      if (activeXrayBagIdRef.current === bagId) {
+        setXrayScan(refreshedScan);
+      }
+      toast.success(`X-ray status updated for ${bagId}`);
+    } catch (refreshError) {
+      try {
+        const latestScan = await getXrayForBag(bagId);
+        if (activeXrayBagIdRef.current === bagId) {
+          setXrayScan(latestScan);
+          setXrayError(null);
+        }
+      } catch (reloadError) {
+        if (activeXrayBagIdRef.current === bagId) {
+          setXrayError(
+            reloadError instanceof Error
+              ? reloadError.message
+              : "Unable to reload the stored X-ray scan",
+          );
+        }
+      }
+
+      toast.error(
+        refreshError instanceof Error ? refreshError.message : "Unable to retrieve from HBSS",
+      );
+    } finally {
+      setXrayRefreshing(false);
+    }
+  }
 
   async function handleResolve(action: ResolutionAction) {
     if (!currentBag) return;
@@ -76,16 +242,17 @@ function Recheck() {
           actions={<StatusPill status={currentBag ? "ACTIVE" : "CLOSED"} />}
         />
 
-        <div className="flex gap-2 mb-4">
+        <div className="mb-4 flex gap-2">
           <input
             placeholder="Search by IATA code or EPC..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-background border border-border rounded-md px-3 py-3 text-[14px] font-mono min-h-[48px]"
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="min-h-[48px] flex-1 rounded-md border border-border bg-background px-3 py-3 font-mono text-[14px]"
           />
           <button
+            type="button"
             onClick={() => setSearchTerm("")}
-            className="px-3 py-2 border border-border rounded-md text-[12px] hover:bg-accent"
+            className="rounded-md border border-border px-3 py-2 text-[12px] hover:bg-accent"
           >
             Show next pending
           </button>
@@ -95,121 +262,57 @@ function Recheck() {
         </div>
 
         <div className="grid grid-cols-12 gap-4">
-          <Panel title="X-Ray Viewer" className="col-span-12 xl:col-span-8 p-0! overflow-hidden">
-            <div className="relative bg-white h-140 flex items-center justify-center">
-              {/* X-ray visualization */}
-              <svg viewBox="0 0 400 240" className="w-[90%] h-[90%]">
-                <defs>
-                  <linearGradient id="xrayBg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f8fafc" />
-                    <stop offset="100%" stopColor="#e2e8f0" />
-                  </linearGradient>
-                </defs>
-                <rect width="400" height="240" fill="url(#xrayBg)" />
-                {/* Suitcase outline */}
-                <rect
-                  x="40"
-                  y="60"
-                  width="320"
-                  height="130"
-                  rx="12"
-                  fill="rgba(40,120,90,0.35)"
-                  stroke="rgba(120,220,180,0.6)"
-                  strokeWidth="1.2"
-                />
-                {/* Handle */}
-                <rect x="170" y="48" width="60" height="14" rx="4" fill="rgba(120,220,180,0.4)" />
-                {/* Organic mass — orange */}
-                <ellipse
-                  cx="160"
-                  cy="135"
-                  rx="42"
-                  ry="26"
-                  fill="rgba(240,140,40,0.55)"
-                  stroke="rgba(255,180,80,0.8)"
-                  strokeWidth="1"
-                />
-                <text x="160" y="138" textAnchor="middle" fontSize="10" fill="#ffd28a">
-                  ORGANIC
-                </text>
-                {/* Metallic items — blue */}
-                <rect
-                  x="240"
-                  y="100"
-                  width="60"
-                  height="40"
-                  fill="rgba(70,140,240,0.55)"
-                  stroke="rgba(140,200,255,0.8)"
-                  strokeWidth="1"
-                />
-                <circle cx="280" cy="160" r="10" fill="rgba(70,140,240,0.55)" />
-                {/* Cable */}
-                <path
-                  d="M220 130 Q260 110 295 145 Q310 165 280 175"
-                  fill="none"
-                  stroke="rgba(70,140,240,0.7)"
-                  strokeWidth="3"
-                />
-                {/* Crosshair */}
-                <g stroke="rgba(220,38,38,0.8)" strokeWidth="0.8">
-                  <line x1="160" y1="100" x2="160" y2="170" />
-                  <line x1="125" y1="135" x2="195" y2="135" />
-                  <circle cx="160" cy="135" r="44" fill="none" strokeDasharray="3 3" />
-                </g>
-              </svg>
-
-              {/* HUD overlays */}
-              <div className="absolute top-3 left-3 text-[11px] font-mono text-emerald-700 space-y-0.5">
-                <div>BAY · 02</div>
-                <div>SCAN · 08:13:22</div>
-                <div>OP · M.AL-QAHTANI</div>
-              </div>
-              <div className="absolute top-3 right-3 text-[11px] font-mono text-amber-700 space-y-0.5 text-right">
-                <div>kV · 160</div>
-                <div>mA · 1.3</div>
-                <div className="text-rose-400">⚠ ORGANIC DETECTED</div>
-              </div>
-
-              {/* Controls */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-md border border-border bg-panel/90 backdrop-blur p-1">
-                <button className="size-9 hover:bg-accent rounded flex items-center justify-center">
-                  <ChevronLeft className="size-4 text-slate-700" />
+          <Panel
+            title="X-Ray Viewer"
+            className="col-span-12 overflow-hidden p-0! xl:col-span-8"
+            action={
+              currentBag?.bhsUid && canRefreshXray ? (
+                <button
+                  type="button"
+                  onClick={() => void handleXrayRefresh()}
+                  disabled={xrayRefreshing}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-label={`Retrieve X-ray from HBSS for bag ${currentBag.id}`}
+                >
+                  <RefreshCw
+                    className={`size-3.5 ${xrayRefreshing ? "animate-spin" : ""}`}
+                    aria-hidden="true"
+                  />
+                  {xrayRefreshing ? "Retrieving…" : "Retrieve from HBSS"}
                 </button>
-                <button className="size-9 hover:bg-accent rounded flex items-center justify-center">
-                  <ZoomOut className="size-4 text-slate-700" />
-                </button>
-                <button className="size-9 hover:bg-accent rounded flex items-center justify-center">
-                  <ZoomIn className="size-4 text-slate-700" />
-                </button>
-                <button className="size-9 hover:bg-accent rounded flex items-center justify-center">
-                  <RotateCw className="size-4 text-slate-700" />
-                </button>
-                <button className="size-9 hover:bg-accent rounded flex items-center justify-center">
-                  <ChevronRight className="size-4 text-slate-700" />
-                </button>
-                <span className="font-mono text-[11px] text-muted-foreground px-2">3 / 8</span>
-              </div>
-            </div>
+              ) : null
+            }
+          >
+            <RecheckXrayContent
+              bag={currentBag}
+              scan={xrayScan}
+              loading={xrayLoading}
+              error={xrayError}
+              onReload={() => setXrayLookupAttempt((attempt) => attempt + 1)}
+            />
           </Panel>
 
-          <div className="col-span-12 xl:col-span-4 space-y-4">
+          <div className="col-span-12 space-y-4 xl:col-span-4">
             <Panel title="Bag Details">
               {currentBag ? (
                 <dl className="grid grid-cols-3 gap-y-2 text-[13px]">
-                  <dt className="text-muted-foreground text-[12px]">Tag</dt>
+                  <dt className="text-[12px] text-muted-foreground">Bag ID</dt>
                   <dd className="col-span-2 font-mono">{currentBag.id}</dd>
-                  <dt className="text-muted-foreground text-[12px]">Flight</dt>
+                  <dt className="text-[12px] text-muted-foreground">BHS UID</dt>
+                  <dd className="col-span-2 font-mono">{currentBag.bhsUid ?? "—"}</dd>
+                  <dt className="text-[12px] text-muted-foreground">Flight</dt>
                   <dd className="col-span-2 font-mono">{currentBag.flightNo}</dd>
-                  <dt className="text-muted-foreground text-[12px]">Passenger</dt>
+                  <dt className="text-[12px] text-muted-foreground">Passenger</dt>
                   <dd className="col-span-2">{currentBag.passengerName ?? "—"}</dd>
-                  <dt className="text-muted-foreground text-[12px]">Passport</dt>
+                  <dt className="text-[12px] text-muted-foreground">Passport</dt>
                   <dd className="col-span-2 font-mono">—</dd>
-                  <dt className="text-muted-foreground text-[12px]">Reason</dt>
+                  <dt className="text-[12px] text-muted-foreground">Reason</dt>
                   <dd className="col-span-2 text-warning">
-                    {alarms.find((a) => a.bagId === currentBag.id)?.zone.replace(/_/g, " ") ??
-                      "Secondary inspection"}
+                    {alarms
+                      .find((alarm) => alarm.bagId === currentBag.id)
+                      ?.zone.replace(/_/g, " ") ?? "Secondary inspection"}
                   </dd>
-                  <dt className="text-muted-foreground text-[12px]">Status</dt>
+                  <dt className="text-[12px] text-muted-foreground">Status</dt>
                   <dd className="col-span-2">
                     <StatusPill
                       status={currentBag.status === "ALARMED" ? "ACTIVE" : "ACKNOWLEDGED"}
@@ -225,27 +328,27 @@ function Recheck() {
 
             <Panel title={`Movement Timeline${currentBag ? ` · ${currentBag.id}` : ""}`}>
               {bagEvents.length > 0 ? (
-                <ol className="space-y-2 max-h-48 overflow-y-auto text-[12px]">
-                  {bagEvents.map((e) => (
+                <ol className="max-h-48 space-y-2 overflow-y-auto text-[12px]">
+                  {bagEvents.map((event) => (
                     <li
-                      key={e.id}
-                      className="flex items-center gap-2 py-1 border-b border-border last:border-0"
+                      key={event.id}
+                      className="flex items-center gap-2 border-b border-border py-1 last:border-0"
                     >
-                      <span className="font-mono text-muted-foreground w-14">
-                        {new Date(e.firstSeen).toLocaleTimeString([], {
+                      <span className="w-14 font-mono text-muted-foreground">
+                        {new Date(event.firstSeen).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
                       </span>
                       <span
                         className={`size-2 rounded-full ${
-                          e.eventType.includes("ALARM") || e.eventType.includes("EXIT")
+                          event.eventType.includes("ALARM") || event.eventType.includes("EXIT")
                             ? "bg-danger"
                             : "bg-info"
                         }`}
                       />
-                      <span className="flex-1">{e.zone.replace(/_/g, " ")}</span>
-                      <span className="font-mono text-muted-foreground">×{e.readCount}</span>
+                      <span className="flex-1">{event.zone.replace(/_/g, " ")}</span>
+                      <span className="font-mono text-muted-foreground">×{event.readCount}</span>
                     </li>
                   ))}
                 </ol>
@@ -261,7 +364,7 @@ function Recheck() {
                 rows={3}
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                className="w-full bg-background border border-border rounded p-2 text-[12.5px]"
+                className="w-full rounded border border-border bg-background p-2 text-[12.5px]"
               />
             </Panel>
 
@@ -269,36 +372,41 @@ function Recheck() {
               {currentBag ? (
                 <>
                   <button
+                    type="button"
                     onClick={() => void handleResolve("CLEARED")}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-md bg-success/90 hover:bg-success text-primary-foreground font-medium text-[15px] min-h-[48px]"
+                    className="inline-flex min-h-[48px] items-center justify-center gap-1.5 rounded-md bg-success/90 px-4 py-3.5 text-[15px] font-medium text-primary-foreground hover:bg-success"
                   >
                     <CheckCircle2 className="size-4" />
                     Cleared
                   </button>
                   <button
+                    type="button"
                     onClick={() => void handleResolve("NOT_CLEARED")}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-md bg-warning/90 hover:bg-warning text-primary-foreground font-medium text-[15px] min-h-[48px]"
+                    className="inline-flex min-h-[48px] items-center justify-center gap-1.5 rounded-md bg-warning/90 px-4 py-3.5 text-[15px] font-medium text-primary-foreground hover:bg-warning"
                   >
                     <PauseCircle className="size-4" />
                     Not Cleared — Hold
                   </button>
                   <button
+                    type="button"
                     onClick={() => void handleResolve("DUTY_COLLECTED")}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-md bg-info/90 hover:bg-info text-primary-foreground font-medium text-[15px] min-h-[48px]"
+                    className="inline-flex min-h-[48px] items-center justify-center gap-1.5 rounded-md bg-info/90 px-4 py-3.5 text-[15px] font-medium text-primary-foreground hover:bg-info"
                   >
                     <CheckCircle2 className="size-4" />
                     Duty Collected
                   </button>
                   <button
+                    type="button"
                     onClick={() => void handleResolve("PROHIBITED_ITEM_SEIZED")}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-md bg-danger hover:bg-danger/90 text-destructive-foreground font-medium text-[15px] min-h-[48px]"
+                    className="inline-flex min-h-[48px] items-center justify-center gap-1.5 rounded-md bg-danger px-4 py-3.5 text-[15px] font-medium text-destructive-foreground hover:bg-danger/90"
                   >
                     <AlertTriangle className="size-4" />
                     Seized — Prohibited Item
                   </button>
                   <button
+                    type="button"
                     onClick={() => void handleResolve("ESCALATED")}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-medium text-[15px] min-h-[48px]"
+                    className="inline-flex min-h-[48px] items-center justify-center gap-1.5 rounded-md bg-amber-600 px-4 py-3.5 text-[15px] font-medium text-white hover:bg-amber-700"
                   >
                     <ArrowUpRight className="size-4" />
                     Escalate to Supervisor

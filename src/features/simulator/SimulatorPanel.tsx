@@ -1,20 +1,11 @@
-import { useState, type ButtonHTMLAttributes, type FormEvent, type ReactNode } from "react";
+import { useState, type ButtonHTMLAttributes } from "react";
 import { toast } from "sonner";
-import { Ghost, Plus, Play, Radio, RotateCcw, ToggleLeft, ToggleRight, Zap } from "lucide-react";
+import { Ghost, Play, Radio, RotateCcw, ToggleLeft, ToggleRight, Zap } from "lucide-react";
 
 import { useSession } from "@/auth/SessionContext";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
 import { RoleGate } from "@/components/RoleGate";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { FLIGHTS } from "@/mocks/seed";
-import { bagService, type FlagSuspectInput } from "@/services/bagService";
+import { bagService } from "@/services/bagService";
 import { eventService } from "@/services/eventService";
 import { useAppStore } from "@/store/appStore";
 
@@ -38,28 +29,7 @@ const FULL_CLEARED_JOURNEY = [
   { zone: "HBSS_RECHECK", reader: "RDR-030", label: "Recheck Station" },
 ] as const;
 
-const SIM_ORIGINS = ["RUH", "JED", "DMM", "DXB"];
 type JourneyStop = { zone: string; reader: string; label: string };
-
-let flagCounter = 0;
-
-function nextSixDigits() {
-  flagCounter += 1;
-  return String((Date.now() + flagCounter) % 1_000_000).padStart(6, "0");
-}
-
-function createFlagForm(threatType = "Suspect Bag"): FlagSuspectInput {
-  const sequence = nextSixDigits();
-  return {
-    id: `ETB-SIM-${sequence}`,
-    bhsUid: `BHS-${sequence}`,
-    flightNo: FLIGHTS[0],
-    iataOrigin: "RUH",
-    passengerName: `SIM PAX ${flagCounter}`,
-    threatType,
-    notes: "",
-  };
-}
 
 export function SimulatorPanel() {
   const session = useSession();
@@ -67,65 +37,14 @@ export function SimulatorPanel() {
   const alarms = useAppStore((state) => state.alarms);
   const events = useAppStore((state) => state.events);
   const readers = useAppStore((state) => state.readers);
-  const threatTypes = useAppStore((state) => state.threatTypes);
   const [selectedBagId, setSelectedBagId] = useState<string | null>(null);
   const [autoRunning, setAutoRunning] = useState(false);
-  const [flagModalOpen, setFlagModalOpen] = useState(false);
-  const [flagging, setFlagging] = useState(false);
-  const [batchCount, setBatchCount] = useState(3);
-  const [flagForm, setFlagForm] = useState<FlagSuspectInput>(() => createFlagForm(threatTypes[0]));
 
   const activeBags = bags.filter((bag) => bag.status === "TAGGED" || bag.status === "IN_TRANSIT");
   const identifiedBags = bags.filter((bag) => bag.status === "IDENTIFIED");
   const selectedBag = selectedBagId ? (bags.find((bag) => bag.id === selectedBagId) ?? null) : null;
   const selectedBagCanRead =
     selectedBag?.status === "TAGGED" || selectedBag?.status === "IN_TRANSIT";
-
-  function openFlagModal() {
-    setFlagForm(createFlagForm(threatTypes[0]));
-    setFlagModalOpen(true);
-  }
-
-  async function handleFlagBag(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!/^[A-Za-z]{3}$/.test(flagForm.iataOrigin ?? "")) {
-      toast.error("IATA origin must be exactly three letters");
-      return;
-    }
-    setFlagging(true);
-    try {
-      const bag = await bagService.flagSuspect(flagForm);
-      toast.success(`Suspect bag flagged: ${bag.id} — go to Tagging Station`);
-      setFlagModalOpen(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to flag suspect bag");
-    } finally {
-      setFlagging(false);
-    }
-  }
-
-  async function handleBatchFlag() {
-    const count = Math.max(1, Math.min(20, batchCount));
-    setFlagging(true);
-    try {
-      for (let index = 0; index < count; index += 1) {
-        const input = createFlagForm(
-          threatTypes[index % Math.max(1, threatTypes.length)] ?? "Suspect Bag",
-        );
-        await bagService.flagSuspect({
-          ...input,
-          flightNo: FLIGHTS[Math.floor(Math.random() * FLIGHTS.length)],
-          iataOrigin: SIM_ORIGINS[index % SIM_ORIGINS.length],
-        });
-      }
-      toast.success(`${count} suspect bags flagged — Tagging queue updated`);
-      setFlagModalOpen(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to batch flag bags");
-    } finally {
-      setFlagging(false);
-    }
-  }
 
   async function handleZoneRead(zone: string, readerId: string) {
     if (!selectedBag || !selectedBagCanRead) {
@@ -210,7 +129,6 @@ export function SimulatorPanel() {
     useAppStore.getState().reset();
     eventService.clearCache();
     setSelectedBagId(null);
-    flagCounter = 0;
     toast.info("System reset to seed state");
   }
 
@@ -220,140 +138,10 @@ export function SimulatorPanel() {
       requiredRole="System Administrator"
       pageName="Simulator Panel"
     >
-      <Dialog open={flagModalOpen} onOpenChange={setFlagModalOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Flag suspect bag</DialogTitle>
-            <DialogDescription>
-              Simulate the payload received from the SBTS/BHS adaptor.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleFlagBag} className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FlagField label="Bag ID">
-                <input
-                  required
-                  value={flagForm.id}
-                  onChange={(event) =>
-                    setFlagForm((current) => ({ ...current, id: event.target.value }))
-                  }
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px]"
-                />
-              </FlagField>
-              <FlagField label="BHS UID">
-                <input
-                  value={flagForm.bhsUid ?? ""}
-                  onChange={(event) =>
-                    setFlagForm((current) => ({ ...current, bhsUid: event.target.value }))
-                  }
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px]"
-                />
-              </FlagField>
-              <FlagField label="Flight number">
-                <select
-                  value={flagForm.flightNo}
-                  onChange={(event) =>
-                    setFlagForm((current) => ({ ...current, flightNo: event.target.value }))
-                  }
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-[12px]"
-                >
-                  {FLIGHTS.map((flight) => (
-                    <option key={flight}>{flight}</option>
-                  ))}
-                </select>
-              </FlagField>
-              <FlagField label="IATA origin">
-                <input
-                  required
-                  maxLength={3}
-                  pattern="[A-Za-z]{3}"
-                  value={flagForm.iataOrigin ?? ""}
-                  onChange={(event) =>
-                    setFlagForm((current) => ({
-                      ...current,
-                      iataOrigin: event.target.value.toUpperCase(),
-                    }))
-                  }
-                  placeholder="RUH"
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px] uppercase"
-                />
-              </FlagField>
-              <FlagField label="Passenger name">
-                <input
-                  value={flagForm.passengerName ?? ""}
-                  onChange={(event) =>
-                    setFlagForm((current) => ({
-                      ...current,
-                      passengerName: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-[12px]"
-                />
-              </FlagField>
-              <FlagField label="Threat type">
-                <select
-                  value={flagForm.threatType}
-                  onChange={(event) =>
-                    setFlagForm((current) => ({ ...current, threatType: event.target.value }))
-                  }
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-[12px]"
-                >
-                  {threatTypes.map((threatType) => (
-                    <option key={threatType}>{threatType}</option>
-                  ))}
-                </select>
-              </FlagField>
-            </div>
-            <FlagField label="Notes">
-              <textarea
-                rows={3}
-                value={flagForm.notes ?? ""}
-                onChange={(event) =>
-                  setFlagForm((current) => ({ ...current, notes: event.target.value }))
-                }
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-[12px]"
-              />
-            </FlagField>
-            <DialogFooter>
-              <button
-                type="submit"
-                disabled={flagging}
-                className="rounded-md bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
-              >
-                {flagging ? "Flagging…" : "Flag as Suspect"}
-              </button>
-            </DialogFooter>
-          </form>
-          <div className="border-t border-border pt-4">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Batch flag
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={batchCount}
-                onChange={(event) => setBatchCount(Number(event.target.value))}
-                className="w-20 rounded-md border border-border bg-background px-3 py-2 text-[12px]"
-              />
-              <button
-                type="button"
-                disabled={flagging}
-                onClick={() => void handleBatchFlag()}
-                className="rounded-md border border-border px-3 py-2 text-[12px] font-medium hover:bg-accent disabled:opacity-50"
-              >
-                Flag {Math.max(1, Math.min(20, batchCount))} random bags
-              </button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <div className="p-6">
         <PageHeader
-          title="Simulator Panel"
-          subtitle="Mock external systems — BHS flag, RFID reads, reader health"
+          title="RFID Journey Simulator"
+          subtitle="RFID reads, journeys, burst tests, foreign EPCs, and reader health"
           actions={
             <button
               type="button"
@@ -368,20 +156,6 @@ export function SimulatorPanel() {
 
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-12 space-y-4 lg:col-span-3">
-            <Panel title="BHS — Flag Suspect Bag">
-              <p className="mb-3 text-[12px] text-muted-foreground">
-                Submit the adaptor payload, then tag the IDENTIFIED bag at Tagging Station.
-              </p>
-              <button
-                type="button"
-                onClick={openFlagModal}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2.5 text-[13px] font-medium text-primary-foreground"
-              >
-                <Plus className="size-4" />
-                Flag Suspect Bag
-              </button>
-            </Panel>
-
             <Panel title="Select Active Bag">
               {activeBags.length === 0 ? (
                 <div className="py-4 text-center text-[12px] text-muted-foreground">
@@ -566,15 +340,6 @@ export function SimulatorPanel() {
         </div>
       </div>
     </RoleGate>
-  );
-}
-
-function FlagField({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block text-[11px] font-medium text-muted-foreground">
-      <span className="mb-1 block">{label}</span>
-      {children}
-    </label>
   );
 }
 

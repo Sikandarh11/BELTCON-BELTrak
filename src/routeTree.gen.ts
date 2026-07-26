@@ -40,6 +40,14 @@ import { Route as DevConsoleRouteImport } from './routes/dev.console'
 import { Route as DevApiRouteImport } from './routes/dev.api'
 import { Route as AuditLogsRouteImport } from './routes/audit.logs'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as ApiBagsPendingTaggingRouteImport } from './routes/api.bags.pending-tagging'
+import { Route as ApiXrayBagsBagIdRouteImport } from './routes/api.xray.bags.$bagId'
+import { Route as ApiIntegrationsScreeningSuspectEventsRouteImport } from './routes/api.integrations.screening.suspect-events'
+import { Route as ApiIntegrationsHbssScansRouteImport } from './routes/api.integrations.hbss.scans'
+import { Route as ApiIntegrationsHbssHealthRouteImport } from './routes/api.integrations.hbss.health'
+import { Route as ApiDevSimulatorSuspectEventsRouteImport } from './routes/api.dev.simulator.suspect-events'
+import { Route as ApiBagsBagIdEncodeTagRouteImport } from './routes/api.bags.$bagId.encode-tag'
+import { Route as ApiXrayBagsBagIdRefreshRouteImport } from './routes/api.xray.bags.$bagId.refresh'
 
 const TargetRoute = TargetRouteImport.update({
   id: '/target',
@@ -196,6 +204,50 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/admin/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBagsPendingTaggingRoute = ApiBagsPendingTaggingRouteImport.update({
+  id: '/api/bags/pending-tagging',
+  path: '/api/bags/pending-tagging',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiXrayBagsBagIdRoute = ApiXrayBagsBagIdRouteImport.update({
+  id: '/api/xray/bags/$bagId',
+  path: '/api/xray/bags/$bagId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiIntegrationsScreeningSuspectEventsRoute =
+  ApiIntegrationsScreeningSuspectEventsRouteImport.update({
+    id: '/api/integrations/screening/suspect-events',
+    path: '/api/integrations/screening/suspect-events',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntegrationsHbssScansRoute =
+  ApiIntegrationsHbssScansRouteImport.update({
+    id: '/api/integrations/hbss/scans',
+    path: '/api/integrations/hbss/scans',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntegrationsHbssHealthRoute =
+  ApiIntegrationsHbssHealthRouteImport.update({
+    id: '/api/integrations/hbss/health',
+    path: '/api/integrations/hbss/health',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiDevSimulatorSuspectEventsRoute =
+  ApiDevSimulatorSuspectEventsRouteImport.update({
+    id: '/api/dev/simulator/suspect-events',
+    path: '/api/dev/simulator/suspect-events',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBagsBagIdEncodeTagRoute = ApiBagsBagIdEncodeTagRouteImport.update({
+  id: '/api/bags/$bagId/encode-tag',
+  path: '/api/bags/$bagId/encode-tag',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiXrayBagsBagIdRefreshRoute = ApiXrayBagsBagIdRefreshRouteImport.update({
+  id: '/refresh',
+  path: '/refresh',
+  getParentRoute: () => ApiXrayBagsBagIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -229,6 +281,14 @@ export interface FileRoutesByFullPath {
   '/settings/threats': typeof SettingsThreatsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
+  '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
+  '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
+  '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
+  '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
+  '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
+  '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
+  '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
+  '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -262,6 +322,14 @@ export interface FileRoutesByTo {
   '/settings/threats': typeof SettingsThreatsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
+  '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
+  '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
+  '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
+  '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
+  '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
+  '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
+  '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
+  '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -296,6 +364,14 @@ export interface FileRoutesById {
   '/settings/threats': typeof SettingsThreatsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
+  '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
+  '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
+  '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
+  '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
+  '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
+  '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
+  '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
+  '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -331,6 +407,14 @@ export interface FileRouteTypes {
     | '/settings/threats'
     | '/settings/users'
     | '/supervisor/overview'
+    | '/api/bags/pending-tagging'
+    | '/api/bags/$bagId/encode-tag'
+    | '/api/dev/simulator/suspect-events'
+    | '/api/integrations/hbss/health'
+    | '/api/integrations/hbss/scans'
+    | '/api/integrations/screening/suspect-events'
+    | '/api/xray/bags/$bagId'
+    | '/api/xray/bags/$bagId/refresh'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -364,6 +448,14 @@ export interface FileRouteTypes {
     | '/settings/threats'
     | '/settings/users'
     | '/supervisor/overview'
+    | '/api/bags/pending-tagging'
+    | '/api/bags/$bagId/encode-tag'
+    | '/api/dev/simulator/suspect-events'
+    | '/api/integrations/hbss/health'
+    | '/api/integrations/hbss/scans'
+    | '/api/integrations/screening/suspect-events'
+    | '/api/xray/bags/$bagId'
+    | '/api/xray/bags/$bagId/refresh'
   id:
     | '__root__'
     | '/'
@@ -397,6 +489,14 @@ export interface FileRouteTypes {
     | '/settings/threats'
     | '/settings/users'
     | '/supervisor/overview'
+    | '/api/bags/pending-tagging'
+    | '/api/bags/$bagId/encode-tag'
+    | '/api/dev/simulator/suspect-events'
+    | '/api/integrations/hbss/health'
+    | '/api/integrations/hbss/scans'
+    | '/api/integrations/screening/suspect-events'
+    | '/api/xray/bags/$bagId'
+    | '/api/xray/bags/$bagId/refresh'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -431,6 +531,13 @@ export interface RootRouteChildren {
   SettingsThreatsRoute: typeof SettingsThreatsRoute
   SettingsUsersRoute: typeof SettingsUsersRoute
   SupervisorOverviewRoute: typeof SupervisorOverviewRoute
+  ApiBagsPendingTaggingRoute: typeof ApiBagsPendingTaggingRoute
+  ApiBagsBagIdEncodeTagRoute: typeof ApiBagsBagIdEncodeTagRoute
+  ApiDevSimulatorSuspectEventsRoute: typeof ApiDevSimulatorSuspectEventsRoute
+  ApiIntegrationsHbssHealthRoute: typeof ApiIntegrationsHbssHealthRoute
+  ApiIntegrationsHbssScansRoute: typeof ApiIntegrationsHbssScansRoute
+  ApiIntegrationsScreeningSuspectEventsRoute: typeof ApiIntegrationsScreeningSuspectEventsRoute
+  ApiXrayBagsBagIdRoute: typeof ApiXrayBagsBagIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -652,8 +759,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/bags/pending-tagging': {
+      id: '/api/bags/pending-tagging'
+      path: '/api/bags/pending-tagging'
+      fullPath: '/api/bags/pending-tagging'
+      preLoaderRoute: typeof ApiBagsPendingTaggingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/xray/bags/$bagId': {
+      id: '/api/xray/bags/$bagId'
+      path: '/api/xray/bags/$bagId'
+      fullPath: '/api/xray/bags/$bagId'
+      preLoaderRoute: typeof ApiXrayBagsBagIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/integrations/screening/suspect-events': {
+      id: '/api/integrations/screening/suspect-events'
+      path: '/api/integrations/screening/suspect-events'
+      fullPath: '/api/integrations/screening/suspect-events'
+      preLoaderRoute: typeof ApiIntegrationsScreeningSuspectEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/integrations/hbss/scans': {
+      id: '/api/integrations/hbss/scans'
+      path: '/api/integrations/hbss/scans'
+      fullPath: '/api/integrations/hbss/scans'
+      preLoaderRoute: typeof ApiIntegrationsHbssScansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/integrations/hbss/health': {
+      id: '/api/integrations/hbss/health'
+      path: '/api/integrations/hbss/health'
+      fullPath: '/api/integrations/hbss/health'
+      preLoaderRoute: typeof ApiIntegrationsHbssHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/dev/simulator/suspect-events': {
+      id: '/api/dev/simulator/suspect-events'
+      path: '/api/dev/simulator/suspect-events'
+      fullPath: '/api/dev/simulator/suspect-events'
+      preLoaderRoute: typeof ApiDevSimulatorSuspectEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/bags/$bagId/encode-tag': {
+      id: '/api/bags/$bagId/encode-tag'
+      path: '/api/bags/$bagId/encode-tag'
+      fullPath: '/api/bags/$bagId/encode-tag'
+      preLoaderRoute: typeof ApiBagsBagIdEncodeTagRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/xray/bags/$bagId/refresh': {
+      id: '/api/xray/bags/$bagId/refresh'
+      path: '/refresh'
+      fullPath: '/api/xray/bags/$bagId/refresh'
+      preLoaderRoute: typeof ApiXrayBagsBagIdRefreshRouteImport
+      parentRoute: typeof ApiXrayBagsBagIdRoute
+    }
   }
 }
+
+interface ApiXrayBagsBagIdRouteChildren {
+  ApiXrayBagsBagIdRefreshRoute: typeof ApiXrayBagsBagIdRefreshRoute
+}
+
+const ApiXrayBagsBagIdRouteChildren: ApiXrayBagsBagIdRouteChildren = {
+  ApiXrayBagsBagIdRefreshRoute: ApiXrayBagsBagIdRefreshRoute,
+}
+
+const ApiXrayBagsBagIdRouteWithChildren =
+  ApiXrayBagsBagIdRoute._addFileChildren(ApiXrayBagsBagIdRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -687,6 +861,14 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsThreatsRoute: SettingsThreatsRoute,
   SettingsUsersRoute: SettingsUsersRoute,
   SupervisorOverviewRoute: SupervisorOverviewRoute,
+  ApiBagsPendingTaggingRoute: ApiBagsPendingTaggingRoute,
+  ApiBagsBagIdEncodeTagRoute: ApiBagsBagIdEncodeTagRoute,
+  ApiDevSimulatorSuspectEventsRoute: ApiDevSimulatorSuspectEventsRoute,
+  ApiIntegrationsHbssHealthRoute: ApiIntegrationsHbssHealthRoute,
+  ApiIntegrationsHbssScansRoute: ApiIntegrationsHbssScansRoute,
+  ApiIntegrationsScreeningSuspectEventsRoute:
+    ApiIntegrationsScreeningSuspectEventsRoute,
+  ApiXrayBagsBagIdRoute: ApiXrayBagsBagIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

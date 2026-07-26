@@ -9,12 +9,17 @@ export type BagStatus =
 
 export interface Bag {
   id: string; // ETB-XXXXXX
+  sourceSystem?: string;
+  iataCode?: string; // baggage licence-plate/barcode, normally 10 digits
   epc?: string; // set at Tagging Station, unique
   flightNo: string;
   iataOrigin?: string;
   bhsUid?: string; // BHS controller reference
   passengerName?: string;
   threatType?: string;
+  threatLevel?: number;
+  screeningStation?: string;
+  screenedAt?: string;
   status: BagStatus;
   flaggedAt: string; // ISO
   taggedAt?: string;
@@ -22,4 +27,5 @@ export interface Bag {
   lastSeenZone?: string;
   alarmId?: string;
   notes?: string;
+  updatedAt?: string;
 }

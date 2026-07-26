@@ -1,4 +1,32 @@
 export type { Bag, BagStatus } from "./bag";
+export type {
+  HbssIngestionPayload,
+  HbssScanResult,
+  XrayImageView,
+  XrayScan,
+  XrayScanStatus,
+} from "./xray";
+export {
+  SCREENING_CONFLICT_BAG_STATUSES,
+  SIMULATOR_SUBMIT_CANONICAL_ROLE,
+  XRAY_MINIMUM_CANONICAL_ROLE,
+  parseScreeningEventV1,
+  screeningEventV1Schema,
+  screeningImageV1Schema,
+  screeningScanV1Schema,
+} from "./screening";
+export type {
+  ScreeningEventV1,
+  ScreeningImageV1,
+  ScreeningScanV1,
+  ScreeningSuspectEvent,
+} from "./screening";
+export type {
+  EncodeTagResponse,
+  PendingTaggingResponse,
+  TaggingBag,
+  TaggingXrayStatus,
+} from "./tagging";
 
 export type AlarmOutcome =
   | "OPEN"

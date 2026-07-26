@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="title description">
+  <title id="title">Mock X-ray top view</title>
+  <desc id="description">Synthetic baggage X-ray top view for HBSS integration development.</desc>
+  <defs>
+    <radialGradient id="background" cx=".5" cy=".45" r=".8">
+      <stop offset="0" stop-color="#173c5e"/>
+      <stop offset="1" stop-color="#061529"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="640" height="400" rx="18" fill="url(#background)"/>
+  <g opacity=".16" stroke="#67e8f9">
+    <path d="M0 50h640M0 100h640M0 150h640M0 200h640M0 250h640M0 300h640M0 350h640"/>
+    <path d="M64 0v400M128 0v400M192 0v400M256 0v400M320 0v400M384 0v400M448 0v400M512 0v400M576 0v400"/>
+  </g>
+  <rect x="112" y="76" width="416" height="252" rx="62" fill="#22d3ee" opacity=".1" stroke="#a5f3fc" stroke-width="6"/>
+  <g filter="url(#glow)">
+    <path d="M172 137h132v118H172z" fill="#fb923c" opacity=".56"/>
+    <path d="M190 159l84 15-15 58-70-9z" fill="#fde047" opacity=".6"/>
+    <ellipse cx="409" cy="181" rx="65" ry="47" fill="#60a5fa" opacity=".65"/>
+    <circle cx="370" cy="271" r="38" fill="#c084fc" opacity=".6"/>
+    <path d="M445 245l43 18-16 36-48-13z" fill="#f8fafc" opacity=".74"/>
+  </g>
+  <g fill="#dbeafe" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+    <text x="28" y="38" font-size="22" font-weight="700">MOCK X-RAY</text>
+    <text x="28" y="62" font-size="13" opacity=".72">HBSS TOP VIEW · NOT FOR OPERATIONAL USE</text>
+    <text x="511" y="374" font-size="12" opacity=".7">VIEW 02 / TOP</text>
+  </g>
+  <path d="M28 350h164" stroke="#22d3ee" stroke-width="3"/>
+  <text x="28" y="375" fill="#67e8f9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">SYNTHETIC SCAN ASSET</text>
+</svg>
