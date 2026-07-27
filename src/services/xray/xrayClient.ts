@@ -1,4 +1,12 @@
-import type { XrayScan } from "@/types/xray";
+import type { XrayScanSelection } from "@/types/xray";
+
+export interface HbssHealth {
+  adapter: string;
+  healthy: boolean;
+  status: "CONNECTED" | "SIMULATED" | "UNAVAILABLE";
+  lastChecked: string;
+  message: string;
+}
 
 export class XrayApiError extends Error {
   readonly status: number;
@@ -53,17 +61,45 @@ async function xrayRequest<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
-export async function getXrayForBag(bagId: string): Promise<XrayScan | null> {
-  const response = await xrayRequest<{ scan: XrayScan | null }>(
-    `/api/xray/bags/${encodeURIComponent(bagId)}`,
-  );
-  return response.scan;
+function viewSessionHeaders(viewSessionId?: string) {
+  return viewSessionId ? { "x-xray-view-session-id": viewSessionId } : undefined;
 }
 
-export async function refreshXrayForBag(bagId: string): Promise<XrayScan> {
-  const response = await xrayRequest<{ scan: XrayScan }>(
-    `/api/xray/bags/${encodeURIComponent(bagId)}/refresh`,
-    { method: "POST" },
-  );
-  return response.scan;
+export async function getXrayForBag(
+  bagId: string,
+  viewSessionId?: string,
+): Promise<XrayScanSelection> {
+  return xrayRequest<XrayScanSelection>(`/api/xray/bags/${encodeURIComponent(bagId)}`, {
+    headers: viewSessionHeaders(viewSessionId),
+  });
+}
+
+export async function refreshXrayForBag(
+  bagId: string,
+  viewSessionId?: string,
+): Promise<XrayScanSelection> {
+  return xrayRequest<XrayScanSelection>(`/api/xray/bags/${encodeURIComponent(bagId)}/refresh`, {
+    method: "POST",
+    headers: viewSessionHeaders(viewSessionId),
+  });
+}
+
+export async function getHbssHealth(): Promise<HbssHealth> {
+  const response = await fetch("/api/integrations/hbss/health", {
+    credentials: "include",
+    headers: { accept: "application/json" },
+  });
+
+  const body = (await response.json()) as Partial<HbssHealth>;
+  if (
+    typeof body.adapter !== "string" ||
+    typeof body.healthy !== "boolean" ||
+    !["CONNECTED", "SIMULATED", "UNAVAILABLE"].includes(body.status ?? "") ||
+    typeof body.lastChecked !== "string" ||
+    typeof body.message !== "string"
+  ) {
+    throw new XrayApiError("The HBSS health service returned an invalid response", 502);
+  }
+
+  return body as HbssHealth;
 }

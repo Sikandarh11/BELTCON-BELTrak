@@ -11,6 +11,7 @@ import {
   fetchPendingTagging,
   PENDING_TAGGING_QUERY_KEY,
 } from "@/services/bags/taggingClient";
+import { RFID_TRACKABLE_BAGS_QUERY_KEY } from "@/services/bags/rfidTrackableClient";
 import { useAppStore } from "@/store/appStore";
 import type { TaggingBag, TaggingXrayStatus } from "@/types/tagging";
 
@@ -145,6 +146,10 @@ function TaggingStation() {
       setSelectedBagId(null);
       setEpc("");
       void queryClient.invalidateQueries({ queryKey: PENDING_TAGGING_QUERY_KEY });
+      void queryClient.invalidateQueries({
+        queryKey: RFID_TRACKABLE_BAGS_QUERY_KEY,
+        refetchType: "all",
+      });
       toast.success(`Tagged ${taggedBag.id} — EPC bound`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to encode tag");

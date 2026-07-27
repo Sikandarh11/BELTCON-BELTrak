@@ -29,8 +29,12 @@ function getBag(bagId: string) {
   return bag;
 }
 
-function updateLifecycle(bagId: string, status: BagStatus, patch: Partial<Bag> = {}): Bag {
-  useAppStore.getState().updateBag(bagId, { ...patch, status });
+async function updateLifecycle(
+  bagId: string,
+  status: BagStatus,
+  patch: Partial<Bag> = {},
+): Promise<Bag> {
+  await useAppStore.getState().updateBag(bagId, { ...patch, status });
   return getBag(bagId);
 }
 
@@ -114,7 +118,7 @@ export const bagService = {
 
     if (isExitZone(zone) && (bag.status === "TAGGED" || bag.status === "IN_TRANSIT")) {
       const alarm = alarmService.open({ bagId, zone, severity: "high" });
-      updateLifecycle(bagId, "ALARMED", {
+      await updateLifecycle(bagId, "ALARMED", {
         alarmId: alarm.id,
         lastSeenAt: seenAt,
         lastSeenZone: zone,
@@ -123,14 +127,14 @@ export const bagService = {
     }
 
     if (bag.status === "TAGGED") {
-      updateLifecycle(bagId, "IN_TRANSIT", {
+      await updateLifecycle(bagId, "IN_TRANSIT", {
         lastSeenAt: seenAt,
         lastSeenZone: zone,
       });
       return;
     }
 
-    useAppStore.getState().updateBag(bagId, {
+    await useAppStore.getState().updateBag(bagId, {
       lastSeenAt: seenAt,
       lastSeenZone: zone,
     });
@@ -142,7 +146,7 @@ export const bagService = {
       throw new Error(`${bag.id} must be ALARMED before it can be sent to recheck`);
     }
 
-    updateLifecycle(bagId, "AT_RECHECK", {
+    await updateLifecycle(bagId, "AT_RECHECK", {
       lastSeenAt: new Date().toISOString(),
       lastSeenZone: "HBSS_RECHECK",
     });
@@ -179,7 +183,7 @@ export const bagService = {
       action: resolution.action,
       resolvedAt: new Date().toISOString(),
     });
-    updateLifecycle(bagId, "RESOLVED", {
+    await updateLifecycle(bagId, "RESOLVED", {
       notes: resolution.notes?.trim() || bag.notes,
       lastSeenAt: new Date().toISOString(),
     });

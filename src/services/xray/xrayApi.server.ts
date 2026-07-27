@@ -1,13 +1,18 @@
 import "@tanstack/react-start/server-only";
 
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 
 import { parseHbssIngestionPayload } from "@/services/integrations/hbss/hbssSchemas";
 import { getSessionFromRequest } from "@/services/authRepository.server";
 import { roleIsAtLeast } from "@/services/roles";
+import type { XrayScan } from "@/types/xray";
 import type { XrayService } from "./xrayService.server";
 import { XrayServiceError } from "./xrayErrors";
 import { xrayService } from "./xrayService.server";
+import {
+  xrayViewAuditRepository,
+  type XrayViewAuditRepository,
+} from "./xrayViewAuditRepository.server";
 
 const MAX_INGESTION_BODY_BYTES = 256 * 1024;
 const JSON_HEADERS = {
@@ -20,6 +25,7 @@ type SessionLookup = typeof getSessionFromRequest;
 interface AuthenticatedHandlerOptions {
   service?: XrayService;
   getSession?: SessionLookup;
+  viewAudit?: Pick<XrayViewAuditRepository, "recordViewed">;
 }
 
 interface IngestionHandlerOptions {
@@ -90,6 +96,35 @@ async function authorize(
   return { response: null, session };
 }
 
+function xrayViewRequestId(request: Request) {
+  const supplied = request.headers.get("x-xray-view-session-id")?.trim();
+  if (supplied && /^[A-Za-z0-9._:-]{1,128}$/.test(supplied)) {
+    return supplied;
+  }
+  return randomUUID();
+}
+
+async function auditAvailableScan(
+  request: Request,
+  session: NonNullable<Awaited<ReturnType<SessionLookup>>>,
+  scan: XrayScan | null,
+  repository: Pick<XrayViewAuditRepository, "recordViewed">,
+) {
+  if (!scan || scan.status !== "AVAILABLE" || scan.images.length === 0) {
+    return;
+  }
+
+  await repository.recordViewed({
+    userId: session.user.id,
+    canonicalRole: session.user.role,
+    bagId: scan.bagId ?? "",
+    scanId: scan.id,
+    sourceSystem: scan.sourceSystem,
+    requestId: xrayViewRequestId(request),
+    timestamp: new Date().toISOString(),
+  });
+}
+
 function integrationKeysMatch(provided: string, configured: string) {
   const providedDigest = createHash("sha256").update(provided, "utf8").digest();
   const configuredDigest = createHash("sha256").update(configured, "utf8").digest();
@@ -127,14 +162,24 @@ export async function handleGetBagXrayRequest(
   bagId: string,
   options: AuthenticatedHandlerOptions = {},
 ) {
-  const authorization = await authorize(request, options.getSession ?? getSessionFromRequest);
+  const authorization = await authorize(
+    request,
+    options.getSession ?? getSessionFromRequest,
+    "Operations Officer",
+  );
   if (authorization.response) {
     return authorization.response;
   }
 
   try {
-    const scan = await (options.service ?? xrayService).getScanForBag(bagId);
-    return jsonResponse({ scan });
+    const selection = await (options.service ?? xrayService).getScanSelectionForBag(bagId);
+    await auditAvailableScan(
+      request,
+      authorization.session,
+      selection.displayScan,
+      options.viewAudit ?? xrayViewAuditRepository,
+    );
+    return jsonResponse(selection);
   } catch (error) {
     return errorResponse(error);
   }
@@ -155,8 +200,16 @@ export async function handleRefreshBagXrayRequest(
   }
 
   try {
-    const scan = await (options.service ?? xrayService).refreshScanForBag(bagId);
-    return jsonResponse({ scan });
+    const service = options.service ?? xrayService;
+    await service.refreshScanForBag(bagId);
+    const selection = await service.getScanSelectionForBag(bagId);
+    await auditAvailableScan(
+      request,
+      authorization.session,
+      selection.displayScan,
+      options.viewAudit ?? xrayViewAuditRepository,
+    );
+    return jsonResponse(selection);
   } catch (error) {
     return errorResponse(error);
   }
@@ -249,12 +302,21 @@ export async function handleHbssIngestionRequest(
 export async function handleHbssHealthRequest(options: HealthHandlerOptions = {}) {
   try {
     const health = await (options.service ?? xrayService).getAdapterHealth();
-    return jsonResponse(health, health.healthy ? 200 : 503);
+    const safeHealth = {
+      adapter: health.adapter,
+      healthy: health.healthy,
+      status: health.status,
+      lastChecked: health.lastChecked,
+      message: health.message,
+    };
+    return jsonResponse(safeHealth, health.healthy ? 200 : 503);
   } catch {
     return jsonResponse(
       {
-        adapter: "unknown",
+        adapter: "Unknown",
         healthy: false,
+        status: "UNAVAILABLE",
+        lastChecked: new Date().toISOString(),
         message: "HBSS adapter health check failed",
       },
       503,

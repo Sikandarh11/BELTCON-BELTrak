@@ -543,13 +543,14 @@ export function StatusPill({ status }: { status: string }) {
     TRACKING: "bg-info/15 text-info border-info/30",
     CONNECTED: "bg-success/15 text-success border-success/30",
     SIMULATED: "bg-warning/15 text-warning border-warning/30",
+    UNAVAILABLE: "bg-danger/15 text-danger border-danger/30",
   };
   return (
     <span
       className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded border ${map[status] ?? "bg-muted text-muted-foreground border-border"}`}
     >
       <span
-        className={`size-1.5 rounded-full ${status === "ACTIVE" || status === "ALARM" || status === "Offline" ? "bg-danger animate-pulse" : status === "Online" || status === "CONNECTED" || status === "Active" ? "bg-success" : status === "TRACKING" || status === "ACKNOWLEDGED" ? "bg-info" : "bg-warning"}`}
+        className={`size-1.5 rounded-full ${status === "ACTIVE" || status === "ALARM" || status === "Offline" || status === "UNAVAILABLE" ? "bg-danger animate-pulse" : status === "Online" || status === "CONNECTED" || status === "Active" ? "bg-success" : status === "TRACKING" || status === "ACKNOWLEDGED" ? "bg-info" : "bg-warning"}`}
       />
       {status}
     </span>

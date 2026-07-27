@@ -1,4 +1,4 @@
-import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
 import { useAppStore } from "@/store/appStore";
 import { alarmService } from "@/services/alarmService";
@@ -25,7 +25,6 @@ interface Note {
 function Target() {
   const session = useSession();
   const { bagId: paramBagId } = useSearch({ from: "/target" });
-  const navigate = useNavigate();
   const bags = useAppStore((s) => s.bags);
   const alarms = useAppStore((s) => s.alarms);
   const events = useAppStore((s) => s.events);
@@ -195,22 +194,17 @@ function Target() {
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <div className="aspect-4/3 rounded-md border border-border bg-background/60 relative overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <svg viewBox="0 0 100 60" className="w-full h-full p-2 opacity-80">
-                      <rect
-                        x="10"
-                        y="20"
-                        width="80"
-                        height="25"
-                        rx="3"
-                        fill="oklch(0.30 0.05 30)"
-                        stroke="oklch(0.70 0.20 30)"
-                        strokeWidth="0.5"
-                      />
-                      <circle cx="35" cy="32" r="4" fill="oklch(0.85 0.20 60)" />
-                      <rect x="50" y="26" width="14" height="10" fill="oklch(0.50 0.18 30)" />
-                      <path d="M70 30 L78 38 L66 38 Z" fill="oklch(0.80 0.18 90)" />
-                    </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center">
+                    <ScanLine className="size-7 text-muted-foreground" aria-hidden="true" />
+                    <p className="text-[11px] text-muted-foreground">
+                      X-ray imagery is reviewed in the authoritative Recheck viewer.
+                    </p>
+                    <Link
+                      to="/recheck"
+                      className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium hover:bg-accent"
+                    >
+                      Open Recheck
+                    </Link>
                   </div>
                   <span className="absolute top-1.5 left-1.5 text-[10px] font-mono bg-background/80 px-1.5 py-0.5 rounded border border-border flex items-center gap-1">
                     <ScanLine className="size-3" />
@@ -218,7 +212,7 @@ function Target() {
                   </span>
                 </div>
                 <div className="mt-1 text-[11px] text-muted-foreground">
-                  Placeholder · X-ray scan
+                  Recheck is the source of truth
                 </div>
               </div>
               <div>

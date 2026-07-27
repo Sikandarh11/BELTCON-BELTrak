@@ -1,13 +1,30 @@
-import { useState, type ButtonHTMLAttributes } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState, type ButtonHTMLAttributes } from "react";
 import { toast } from "sonner";
-import { Ghost, Play, Radio, RotateCcw, ToggleLeft, ToggleRight, Zap } from "lucide-react";
+import {
+  AlertCircle,
+  Ghost,
+  Play,
+  Radio,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  ToggleLeft,
+  ToggleRight,
+  Zap,
+} from "lucide-react";
 
 import { useSession } from "@/auth/SessionContext";
-import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
+import { Panel, PageHeader } from "@/components/AppLayout";
 import { RoleGate } from "@/components/RoleGate";
 import { bagService } from "@/services/bagService";
+import {
+  fetchRfidTrackableBags,
+  RFID_TRACKABLE_BAGS_QUERY_KEY,
+} from "@/services/bags/rfidTrackableClient";
 import { eventService } from "@/services/eventService";
 import { useAppStore } from "@/store/appStore";
+import { isRfidMovementStatus, matchesRfidBagSearch } from "@/types/rfid";
 
 const JOURNEY_ZONES = [
   { zone: "RECLAIM_BELT_1", reader: "RDR-001", label: "Reclaim Belt" },
@@ -33,18 +50,49 @@ type JourneyStop = { zone: string; reader: string; label: string };
 
 export function SimulatorPanel() {
   const session = useSession();
+  const queryClient = useQueryClient();
   const bags = useAppStore((state) => state.bags);
   const alarms = useAppStore((state) => state.alarms);
   const events = useAppStore((state) => state.events);
   const readers = useAppStore((state) => state.readers);
+  const mergeBagsFromServer = useAppStore((state) => state.mergeBagsFromServer);
   const [selectedBagId, setSelectedBagId] = useState<string | null>(null);
+  const [bagSearch, setBagSearch] = useState("");
   const [autoRunning, setAutoRunning] = useState(false);
 
-  const activeBags = bags.filter((bag) => bag.status === "TAGGED" || bag.status === "IN_TRANSIT");
-  const identifiedBags = bags.filter((bag) => bag.status === "IDENTIFIED");
-  const selectedBag = selectedBagId ? (bags.find((bag) => bag.id === selectedBagId) ?? null) : null;
-  const selectedBagCanRead =
-    selectedBag?.status === "TAGGED" || selectedBag?.status === "IN_TRANSIT";
+  const activeBagsQuery = useQuery({
+    queryKey: RFID_TRACKABLE_BAGS_QUERY_KEY,
+    queryFn: fetchRfidTrackableBags,
+    staleTime: 0,
+    refetchInterval: 15_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+  const activeBags = useMemo(() => activeBagsQuery.data ?? [], [activeBagsQuery.data]);
+  const filteredActiveBags = activeBags.filter((bag) => matchesRfidBagSearch(bag, bagSearch));
+  const selectedBag = selectedBagId
+    ? (activeBags.find((bag) => bag.id === selectedBagId) ?? null)
+    : null;
+  const selectedBagCanRead = Boolean(selectedBag?.epc && isRfidMovementStatus(selectedBag.status));
+
+  useEffect(() => {
+    if (activeBags.length > 0) {
+      mergeBagsFromServer(activeBags);
+    }
+  }, [activeBags, mergeBagsFromServer]);
+
+  useEffect(() => {
+    if (selectedBagId && activeBagsQuery.data && !selectedBag) {
+      setSelectedBagId(null);
+    }
+  }, [activeBagsQuery.data, selectedBag, selectedBagId]);
+
+  async function refreshActiveBags() {
+    await queryClient.invalidateQueries({
+      queryKey: RFID_TRACKABLE_BAGS_QUERY_KEY,
+      refetchType: "active",
+    });
+  }
 
   async function handleZoneRead(zone: string, readerId: string) {
     if (!selectedBag || !selectedBagCanRead) {
@@ -53,6 +101,7 @@ export function SimulatorPanel() {
     }
     try {
       await bagService.registerRead(selectedBag.id, zone, readerId);
+      await refreshActiveBags();
       toast.info(`RFID read registered: ${selectedBag.id}`, {
         description: zone.replace(/_/g, " "),
       });
@@ -75,6 +124,7 @@ export function SimulatorPanel() {
       );
       if (result === "merged") merged += 1;
     }
+    await refreshActiveBags();
     toast.info(`Burst: 15 reads → ${merged} merged, ${15 - merged} new`, {
       description: "Dedup engine working",
     });
@@ -108,8 +158,10 @@ export function SimulatorPanel() {
     try {
       for (const stop of zones) {
         await bagService.registerRead(selectedBag.id, stop.zone, stop.reader);
+        await refreshActiveBags();
         await new Promise((resolve) => window.setTimeout(resolve, 2_000));
       }
+      await activeBagsQuery.refetch();
       toast.success("Journey complete");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Journey stopped");
@@ -121,7 +173,7 @@ export function SimulatorPanel() {
   function handleReset() {
     if (
       !window.confirm(
-        "Reset all data? This will delete all bags, alarms, events, and resolutions. Readers will return to default state.",
+        "Reset to seed? This replaces/deletes demo operational bags, alarms, events, and resolutions in the configured database. Readers return to their default state.",
       )
     ) {
       return;
@@ -129,6 +181,7 @@ export function SimulatorPanel() {
     useAppStore.getState().reset();
     eventService.clearCache();
     setSelectedBagId(null);
+    void refreshActiveBags();
     toast.info("System reset to seed state");
   }
 
@@ -143,29 +196,73 @@ export function SimulatorPanel() {
           title="RFID Journey Simulator"
           subtitle="RFID reads, journeys, burst tests, foreign EPCs, and reader health"
           actions={
-            <button
-              type="button"
-              onClick={handleReset}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[12px] hover:bg-accent"
-            >
-              <RotateCcw className="size-3.5" />
-              Reset to seed
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void activeBagsQuery.refetch()}
+                disabled={activeBagsQuery.isFetching}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[12px] hover:bg-accent disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`size-3.5 ${activeBagsQuery.isFetching ? "animate-spin" : ""}`}
+                />
+                Refresh bags
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[12px] hover:bg-accent"
+              >
+                <RotateCcw className="size-3.5" />
+                Reset to seed
+              </button>
+            </div>
           }
         />
 
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-12 space-y-4 lg:col-span-3">
             <Panel title="Select Active Bag">
-              {activeBags.length === 0 ? (
+              <label className="relative mb-3 block">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <span className="sr-only">Search RFID-trackable bags</span>
+                <input
+                  type="search"
+                  value={bagSearch}
+                  onChange={(event) => setBagSearch(event.target.value)}
+                  placeholder="Bag ID, BHS UID, or EPC"
+                  className="w-full rounded-md border border-border bg-background py-2 pr-3 pl-9 text-[12px] outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </label>
+
+              {activeBagsQuery.isLoading ? (
                 <div className="py-4 text-center text-[12px] text-muted-foreground">
-                  {identifiedBags.length > 0
-                    ? "Tag this bag at Tagging Station first."
-                    : "No tagged bags — flag + encode one first"}
+                  Loading RFID-trackable bags...
+                </div>
+              ) : activeBagsQuery.isError ? (
+                <div
+                  role="alert"
+                  className="rounded-md border border-danger/30 bg-danger/10 p-3 text-[12px] text-danger"
+                >
+                  <div className="flex items-center gap-2 font-medium">
+                    <AlertCircle className="size-4" />
+                    Unable to load active bags
+                  </div>
+                  <p className="mt-1">
+                    {activeBagsQuery.error instanceof Error
+                      ? activeBagsQuery.error.message
+                      : "RFID bag query failed"}
+                  </p>
+                </div>
+              ) : filteredActiveBags.length === 0 ? (
+                <div className="py-4 text-center text-[12px] text-muted-foreground">
+                  {activeBags.length > 0
+                    ? "No bags match this search."
+                    : "No RFID-trackable bags. Encode a tag at Tagging Station first."}
                 </div>
               ) : (
                 <ul className="max-h-64 space-y-1.5 overflow-y-auto">
-                  {activeBags.map((bag) => (
+                  {filteredActiveBags.map((bag) => (
                     <li key={bag.id}>
                       <button
                         type="button"
@@ -178,11 +275,20 @@ export function SimulatorPanel() {
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-mono font-semibold">{bag.id}</span>
-                          <StatusPill status="ACKNOWLEDGED" />
+                          <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 font-mono text-[9px] text-primary">
+                            {bag.status}
+                          </span>
                         </div>
-                        <div className="mt-0.5 text-muted-foreground">
-                          {bag.epc} · {(bag.lastSeenZone ?? "TAGGING_STATION").replace(/_/g, " ")}
-                        </div>
+                        <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+                          <dt>BHS</dt>
+                          <dd className="truncate font-mono">{bag.bhsUid ?? "Not supplied"}</dd>
+                          <dt>EPC</dt>
+                          <dd className="truncate font-mono">{bag.epc}</dd>
+                          <dt>Zone</dt>
+                          <dd>{(bag.lastSeenZone ?? "TAGGING_STATION").replace(/_/g, " ")}</dd>
+                          <dt>Flight</dt>
+                          <dd className="font-mono">{bag.flightNo}</dd>
+                        </dl>
                       </button>
                     </li>
                   ))}
@@ -197,11 +303,6 @@ export function SimulatorPanel() {
                 Simulate a reader detecting the selected bag at a zone.
                 {!selectedBag && " Select a bag first."}
               </p>
-              {selectedBag?.status === "IDENTIFIED" ? (
-                <div className="mb-3 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-[11px] text-warning">
-                  Tag this bag at Tagging Station first.
-                </div>
-              ) : null}
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { zone: "RECLAIM_BELT_1", reader: "RDR-001", label: "Reclaim Belt 1" },

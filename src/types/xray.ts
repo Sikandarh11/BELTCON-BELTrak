@@ -26,6 +26,11 @@ export interface XrayScan {
   updatedAt: string;
 }
 
+export interface XrayScanSelection {
+  displayScan: XrayScan | null;
+  latestAttempt: XrayScan | null;
+}
+
 export interface HbssScanResult {
   externalScanId: string;
   bhsUid: string;

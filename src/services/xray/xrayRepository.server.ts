@@ -4,8 +4,9 @@ import { z } from "zod";
 
 import { HbssError } from "@/services/integrations/hbss/hbssErrors";
 import { xrayImageViewSchema } from "@/services/integrations/hbss/hbssSchemas";
-import type { HbssScanResult, XrayScan } from "@/types/xray";
+import type { HbssScanResult, XrayScan, XrayScanSelection } from "@/types/xray";
 import { XrayConflictError, XrayServiceError, XrayPersistenceError } from "./xrayErrors";
+import { selectXrayScans, shouldStoreAsSeparateAttempt } from "./xrayScanSelection";
 import { getXrayAdminClient } from "./xraySupabase.server";
 
 const xrayScanRowSchema = z.object({
@@ -45,6 +46,7 @@ type XrayScanWrite = {
 };
 
 export interface XrayRepository {
+  findSelectionByBagId(bagId: string): Promise<XrayScanSelection>;
   findLatestByBagId(bagId: string): Promise<XrayScan | null>;
   findLatestByBhsUid(bhsUid: string): Promise<XrayScan | null>;
   upsertFromAdapterResult(bagId: string, result: HbssScanResult): Promise<XrayScan>;
@@ -78,6 +80,21 @@ export function mapXrayScanRow(row: unknown): XrayScan {
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
+}
+
+async function loadSelectionByBagId(bagId: string): Promise<XrayScanSelection> {
+  const { data, error } = await getXrayAdminClient()
+    .from("xray_scans")
+    .select("*")
+    .eq("bag_id", bagId)
+    .order("received_at", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new XrayPersistenceError("Unable to load X-ray scan history", { cause: error });
+  }
+
+  return selectXrayScans(((data ?? []) as unknown[]).map(mapXrayScanRow));
 }
 
 async function findLatest(column: "bag_id" | "bhs_uid", value: string) {
@@ -206,6 +223,8 @@ async function findReusableFailure(bagId: string, bhsUid: string, sourceSystem: 
 }
 
 export const xrayRepository: XrayRepository = {
+  findSelectionByBagId: loadSelectionByBagId,
+
   findLatestByBagId(bagId) {
     return findLatest("bag_id", bagId);
   },
@@ -236,6 +255,23 @@ export const xrayRepository: XrayRepository = {
     const existing = await findByExternalIdentity(result.sourceSystem, result.externalScanId);
     if (existing) {
       assertExternalIdentityOwner(existing, bagId, result.bhsUid);
+      if (shouldStoreAsSeparateAttempt(existing, result)) {
+        const { data, error } = await insertScan({
+          ...values,
+          external_scan_id: null,
+          metadata: {
+            ...values.metadata,
+            reportedExternalScanId: result.externalScanId,
+            preservedAvailableScanId: existing.id,
+          },
+        });
+        if (error || !data) {
+          throw new XrayPersistenceError("Unable to store the X-ray refresh attempt", {
+            cause: error ?? undefined,
+          });
+        }
+        return mapXrayScanRow(data);
+      }
       return updateScan(existing.id, values);
     }
 
@@ -300,6 +336,7 @@ export const xrayRepository: XrayRepository = {
   },
 };
 
+export const findSelectionByBagId = xrayRepository.findSelectionByBagId;
 export const findLatestByBagId = xrayRepository.findLatestByBagId;
 export const findLatestByBhsUid = xrayRepository.findLatestByBhsUid;
 export const upsertFromAdapterResult = xrayRepository.upsertFromAdapterResult;

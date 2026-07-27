@@ -53,8 +53,9 @@ interface AppState {
   hydrated: boolean;
 
   hydrate: () => Promise<void>;
+  mergeBagsFromServer: (bags: Bag[]) => void;
   upsertBag: (bag: Bag) => void;
-  updateBag: (id: string, patch: Partial<Bag>) => void;
+  updateBag: (id: string, patch: Partial<Bag>) => Promise<void>;
   addAlarm: (alarm: Alarm) => void;
   updateAlarm: (id: string, patch: Partial<Alarm>) => void;
   addEvent: (event: RfidEvent) => void;
@@ -124,6 +125,16 @@ export const useAppStore = create<AppState>((set) => ({
     }
   },
 
+  mergeBagsFromServer: (bags) =>
+    set((state) => {
+      const incoming = new Map(bags.map((bag) => [bag.id, bag]));
+      const merged = state.bags.map((bag) => incoming.get(bag.id) ?? bag);
+      const existingIds = new Set(state.bags.map((bag) => bag.id));
+      return {
+        bags: [...merged, ...bags.filter((bag) => !existingIds.has(bag.id))],
+      };
+    }),
+
   upsertBag: (bag) =>
     set((s) => {
       const idx = s.bags.findIndex((b) => b.id === bag.id);
@@ -137,13 +148,12 @@ export const useAppStore = create<AppState>((set) => ({
       return { bags: [...s.bags, bag] };
     }),
 
-  updateBag: (id, patch) =>
-    set((s) => {
-      persistenceService.updateBag(id, patch);
-      return {
-        bags: s.bags.map((b) => (b.id === id ? { ...b, ...patch } : b)),
-      };
-    }),
+  updateBag: async (id, patch) => {
+    set((state) => ({
+      bags: state.bags.map((bag) => (bag.id === id ? { ...bag, ...patch } : bag)),
+    }));
+    await persistenceService.updateBag(id, patch);
+  },
 
   addAlarm: (alarm) =>
     set((s) => {

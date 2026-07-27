@@ -7,7 +7,7 @@ import {
   HbssPayloadValidationError,
 } from "@/services/integrations/hbss/hbssErrors";
 import { parseHbssIngestionPayload } from "@/services/integrations/hbss/hbssSchemas";
-import type { HbssIngestionPayload, XrayScan } from "@/types/xray";
+import type { HbssIngestionPayload, XrayScan, XrayScanSelection } from "@/types/xray";
 import { recordXrayAudit, type XrayAuditEvent } from "./xrayAudit.server";
 import {
   xrayBagRepository,
@@ -22,15 +22,19 @@ import {
   XrayValidationError,
 } from "./xrayErrors";
 import { xrayRepository, type XrayRepository } from "./xrayRepository.server";
+import { scanForDisplay } from "./xrayScanSelection";
 
 export interface XrayService {
+  getScanSelectionForBag(bagId: string): Promise<XrayScanSelection>;
   getScanForBag(bagId: string): Promise<XrayScan | null>;
   refreshScanForBag(bagId: string): Promise<XrayScan>;
   ingestScan(payload: HbssIngestionPayload): Promise<XrayScan>;
   getAdapterHealth(): Promise<{
     adapter: string;
     healthy: boolean;
-    message?: string;
+    status: "CONNECTED" | "SIMULATED" | "UNAVAILABLE";
+    lastChecked: string;
+    message: string;
   }>;
 }
 
@@ -87,10 +91,13 @@ function adapterFailure(error: unknown) {
 
 function configuredAdapterLabel() {
   const configured = process.env.HBSS_ADAPTER?.trim().toLowerCase();
-  if (configured === "mock" || configured === "smiths") {
-    return configured;
+  if (configured === "mock") {
+    return "Mock";
   }
-  return "unsupported";
+  if (configured === "smiths") {
+    return "Smiths";
+  }
+  return "Unknown";
 }
 
 async function persistFailureWhenPractical(
@@ -119,9 +126,14 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
   };
 
   return {
+    async getScanSelectionForBag(bagId) {
+      const bag = await requireBagById(bagId, dependencies.bagRepository);
+      return dependencies.repository.findSelectionByBagId(bag.id);
+    },
+
     async getScanForBag(bagId) {
       const bag = await requireBagById(bagId, dependencies.bagRepository);
-      return dependencies.repository.findLatestByBagId(bag.id);
+      return scanForDisplay(await dependencies.repository.findSelectionByBagId(bag.id));
     },
 
     async refreshScanForBag(bagId) {
@@ -290,6 +302,7 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
 
     async getAdapterHealth() {
       const fallbackAdapter = configuredAdapterLabel();
+      const lastChecked = new Date().toISOString();
       let adapter: HbssAdapter;
 
       try {
@@ -298,23 +311,33 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
         return {
           adapter: fallbackAdapter,
           healthy: false,
+          status: "UNAVAILABLE",
+          lastChecked,
           message: "HBSS adapter is not configured",
         };
       }
 
       try {
         const health = await adapter.healthCheck();
+        const simulated = adapter.name === "MOCK_HBSS";
         return {
-          adapter: fallbackAdapter,
+          adapter: simulated ? "Mock" : fallbackAdapter,
           healthy: health.healthy,
-          ...(health.message ? { message: health.message } : {}),
+          status: health.healthy ? (simulated ? "SIMULATED" : "CONNECTED") : "UNAVAILABLE",
+          lastChecked,
+          message: simulated
+            ? "Mock HBSS adapter is ready; responses use static user-provided images"
+            : health.healthy
+              ? "HBSS adapter is connected"
+              : "HBSS adapter is unavailable",
         };
-      } catch (error) {
-        const safeError = adapterFailure(error);
+      } catch {
         return {
           adapter: fallbackAdapter,
           healthy: false,
-          message: safeError.message,
+          status: "UNAVAILABLE",
+          lastChecked,
+          message: "HBSS adapter is unavailable",
         };
       }
     },
@@ -323,6 +346,7 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
 
 export const xrayService = createXrayService();
 
+export const getScanSelectionForBag = xrayService.getScanSelectionForBag;
 export const getScanForBag = xrayService.getScanForBag;
 export const refreshScanForBag = xrayService.refreshScanForBag;
 export const ingestScan = xrayService.ingestScan;

@@ -12,8 +12,9 @@ import { XrayViewer } from "@/components/xray/XrayViewer";
 import { bagService } from "@/services/bagService";
 import { roleIsAtLeast } from "@/services/roles";
 import { getXrayForBag, refreshXrayForBag } from "@/services/xray/xrayClient";
+import { scanForDisplay } from "@/services/xray/xrayScanSelection";
 import { useAppStore } from "@/store/appStore";
-import type { Bag, ResolutionAction, XrayScan } from "@/types";
+import type { Bag, ResolutionAction, XrayScan, XrayScanSelection } from "@/types";
 
 export const Route = createFileRoute("/recheck")({
   head: () => ({ meta: [{ title: "Recheck Station · BELTrak" }] }),
@@ -26,6 +27,67 @@ interface RecheckXrayContentProps {
   loading: boolean;
   error: string | null;
   onReload: () => void;
+}
+
+type XrayRefreshState = "loading" | "success" | "pending" | "missing" | "failure";
+
+const XRAY_REFRESH_FEEDBACK: Record<
+  XrayRefreshState,
+  { label: string; description: string; className: string }
+> = {
+  loading: {
+    label: "Loading",
+    description: "Retrieving the latest scan through the configured HBSS adapter.",
+    className: "border-info/30 bg-info/10 text-info",
+  },
+  success: {
+    label: "Success",
+    description: "The available X-ray image references are ready for review.",
+    className: "border-success/30 bg-success/10 text-success",
+  },
+  pending: {
+    label: "Pending",
+    description: "HBSS is still processing this scan. Manual inspection remains available.",
+    className: "border-warning/30 bg-warning/10 text-warning",
+  },
+  missing: {
+    label: "Missing",
+    description: "HBSS did not find a matching scan. Manual inspection remains available.",
+    className: "border-border bg-muted text-muted-foreground",
+  },
+  failure: {
+    label: "Failure",
+    description: "The scan could not be retrieved. Manual inspection remains available.",
+    className: "border-danger/30 bg-danger/10 text-danger",
+  },
+};
+
+function formatTimestamp(value: string | null | undefined) {
+  if (!value) return "Not supplied";
+  const timestamp = new Date(value);
+  return Number.isNaN(timestamp.getTime()) ? value : timestamp.toLocaleString();
+}
+
+function createViewSessionId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `xray-view-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function refreshStateForScan(scan: XrayScan | null): XrayRefreshState {
+  if (!scan) return "failure";
+  switch (scan.status) {
+    case "AVAILABLE":
+      return "success";
+    case "PENDING":
+      return "pending";
+    case "NOT_FOUND":
+    case "ARCHIVED":
+      return "missing";
+    case "FAILED":
+      return "failure";
+  }
 }
 
 function RecheckXrayContent({ bag, scan, loading, error, onReload }: RecheckXrayContentProps) {
@@ -116,20 +178,51 @@ function Recheck() {
   const [notes, setNotes] = useState(
     "Organic dense mass located in left quadrant. Recommend physical search.",
   );
-  const [xrayScan, setXrayScan] = useState<XrayScan | null>(null);
+  const [xraySelection, setXraySelection] = useState<XrayScanSelection>({
+    displayScan: null,
+    latestAttempt: null,
+  });
   const [xrayLoading, setXrayLoading] = useState(false);
   const [xrayRefreshing, setXrayRefreshing] = useState(false);
   const [xrayError, setXrayError] = useState<string | null>(null);
   const [xrayLookupAttempt, setXrayLookupAttempt] = useState(0);
+  const [xrayRefreshState, setXrayRefreshState] = useState<XrayRefreshState | null>(null);
   const activeXrayBagIdRef = useRef<string | null>(null);
+  const xrayViewSessionIdsRef = useRef(new Map<string, string>());
+  const xrayRefreshInFlightRef = useRef(false);
 
   const recheckBags = bags.filter((bag) => bag.status === "AT_RECHECK");
+  const normalizedSearch = searchTerm.trim().toLowerCase();
   const currentBag =
-    (searchTerm
-      ? recheckBags.find((bag) => bag.id === searchTerm || bag.epc === searchTerm)
+    (normalizedSearch
+      ? recheckBags.find((bag) =>
+          [bag.id, bag.bhsUid, bag.iataCode, bag.epc].some(
+            (value) => value?.toLowerCase() === normalizedSearch,
+          ),
+        )
       : recheckBags[0]) ?? null;
   const currentXrayBagId = currentBag?.id ?? null;
   const currentXrayBhsUid = currentBag?.bhsUid ?? null;
+  const xrayScan = scanForDisplay(xraySelection);
+  const hasUsableXray = Boolean(xraySelection.displayScan);
+  const latestRefreshFailedWithFallback = Boolean(
+    xraySelection.displayScan &&
+    xraySelection.latestAttempt?.status === "FAILED" &&
+    xraySelection.latestAttempt.id !== xraySelection.displayScan.id,
+  );
+  const showFailedRefreshFallback =
+    hasUsableXray &&
+    xrayRefreshState !== "loading" &&
+    (latestRefreshFailedWithFallback || xrayRefreshState === "failure");
+  const xrayActionLabel = xrayRefreshing
+    ? hasUsableXray
+      ? "Refreshing..."
+      : "Retrieving..."
+    : hasUsableXray
+      ? "Refresh from HBSS"
+      : xraySelection.latestAttempt
+        ? "Retry retrieval"
+        : "Retrieve from HBSS";
 
   const bagEvents = currentBag
     ? events
@@ -145,8 +238,9 @@ function Recheck() {
   useEffect(() => {
     let cancelled = false;
     activeXrayBagIdRef.current = currentXrayBagId;
-    setXrayScan(null);
+    setXraySelection({ displayScan: null, latestAttempt: null });
     setXrayError(null);
+    setXrayRefreshState(null);
 
     if (!currentXrayBagId || !currentXrayBhsUid) {
       setXrayLoading(false);
@@ -156,10 +250,16 @@ function Recheck() {
     }
 
     setXrayLoading(true);
-    void getXrayForBag(currentXrayBagId)
-      .then((scan) => {
+    let viewSessionId = xrayViewSessionIdsRef.current.get(currentXrayBagId);
+    if (!viewSessionId) {
+      viewSessionId = createViewSessionId();
+      xrayViewSessionIdsRef.current.set(currentXrayBagId, viewSessionId);
+    }
+
+    void getXrayForBag(currentXrayBagId, viewSessionId)
+      .then((selection) => {
         if (!cancelled) {
-          setXrayScan(scan);
+          setXraySelection(selection);
         }
       })
       .catch((error: unknown) => {
@@ -179,26 +279,43 @@ function Recheck() {
   }, [currentXrayBagId, currentXrayBhsUid, xrayLookupAttempt]);
 
   async function handleXrayRefresh() {
-    if (!currentBag || !currentBag.bhsUid || xrayRefreshing || !canRefreshXray) {
+    if (!currentBag || !currentBag.bhsUid || xrayRefreshInFlightRef.current || !canRefreshXray) {
       return;
     }
 
+    xrayRefreshInFlightRef.current = true;
     const bagId = currentBag.id;
+    let viewSessionId = xrayViewSessionIdsRef.current.get(bagId);
+    if (!viewSessionId) {
+      viewSessionId = createViewSessionId();
+      xrayViewSessionIdsRef.current.set(bagId, viewSessionId);
+    }
     setXrayRefreshing(true);
     setXrayError(null);
+    setXrayRefreshState("loading");
 
     try {
-      const refreshedScan = await refreshXrayForBag(bagId);
+      const selection = await refreshXrayForBag(bagId, viewSessionId);
+      const latestAttempt = selection.latestAttempt;
       if (activeXrayBagIdRef.current === bagId) {
-        setXrayScan(refreshedScan);
+        setXraySelection(selection);
+        setXrayRefreshState(refreshStateForScan(latestAttempt));
       }
-      toast.success(`X-ray status updated for ${bagId}`);
+      if (latestAttempt?.status === "AVAILABLE" && selection.displayScan) {
+        toast.success(`X-ray scan available for ${bagId}`);
+      } else if (latestAttempt) {
+        toast.info(`X-ray scan is ${latestAttempt.status.toLowerCase().replace("_", " ")}`);
+      } else {
+        toast.info("No X-ray scan has been received");
+      }
     } catch (refreshError) {
+      let storedSelection: XrayScanSelection | null = null;
       try {
-        const latestScan = await getXrayForBag(bagId);
+        storedSelection = await getXrayForBag(bagId, viewSessionId);
         if (activeXrayBagIdRef.current === bagId) {
-          setXrayScan(latestScan);
+          setXraySelection(storedSelection);
           setXrayError(null);
+          setXrayRefreshState("failure");
         }
       } catch (reloadError) {
         if (activeXrayBagIdRef.current === bagId) {
@@ -207,13 +324,19 @@ function Recheck() {
               ? reloadError.message
               : "Unable to reload the stored X-ray scan",
           );
+          setXrayRefreshState("failure");
         }
       }
 
-      toast.error(
-        refreshError instanceof Error ? refreshError.message : "Unable to retrieve from HBSS",
-      );
+      if (storedSelection?.latestAttempt?.status === "NOT_FOUND") {
+        toast.warning("No matching X-ray scan was found");
+      } else {
+        toast.error(
+          refreshError instanceof Error ? refreshError.message : "Unable to retrieve from HBSS",
+        );
+      }
     } finally {
+      xrayRefreshInFlightRef.current = false;
       setXrayRefreshing(false);
     }
   }
@@ -244,7 +367,7 @@ function Recheck() {
 
         <div className="mb-4 flex gap-2">
           <input
-            placeholder="Search by IATA code or EPC..."
+            placeholder="Search by Bag ID, BHS UID, IATA code, or EPC..."
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             className="min-h-[48px] flex-1 rounded-md border border-border bg-background px-3 py-3 font-mono text-[14px]"
@@ -271,14 +394,18 @@ function Recheck() {
                   type="button"
                   onClick={() => void handleXrayRefresh()}
                   disabled={xrayRefreshing}
-                  className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-                  aria-label={`Retrieve X-ray from HBSS for bag ${currentBag.id}`}
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+                    hasUsableXray
+                      ? "border border-border bg-background hover:bg-accent"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                  }`}
+                  aria-label={`${xrayActionLabel} for bag ${currentBag.id}`}
                 >
                   <RefreshCw
                     className={`size-3.5 ${xrayRefreshing ? "animate-spin" : ""}`}
                     aria-hidden="true"
                   />
-                  {xrayRefreshing ? "Retrieving…" : "Retrieve from HBSS"}
+                  {xrayActionLabel}
                 </button>
               ) : null
             }
@@ -290,6 +417,27 @@ function Recheck() {
               error={xrayError}
               onReload={() => setXrayLookupAttempt((attempt) => attempt + 1)}
             />
+            {showFailedRefreshFallback ? (
+              <div
+                className="border-t border-warning/30 bg-warning/10 px-4 py-3 text-[12px] text-warning"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="font-semibold">Latest HBSS refresh failed.</span>
+                <span className="ml-1">Displaying the last available scan.</span>
+              </div>
+            ) : xrayRefreshState ? (
+              <div
+                className={`border-t px-4 py-3 text-[12px] ${XRAY_REFRESH_FEEDBACK[xrayRefreshState].className}`}
+                role="status"
+                aria-live="polite"
+              >
+                <span className="font-semibold">
+                  {XRAY_REFRESH_FEEDBACK[xrayRefreshState].label}
+                </span>
+                <span className="ml-2">{XRAY_REFRESH_FEEDBACK[xrayRefreshState].description}</span>
+              </div>
+            ) : null}
           </Panel>
 
           <div className="col-span-12 space-y-4 xl:col-span-4">
@@ -298,14 +446,50 @@ function Recheck() {
                 <dl className="grid grid-cols-3 gap-y-2 text-[13px]">
                   <dt className="text-[12px] text-muted-foreground">Bag ID</dt>
                   <dd className="col-span-2 font-mono">{currentBag.id}</dd>
+                  <dt className="text-[12px] text-muted-foreground">Source system</dt>
+                  <dd className="col-span-2 font-mono">
+                    {currentBag.sourceSystem ?? "Not supplied"}
+                  </dd>
                   <dt className="text-[12px] text-muted-foreground">BHS UID</dt>
-                  <dd className="col-span-2 font-mono">{currentBag.bhsUid ?? "—"}</dd>
+                  <dd className="col-span-2 font-mono">{currentBag.bhsUid ?? "Not supplied"}</dd>
+                  <dt className="text-[12px] text-muted-foreground">IATA code</dt>
+                  <dd className="col-span-2 font-mono">{currentBag.iataCode ?? "Not supplied"}</dd>
+                  <dt className="text-[12px] text-muted-foreground">RFID EPC</dt>
+                  <dd className="col-span-2 break-all font-mono">
+                    {currentBag.epc ?? "Not assigned"}
+                  </dd>
                   <dt className="text-[12px] text-muted-foreground">Flight</dt>
                   <dd className="col-span-2 font-mono">{currentBag.flightNo}</dd>
                   <dt className="text-[12px] text-muted-foreground">Passenger</dt>
-                  <dd className="col-span-2">{currentBag.passengerName ?? "—"}</dd>
-                  <dt className="text-[12px] text-muted-foreground">Passport</dt>
-                  <dd className="col-span-2 font-mono">—</dd>
+                  <dd className="col-span-2">{currentBag.passengerName ?? "Not supplied"}</dd>
+                  <dt className="text-[12px] text-muted-foreground">Threat type</dt>
+                  <dd className="col-span-2">
+                    {xrayScan?.threatType ?? currentBag.threatType ?? "Not supplied"}
+                  </dd>
+                  <dt className="text-[12px] text-muted-foreground">Threat level</dt>
+                  <dd className="col-span-2">
+                    {(xrayScan?.threatLevel ?? currentBag.threatLevel)
+                      ? `${xrayScan?.threatLevel ?? currentBag.threatLevel} / 5`
+                      : "Not supplied"}
+                  </dd>
+                  <dt className="text-[12px] text-muted-foreground">Screening station</dt>
+                  <dd className="col-span-2 font-mono">
+                    {currentBag.screeningStation ?? "Not supplied"}
+                  </dd>
+                  <dt className="text-[12px] text-muted-foreground">Screened at</dt>
+                  <dd className="col-span-2">{formatTimestamp(currentBag.screenedAt)}</dd>
+                  <dt className="text-[12px] text-muted-foreground">External scan ID</dt>
+                  <dd className="col-span-2 font-mono">
+                    {xrayScan?.externalScanId ?? "Not supplied"}
+                  </dd>
+                  <dt className="text-[12px] text-muted-foreground">Scan source</dt>
+                  <dd className="col-span-2 font-mono">
+                    {xrayScan?.sourceSystem ?? "Not requested"}
+                  </dd>
+                  <dt className="text-[12px] text-muted-foreground">Scan status</dt>
+                  <dd className="col-span-2 font-mono">{xrayScan?.status ?? "NOT_REQUESTED"}</dd>
+                  <dt className="text-[12px] text-muted-foreground">Captured at</dt>
+                  <dd className="col-span-2">{formatTimestamp(xrayScan?.capturedAt)}</dd>
                   <dt className="text-[12px] text-muted-foreground">Reason</dt>
                   <dd className="col-span-2 text-warning">
                     {alarms

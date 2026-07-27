@@ -1,3 +1,4 @@
+import { MOCK_XRAY_SETS } from "@/features/simulator/mockXraySets";
 import type { HbssScanResult, XrayImageView } from "@/types/xray";
 import type { HbssAdapter } from "./hbssAdapter";
 import { parseBhsUid, parseHbssScanResult } from "./hbssSchemas";
@@ -29,27 +30,18 @@ function capturedAtFor(hash: number): string {
   return new Date(MOCK_CAPTURE_EPOCH + (hash % MOCK_CAPTURE_WINDOW_MS)).toISOString();
 }
 
-function mockImages(externalScanId: string): XrayImageView[] {
-  return [
-    {
-      id: `${externalScanId}-SIDE`,
-      label: "Side view",
-      url: "/mock-xray/scan-side.svg",
-      mimeType: "image/svg+xml",
-    },
-    {
-      id: `${externalScanId}-TOP`,
-      label: "Top view",
-      url: "/mock-xray/scan-top.svg",
-      mimeType: "image/svg+xml",
-    },
-    {
-      id: `${externalScanId}-DENSITY`,
-      label: "Density view",
-      url: "/mock-xray/scan-density.svg",
-      mimeType: "image/svg+xml",
-    },
-  ];
+function mockImages(externalScanId: string, hash: number): XrayImageView[] {
+  const imageSet = MOCK_XRAY_SETS[hash % MOCK_XRAY_SETS.length];
+  if (!imageSet) {
+    return [];
+  }
+
+  return imageSet.images.map((image) => ({
+    id: `${externalScanId}-${image.imageId}`,
+    label: image.label,
+    url: image.imageRef,
+    mimeType: image.mimeType,
+  }));
 }
 
 function mockResultFor(bhsUidInput: string): HbssScanResult {
@@ -60,6 +52,7 @@ function mockResultFor(bhsUidInput: string): HbssScanResult {
     mockData: true,
     deterministicKey: hash.toString(16).padStart(8, "0"),
   };
+  const images = mockImages(externalScanId, hash);
 
   if (bhsUid.includes("PENDING")) {
     return parseHbssScanResult({
@@ -97,12 +90,26 @@ function mockResultFor(bhsUidInput: string): HbssScanResult {
     });
   }
 
+  if (images.length === 0) {
+    return parseHbssScanResult({
+      externalScanId,
+      bhsUid,
+      sourceSystem: MOCK_SOURCE_SYSTEM,
+      status: "NOT_FOUND",
+      images: [],
+      metadata: {
+        ...sharedMetadata,
+        simulatedError: "No user-provided mock X-ray image set is configured",
+      },
+    });
+  }
+
   return parseHbssScanResult({
     externalScanId,
     bhsUid,
     sourceSystem: MOCK_SOURCE_SYSTEM,
     status: "AVAILABLE",
-    images: mockImages(externalScanId),
+    images,
     threatLevel: (hash % 5) + 1,
     threatType: MOCK_THREAT_TYPES[hash % MOCK_THREAT_TYPES.length],
     capturedAt: capturedAtFor(hash),

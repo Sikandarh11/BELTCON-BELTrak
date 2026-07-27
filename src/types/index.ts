@@ -4,6 +4,7 @@ export type {
   HbssScanResult,
   XrayImageView,
   XrayScan,
+  XrayScanSelection,
   XrayScanStatus,
 } from "./xray";
 export {
@@ -27,6 +28,13 @@ export type {
   TaggingBag,
   TaggingXrayStatus,
 } from "./tagging";
+export {
+  isRfidMovementStatus,
+  isRfidTrackableBag,
+  matchesRfidBagSearch,
+  RFID_MOVEMENT_STATUSES,
+} from "./rfid";
+export type { RfidMovementStatus, RfidTrackableBag, RfidTrackableBagsResponse } from "./rfid";
 
 export type AlarmOutcome =
   | "OPEN"

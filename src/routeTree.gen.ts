@@ -40,6 +40,7 @@ import { Route as DevConsoleRouteImport } from './routes/dev.console'
 import { Route as DevApiRouteImport } from './routes/dev.api'
 import { Route as AuditLogsRouteImport } from './routes/audit.logs'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as ApiBagsRfidTrackableRouteImport } from './routes/api.bags.rfid-trackable'
 import { Route as ApiBagsPendingTaggingRouteImport } from './routes/api.bags.pending-tagging'
 import { Route as ApiXrayBagsBagIdRouteImport } from './routes/api.xray.bags.$bagId'
 import { Route as ApiIntegrationsScreeningSuspectEventsRouteImport } from './routes/api.integrations.screening.suspect-events'
@@ -204,6 +205,11 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/admin/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBagsRfidTrackableRoute = ApiBagsRfidTrackableRouteImport.update({
+  id: '/api/bags/rfid-trackable',
+  path: '/api/bags/rfid-trackable',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBagsPendingTaggingRoute = ApiBagsPendingTaggingRouteImport.update({
   id: '/api/bags/pending-tagging',
   path: '/api/bags/pending-tagging',
@@ -282,6 +288,7 @@ export interface FileRoutesByFullPath {
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
+  '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
@@ -323,6 +330,7 @@ export interface FileRoutesByTo {
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
+  '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
@@ -365,6 +373,7 @@ export interface FileRoutesById {
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
+  '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
@@ -408,6 +417,7 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/supervisor/overview'
     | '/api/bags/pending-tagging'
+    | '/api/bags/rfid-trackable'
     | '/api/bags/$bagId/encode-tag'
     | '/api/dev/simulator/suspect-events'
     | '/api/integrations/hbss/health'
@@ -449,6 +459,7 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/supervisor/overview'
     | '/api/bags/pending-tagging'
+    | '/api/bags/rfid-trackable'
     | '/api/bags/$bagId/encode-tag'
     | '/api/dev/simulator/suspect-events'
     | '/api/integrations/hbss/health'
@@ -490,6 +501,7 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/supervisor/overview'
     | '/api/bags/pending-tagging'
+    | '/api/bags/rfid-trackable'
     | '/api/bags/$bagId/encode-tag'
     | '/api/dev/simulator/suspect-events'
     | '/api/integrations/hbss/health'
@@ -532,6 +544,7 @@ export interface RootRouteChildren {
   SettingsUsersRoute: typeof SettingsUsersRoute
   SupervisorOverviewRoute: typeof SupervisorOverviewRoute
   ApiBagsPendingTaggingRoute: typeof ApiBagsPendingTaggingRoute
+  ApiBagsRfidTrackableRoute: typeof ApiBagsRfidTrackableRoute
   ApiBagsBagIdEncodeTagRoute: typeof ApiBagsBagIdEncodeTagRoute
   ApiDevSimulatorSuspectEventsRoute: typeof ApiDevSimulatorSuspectEventsRoute
   ApiIntegrationsHbssHealthRoute: typeof ApiIntegrationsHbssHealthRoute
@@ -759,6 +772,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/bags/rfid-trackable': {
+      id: '/api/bags/rfid-trackable'
+      path: '/api/bags/rfid-trackable'
+      fullPath: '/api/bags/rfid-trackable'
+      preLoaderRoute: typeof ApiBagsRfidTrackableRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/bags/pending-tagging': {
       id: '/api/bags/pending-tagging'
       path: '/api/bags/pending-tagging'
@@ -862,6 +882,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsUsersRoute: SettingsUsersRoute,
   SupervisorOverviewRoute: SupervisorOverviewRoute,
   ApiBagsPendingTaggingRoute: ApiBagsPendingTaggingRoute,
+  ApiBagsRfidTrackableRoute: ApiBagsRfidTrackableRoute,
   ApiBagsBagIdEncodeTagRoute: ApiBagsBagIdEncodeTagRoute,
   ApiDevSimulatorSuspectEventsRoute: ApiDevSimulatorSuspectEventsRoute,
   ApiIntegrationsHbssHealthRoute: ApiIntegrationsHbssHealthRoute,
