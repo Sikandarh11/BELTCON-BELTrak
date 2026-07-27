@@ -22,6 +22,7 @@ import { startRealtime, stopRealtime } from "@/services/realtimeService";
 import { SessionProvider } from "@/auth/SessionContext";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import { PageSkeleton } from "@/components/PageSkeleton";
+import { CanonicalPageGate } from "@/components/RoleGate";
 
 function NotFoundComponent() {
   return (
@@ -45,7 +46,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold">This page didn't load</h1>
         <button
-          onClick={() => { router.invalidate(); reset(); }}
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
           className="mt-4 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
         >
           Try again
@@ -61,11 +65,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "BELTrak — Operations Monitoring" },
-      { name: "description", content: "BELTrak operations monitoring and baggage workflow console." },
+      {
+        name: "description",
+        content: "BELTrak operations monitoring and baggage workflow console.",
+      },
       { property: "og:title", content: "BELTrak — Operations Monitoring" },
       { name: "twitter:title", content: "BELTrak — Operations Monitoring" },
-      { property: "og:description", content: "BELTrak operations monitoring and baggage workflow console." },
-      { name: "twitter:description", content: "BELTrak operations monitoring and baggage workflow console." },
+      {
+        property: "og:description",
+        content: "BELTrak operations monitoring and baggage workflow console.",
+      },
+      {
+        name: "twitter:description",
+        content: "BELTrak operations monitoring and baggage workflow console.",
+      },
       { property: "og:image", content: "/images/beltcon-logo.jpeg" },
       { name: "twitter:image", content: "/images/beltcon-logo.jpeg" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -87,8 +100,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <head><HeadContent /></head>
-      <body>{children}<Scripts /></body>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
     </html>
   );
 }
@@ -97,7 +115,11 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const navigate = useNavigate();
-  const isAuthPage = pathname === "/login" || pathname === "/register";
+  const isAuthPage =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password" ||
+    pathname === "/change-password";
   const hydrated = useAppStore((s) => s.hydrated);
 
   useEffect(() => {
@@ -124,9 +146,11 @@ function RootComponent() {
           {(session) => (
             <SessionProvider session={session} onLogout={handleLogout}>
               <AppLayout session={session} onLogout={handleLogout}>
-                <PageErrorBoundary pageName="current">
-                  {hydrated ? <Outlet /> : <PageSkeleton />}
-                </PageErrorBoundary>
+                <CanonicalPageGate pathname={pathname} userRole={session.user.role}>
+                  <PageErrorBoundary pageName="current">
+                    {hydrated ? <Outlet /> : <PageSkeleton />}
+                  </PageErrorBoundary>
+                </CanonicalPageGate>
               </AppLayout>
             </SessionProvider>
           )}

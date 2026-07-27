@@ -19,35 +19,53 @@ function ForgotPasswordPage() {
     setLoading(true);
     try {
       await forgotPassword(email);
-      setMessage("If this email exists, a password reset link has been sent.");
+      setMessage("If an account exists for this email, a password reset link has been sent.");
     } catch {
-      setMessage("Unable to send reset email. Try again later.");
+      setMessage("If an account exists for this email, a password reset link has been sent.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white text-slate-900 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-white px-4 text-slate-900">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-        <h2 className="text-xl font-semibold text-slate-900 mb-2">Reset your password</h2>
-        <p className="text-sm text-slate-600 mb-4">Enter your account email and we'll send a reset link.</p>
+        <div className="mb-4 flex size-11 items-center justify-center rounded-2xl bg-cyan-100">
+          <Mail className="size-5 text-cyan-700" aria-hidden="true" />
+        </div>
+        <h1 className="mb-2 text-xl font-semibold text-slate-900">Reset your password</h1>
+        <p className="mb-4 text-sm text-slate-600">
+          Enter your account email and we&apos;ll send a short-lived Supabase recovery link.
+        </p>
 
         {message ? <div className="mb-4 text-sm text-slate-700">{message}</div> : null}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block">
             <span className="text-sm text-slate-700">Email</span>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400" />
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400"
+            />
           </label>
 
-          <button disabled={loading} className="w-full rounded-2xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-2xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60"
+          >
             {loading ? "Sending..." : "Send reset link"}
           </button>
         </form>
 
         <div className="mt-4 text-sm text-slate-600">
-          <Link to="/login" className="text-cyan-300">Back to sign in</Link>
+          <Link to="/login" className="font-medium text-cyan-700 hover:text-cyan-800">
+            Back to sign in
+          </Link>
         </div>
       </div>
     </div>

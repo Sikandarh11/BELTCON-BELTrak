@@ -2,9 +2,9 @@ import "@tanstack/react-start/server-only";
 
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 
+import { roleIsAtLeast, type CanonicalRole } from "@/auth/canonicalRoles";
 import { parseHbssIngestionPayload } from "@/services/integrations/hbss/hbssSchemas";
 import { getSessionFromRequest } from "@/services/authRepository.server";
-import { roleIsAtLeast } from "@/services/roles";
 import type { XrayScan } from "@/types/xray";
 import type { XrayService } from "./xrayService.server";
 import { XrayServiceError } from "./xrayErrors";
@@ -67,7 +67,7 @@ function errorResponse(error: unknown) {
 async function authorize(
   request: Request,
   getSession: SessionLookup,
-  minimumCanonicalRole?: string,
+  minimumCanonicalRole?: CanonicalRole,
 ) {
   let session: Awaited<ReturnType<SessionLookup>>;
   try {

@@ -1,18 +1,11 @@
-import { Navigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { useWorkspaceMode } from "@/auth/SessionContext";
-import {
-  getWorkspaceLanding,
-  hasUniversalWorkspaceAccess,
-  type WorkspaceMode,
-} from "@/auth/appRoles";
+import type { WorkspaceMode } from "@/auth/appRoles";
 
 /**
- * NAVIGATION GUARD ONLY. This checks a client-selected workspace mode
- * stored in localStorage. It is NOT an authorization boundary. Never
- * use it to gate mutating actions, data reads, or admin/dev privileges.
- * For real authorization, use canonical role via <RoleGate>.
+ * Compatibility wrapper for workspace-specific layout composition.
+ * Workspace mode never grants or denies access. Canonical page access is
+ * enforced by CanonicalPageGate and protected server endpoints.
  */
 export function RequireWorkspaceMode({
   modes,
@@ -21,15 +14,6 @@ export function RequireWorkspaceMode({
   modes: readonly WorkspaceMode[];
   children: ReactNode;
 }) {
-  const { workspaceMode } = useWorkspaceMode();
-
-  if (hasUniversalWorkspaceAccess(workspaceMode)) {
-    return <>{children}</>;
-  }
-
-  if (!modes.includes(workspaceMode)) {
-    return <Navigate to={getWorkspaceLanding(workspaceMode)} replace />;
-  }
-
+  void modes;
   return <>{children}</>;
 }

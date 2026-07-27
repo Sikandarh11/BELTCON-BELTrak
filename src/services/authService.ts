@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getLastMode, setLastMode, type WorkspaceMode } from "@/auth/appRoles";
+import type { CanonicalRole } from "@/auth/canonicalRoles";
 
 export const AUTH_COOKIE_NAME = "etb_auth_token";
 export const AUTH_SESSION_KEY = ["auth", "session"] as const;
@@ -9,18 +10,24 @@ export const AUTH_SESSION_KEY = ["auth", "session"] as const;
 // refresh cookie lifetime on the server to match below.
 export const AUTH_SESSION_DURATION_MS = 10 * 365 * 24 * 60 * 60 * 1000; // 10 years
 
-export const AUTH_ROLES = [
-  "Operations Officer",
-  "Customs Supervisor",
-  "Control Center Operator",
-  "Airport Administrator",
-  "System Administrator",
+export const ACCOUNT_STATUSES = [
+  "PENDING",
+  "ACTIVE",
+  "SUSPENDED",
+  "LOCKED",
+  "DEACTIVATED",
 ] as const;
-
-const passwordStrengthRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/;
 
 export const PASSWORD_REQUIREMENTS =
   "Password must be at least 12 characters and include uppercase, lowercase, number, and special character.";
+
+export const strongPasswordSchema = z
+  .string()
+  .min(12, "Password must be at least 12 characters long")
+  .regex(/[A-Z]/, "Password must include an uppercase letter")
+  .regex(/[a-z]/, "Password must include a lowercase letter")
+  .regex(/\d/, "Password must include a number")
+  .regex(/[^A-Za-z0-9]/, "Password must include a special character");
 
 export const loginSchema = z.object({
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
@@ -32,14 +39,22 @@ export const registerSchema = z
     firstName: z.string().trim().min(1, "First name is required").max(80, "First name is too long"),
     lastName: z.string().trim().min(1, "Last name is required").max(80, "Last name is too long"),
     email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
-    password: z
-      .string()
-      .min(12, "Password must be at least 12 characters long")
-      .regex(passwordStrengthRegex, PASSWORD_REQUIREMENTS),
+    password: strongPasswordSchema,
     confirmPassword: z.string().min(1, "Confirm your password"),
     registrationKey: z.string().trim().min(1, "Registration key is required"),
   })
   .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export const changePasswordSchema = z
+  .object({
+    newPassword: strongPasswordSchema,
+    confirmPassword: z.string().min(1, "Confirm your new password"),
+  })
+  .strict()
+  .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
   });
@@ -50,13 +65,17 @@ export type LoginInput = z.infer<typeof loginSchema> & {
 export type RegisterInput = z.infer<typeof registerSchema> & {
   workspaceMode: WorkspaceMode;
 };
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 export type SessionUser = {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
-  role: (typeof AUTH_ROLES)[number];
+  role: CanonicalRole;
+  status: (typeof ACCOUNT_STATUSES)[number];
+  isActive: boolean;
+  mustChangePassword: boolean;
   createdAt: string;
   lastLogin: string | null;
 };
@@ -148,5 +167,12 @@ export async function forgotPassword(email: string) {
   return authJsonRequest<{ ok: true }>("/api/auth/forgot-password", {
     method: "POST",
     body: JSON.stringify({ email }),
+  });
+}
+
+export async function changePassword(input: ChangePasswordInput) {
+  return authJsonRequest<{ ok: true }>("/api/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify(input),
   });
 }

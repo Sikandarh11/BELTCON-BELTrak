@@ -1,9 +1,15 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
 
-import { AUTH_SESSION_KEY, fetchSession, logout, type AuthSessionResponse } from "@/services/authService";
+import { passwordChangeRedirect } from "@/auth/passwordChangePolicy";
+import {
+  AUTH_SESSION_KEY,
+  fetchSession,
+  logout,
+  type AuthSessionResponse,
+} from "@/services/authService";
 
 const AUTH_REDIRECT_DELAY_MS = 250;
 
@@ -21,17 +27,22 @@ function AuthLoadingScreen() {
   );
 }
 
-export function ProtectedRoute({ children }: { children: (session: AuthSessionResponse) => ReactNode }) {
+export function ProtectedRoute({
+  children,
+}: {
+  children: (session: AuthSessionResponse) => ReactNode;
+}) {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const queryClient = useQueryClient();
   const [isExpired, setIsExpired] = useState(false);
 
   const sessionQuery = useQuery({
-    queryKey: AUTH_SESSION_KEY,
+    queryKey: [...AUTH_SESSION_KEY, pathname],
     queryFn: fetchSession,
     retry: 1,
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
     gcTime: 10 * 60 * 1000,
   });
 
@@ -44,6 +55,13 @@ export function ProtectedRoute({ children }: { children: (session: AuthSessionRe
       return () => window.clearTimeout(timer);
     }
   }, [navigate, sessionQuery.isError, sessionQuery.isLoading]);
+
+  useEffect(() => {
+    const forcedPasswordRedirect = passwordChangeRedirect(pathname, sessionQuery.data?.user);
+    if (forcedPasswordRedirect) {
+      void navigate({ to: forcedPasswordRedirect, replace: true });
+    }
+  }, [navigate, pathname, sessionQuery.data?.user]);
 
   useEffect(() => {
     const expiresAt = sessionQuery.data?.expiresAt;
@@ -80,7 +98,11 @@ export function ProtectedRoute({ children }: { children: (session: AuthSessionRe
     return () => window.clearTimeout(timer);
   }, [isExpired, navigate, queryClient]);
 
-  if (sessionQuery.isLoading || !sessionQuery.data) {
+  if (
+    sessionQuery.isLoading ||
+    !sessionQuery.data ||
+    Boolean(passwordChangeRedirect(pathname, sessionQuery.data.user))
+  ) {
     return <AuthLoadingScreen />;
   }
 

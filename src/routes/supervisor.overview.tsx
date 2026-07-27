@@ -3,13 +3,12 @@ import { Check, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { RequireWorkspaceMode } from "@/auth/RequireWorkspaceMode";
-import { hasUniversalWorkspaceAccess } from "@/auth/appRoles";
-import { useSession, useWorkspaceMode } from "@/auth/SessionContext";
+import { useSession } from "@/auth/SessionContext";
+import { roleIsAtLeast } from "@/auth/canonicalRoles";
 import { PageHeader, Panel, StatusPill } from "@/components/AppLayout";
 import { MockBadge } from "@/components/MockBadge";
 import { alarmService } from "@/services/alarmService";
 import { bagService } from "@/services/bagService";
-import { roleIsAtLeast } from "@/services/roles";
 import { useAppStore } from "@/store/appStore";
 
 export const Route = createFileRoute("/supervisor/overview")({
@@ -19,13 +18,11 @@ export const Route = createFileRoute("/supervisor/overview")({
 
 function SupervisorOverview() {
   const session = useSession();
-  const { workspaceMode } = useWorkspaceMode();
   const alarms = useAppStore((state) => state.alarms);
   const bags = useAppStore((state) => state.bags);
   const readers = useAppStore((state) => state.readers);
   const auditLog = useAppStore((state) => state.auditLog);
-  const canMutate =
-    hasUniversalWorkspaceAccess(workspaceMode) || roleIsAtLeast(session.role, "Customs Supervisor");
+  const canMutate = roleIsAtLeast(session.role, "Customs Supervisor");
   const officerName = `${session.firstName} ${session.lastName}`.trim();
 
   const escalationQueue = alarms

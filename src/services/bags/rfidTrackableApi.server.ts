@@ -1,7 +1,7 @@
 import "@tanstack/react-start/server-only";
 
+import { roleIsAtLeast } from "@/auth/canonicalRoles";
 import { getSessionFromRequest } from "@/services/authRepository.server";
-import { roleIsAtLeast } from "@/services/roles";
 import { listRfidTrackableBags } from "./rfidTrackableRepository.server";
 
 const MINIMUM_RFID_SIMULATOR_ROLE = "Operations Officer";

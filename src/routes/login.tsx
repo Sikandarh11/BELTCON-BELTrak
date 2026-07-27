@@ -57,7 +57,9 @@ function LoginPage() {
       const session = await login({ ...form, workspaceMode });
       queryClient.setQueryData(AUTH_SESSION_KEY, session);
       navigate({
-        to: getWorkspaceLanding(workspaceMode),
+        to: session.user.mustChangePassword
+          ? "/change-password"
+          : getWorkspaceLanding(workspaceMode),
         replace: true,
       });
     } catch (submissionError) {
@@ -179,7 +181,15 @@ function LoginPage() {
               </label>
 
               <label className="block space-y-2">
-                <span className="text-sm text-slate-700">Password</span>
+                <span className="flex items-center justify-between text-sm text-slate-700">
+                  <span>Password</span>
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs font-medium text-cyan-700 hover:text-cyan-800"
+                  >
+                    Forgot password?
+                  </Link>
+                </span>
                 <input
                   type="password"
                   required

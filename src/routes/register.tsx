@@ -57,7 +57,9 @@ function RegisterPage() {
       const session = await register({ ...form, workspaceMode });
       queryClient.setQueryData(AUTH_SESSION_KEY, session);
       navigate({
-        to: getWorkspaceLanding(workspaceMode),
+        to: session.user.mustChangePassword
+          ? "/change-password"
+          : getWorkspaceLanding(workspaceMode),
         replace: true,
       });
     } catch (submissionError) {

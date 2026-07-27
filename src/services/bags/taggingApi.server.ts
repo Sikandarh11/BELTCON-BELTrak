@@ -3,8 +3,8 @@ import "@tanstack/react-start/server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
+import { roleIsAtLeast } from "@/auth/canonicalRoles";
 import { getSessionFromRequest } from "@/services/authRepository.server";
-import { roleIsAtLeast } from "@/services/roles";
 import { TaggingServiceError } from "./taggingErrors";
 import type { TaggingService } from "./taggingService.server";
 import { taggingService } from "./taggingService.server";

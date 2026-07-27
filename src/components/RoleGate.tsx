@@ -1,35 +1,22 @@
 import type { ReactNode } from "react";
 import { ShieldAlert } from "lucide-react";
 
-import { hasUniversalWorkspaceAccess } from "@/auth/appRoles";
-import { useWorkspaceMode } from "@/auth/SessionContext";
+import {
+  minimumCanonicalRoleForPath,
+  roleIsAtLeast,
+  type CanonicalRole,
+} from "@/auth/canonicalRoles";
 
 interface RoleGateProps {
-  userRole: string;
-  requiredRole: string;
+  userRole: unknown;
+  requiredRole: CanonicalRole;
   children: ReactNode;
   pageName?: string;
 }
 
 export function RoleGate({ userRole, requiredRole, children, pageName }: RoleGateProps) {
-  const { workspaceMode } = useWorkspaceMode();
-  const order = [
-    "Operations Officer",
-    "Control Center Operator",
-    "Customs Supervisor",
-    "Airport Administrator",
-    "System Administrator",
-  ];
-  const userRank = order.indexOf(userRole);
-  const requiredRank = order.indexOf(requiredRole);
-
-  // UI-only developer override. Server/API authorization remains responsible
-  // for enforcing canonical-role permissions on protected operations.
-  if (hasUniversalWorkspaceAccess(workspaceMode)) {
-    return <>{children}</>;
-  }
-
-  if (userRank === -1 || requiredRank === -1 || userRank < requiredRank) {
+  if (!roleIsAtLeast(userRole, requiredRole)) {
+    const displayedRole = typeof userRole === "string" ? userRole : "Unknown";
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <ShieldAlert className="size-10 text-muted-foreground mb-4" />
@@ -37,7 +24,8 @@ export function RoleGate({ userRole, requiredRole, children, pageName }: RoleGat
         <div className="text-[13px] text-muted-foreground mt-1 max-w-sm">
           {pageName ? `The ${pageName} page requires` : "This page requires"}{" "}
           <span className="font-medium text-foreground">{requiredRole}</span> role or higher. Your
-          current role is <span className="font-medium text-foreground">{userRole}</span>.
+          current canonical role is{" "}
+          <span className="font-medium text-foreground">{displayedRole}</span>.
         </div>
         <div className="mt-4 text-[12px] text-muted-foreground">
           Contact your Airport Administrator to request access.
@@ -47,4 +35,21 @@ export function RoleGate({ userRole, requiredRole, children, pageName }: RoleGat
   }
 
   return <>{children}</>;
+}
+
+export function CanonicalPageGate({
+  pathname,
+  userRole,
+  children,
+}: {
+  pathname: string;
+  userRole: unknown;
+  children: ReactNode;
+}) {
+  const requiredRole = minimumCanonicalRoleForPath(pathname);
+  return (
+    <RoleGate userRole={userRole} requiredRole={requiredRole} pageName={pathname}>
+      {children}
+    </RoleGate>
+  );
 }

@@ -20,7 +20,9 @@ import { Route as MapRouteImport } from './routes/map'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as AlarmsRouteImport } from './routes/alarms'
+import { Route as AccessDeniedRouteImport } from './routes/access-denied'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SupervisorOverviewRouteImport } from './routes/supervisor.overview'
 import { Route as SettingsUsersRouteImport } from './routes/settings.users'
@@ -42,13 +44,18 @@ import { Route as AuditLogsRouteImport } from './routes/audit.logs'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as ApiBagsRfidTrackableRouteImport } from './routes/api.bags.rfid-trackable'
 import { Route as ApiBagsPendingTaggingRouteImport } from './routes/api.bags.pending-tagging'
+import { Route as ApiAdminUsersRouteImport } from './routes/api.admin.users'
 import { Route as ApiXrayBagsBagIdRouteImport } from './routes/api.xray.bags.$bagId'
 import { Route as ApiIntegrationsScreeningSuspectEventsRouteImport } from './routes/api.integrations.screening.suspect-events'
 import { Route as ApiIntegrationsHbssScansRouteImport } from './routes/api.integrations.hbss.scans'
 import { Route as ApiIntegrationsHbssHealthRouteImport } from './routes/api.integrations.hbss.health'
 import { Route as ApiDevSimulatorSuspectEventsRouteImport } from './routes/api.dev.simulator.suspect-events'
 import { Route as ApiBagsBagIdEncodeTagRouteImport } from './routes/api.bags.$bagId.encode-tag'
+import { Route as ApiAdminUsersInvitationsRouteImport } from './routes/api.admin.users.invitations'
+import { Route as ApiAdminUsersUserIdRouteImport } from './routes/api.admin.users.$userId'
 import { Route as ApiXrayBagsBagIdRefreshRouteImport } from './routes/api.xray.bags.$bagId.refresh'
+import { Route as ApiAdminUsersUserIdRepairProfileRouteImport } from './routes/api.admin.users.$userId.repair-profile'
+import { Route as ApiAdminUsersUserIdActionsRouteImport } from './routes/api.admin.users.$userId.actions'
 
 const TargetRoute = TargetRouteImport.update({
   id: '/target',
@@ -105,9 +112,19 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChangePasswordRoute = ChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AlarmsRoute = AlarmsRouteImport.update({
   id: '/alarms',
   path: '/alarms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccessDeniedRoute = AccessDeniedRouteImport.update({
+  id: '/access-denied',
+  path: '/access-denied',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -215,6 +232,11 @@ const ApiBagsPendingTaggingRoute = ApiBagsPendingTaggingRouteImport.update({
   path: '/api/bags/pending-tagging',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
+  id: '/api/admin/users',
+  path: '/api/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiXrayBagsBagIdRoute = ApiXrayBagsBagIdRouteImport.update({
   id: '/api/xray/bags/$bagId',
   path: '/api/xray/bags/$bagId',
@@ -249,15 +271,40 @@ const ApiBagsBagIdEncodeTagRoute = ApiBagsBagIdEncodeTagRouteImport.update({
   path: '/api/bags/$bagId/encode-tag',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminUsersInvitationsRoute =
+  ApiAdminUsersInvitationsRouteImport.update({
+    id: '/invitations',
+    path: '/invitations',
+    getParentRoute: () => ApiAdminUsersRoute,
+  } as any)
+const ApiAdminUsersUserIdRoute = ApiAdminUsersUserIdRouteImport.update({
+  id: '/$userId',
+  path: '/$userId',
+  getParentRoute: () => ApiAdminUsersRoute,
+} as any)
 const ApiXrayBagsBagIdRefreshRoute = ApiXrayBagsBagIdRefreshRouteImport.update({
   id: '/refresh',
   path: '/refresh',
   getParentRoute: () => ApiXrayBagsBagIdRoute,
 } as any)
+const ApiAdminUsersUserIdRepairProfileRoute =
+  ApiAdminUsersUserIdRepairProfileRouteImport.update({
+    id: '/repair-profile',
+    path: '/repair-profile',
+    getParentRoute: () => ApiAdminUsersUserIdRoute,
+  } as any)
+const ApiAdminUsersUserIdActionsRoute =
+  ApiAdminUsersUserIdActionsRouteImport.update({
+    id: '/actions',
+    path: '/actions',
+    getParentRoute: () => ApiAdminUsersUserIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/access-denied': typeof AccessDeniedRoute
   '/alarms': typeof AlarmsRoute
+  '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/history': typeof HistoryRoute
   '/login': typeof LoginRoute
@@ -287,19 +334,26 @@ export interface FileRoutesByFullPath {
   '/settings/threats': typeof SettingsThreatsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
+  '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
   '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
+  '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
+  '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
   '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
+  '/api/admin/users/$userId/actions': typeof ApiAdminUsersUserIdActionsRoute
+  '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/access-denied': typeof AccessDeniedRoute
   '/alarms': typeof AlarmsRoute
+  '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/history': typeof HistoryRoute
   '/login': typeof LoginRoute
@@ -329,20 +383,27 @@ export interface FileRoutesByTo {
   '/settings/threats': typeof SettingsThreatsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
+  '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
   '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
+  '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
+  '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
   '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
+  '/api/admin/users/$userId/actions': typeof ApiAdminUsersUserIdActionsRoute
+  '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/access-denied': typeof AccessDeniedRoute
   '/alarms': typeof AlarmsRoute
+  '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/history': typeof HistoryRoute
   '/login': typeof LoginRoute
@@ -372,21 +433,28 @@ export interface FileRoutesById {
   '/settings/threats': typeof SettingsThreatsRoute
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
+  '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
   '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
+  '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
+  '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
   '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
+  '/api/admin/users/$userId/actions': typeof ApiAdminUsersUserIdActionsRoute
+  '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/access-denied'
     | '/alarms'
+    | '/change-password'
     | '/forgot-password'
     | '/history'
     | '/login'
@@ -416,19 +484,26 @@ export interface FileRouteTypes {
     | '/settings/threats'
     | '/settings/users'
     | '/supervisor/overview'
+    | '/api/admin/users'
     | '/api/bags/pending-tagging'
     | '/api/bags/rfid-trackable'
+    | '/api/admin/users/$userId'
+    | '/api/admin/users/invitations'
     | '/api/bags/$bagId/encode-tag'
     | '/api/dev/simulator/suspect-events'
     | '/api/integrations/hbss/health'
     | '/api/integrations/hbss/scans'
     | '/api/integrations/screening/suspect-events'
     | '/api/xray/bags/$bagId'
+    | '/api/admin/users/$userId/actions'
+    | '/api/admin/users/$userId/repair-profile'
     | '/api/xray/bags/$bagId/refresh'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/access-denied'
     | '/alarms'
+    | '/change-password'
     | '/forgot-password'
     | '/history'
     | '/login'
@@ -458,19 +533,26 @@ export interface FileRouteTypes {
     | '/settings/threats'
     | '/settings/users'
     | '/supervisor/overview'
+    | '/api/admin/users'
     | '/api/bags/pending-tagging'
     | '/api/bags/rfid-trackable'
+    | '/api/admin/users/$userId'
+    | '/api/admin/users/invitations'
     | '/api/bags/$bagId/encode-tag'
     | '/api/dev/simulator/suspect-events'
     | '/api/integrations/hbss/health'
     | '/api/integrations/hbss/scans'
     | '/api/integrations/screening/suspect-events'
     | '/api/xray/bags/$bagId'
+    | '/api/admin/users/$userId/actions'
+    | '/api/admin/users/$userId/repair-profile'
     | '/api/xray/bags/$bagId/refresh'
   id:
     | '__root__'
     | '/'
+    | '/access-denied'
     | '/alarms'
+    | '/change-password'
     | '/forgot-password'
     | '/history'
     | '/login'
@@ -500,20 +582,27 @@ export interface FileRouteTypes {
     | '/settings/threats'
     | '/settings/users'
     | '/supervisor/overview'
+    | '/api/admin/users'
     | '/api/bags/pending-tagging'
     | '/api/bags/rfid-trackable'
+    | '/api/admin/users/$userId'
+    | '/api/admin/users/invitations'
     | '/api/bags/$bagId/encode-tag'
     | '/api/dev/simulator/suspect-events'
     | '/api/integrations/hbss/health'
     | '/api/integrations/hbss/scans'
     | '/api/integrations/screening/suspect-events'
     | '/api/xray/bags/$bagId'
+    | '/api/admin/users/$userId/actions'
+    | '/api/admin/users/$userId/repair-profile'
     | '/api/xray/bags/$bagId/refresh'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccessDeniedRoute: typeof AccessDeniedRoute
   AlarmsRoute: typeof AlarmsRoute
+  ChangePasswordRoute: typeof ChangePasswordRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   HistoryRoute: typeof HistoryRoute
   LoginRoute: typeof LoginRoute
@@ -543,6 +632,7 @@ export interface RootRouteChildren {
   SettingsThreatsRoute: typeof SettingsThreatsRoute
   SettingsUsersRoute: typeof SettingsUsersRoute
   SupervisorOverviewRoute: typeof SupervisorOverviewRoute
+  ApiAdminUsersRoute: typeof ApiAdminUsersRouteWithChildren
   ApiBagsPendingTaggingRoute: typeof ApiBagsPendingTaggingRoute
   ApiBagsRfidTrackableRoute: typeof ApiBagsRfidTrackableRoute
   ApiBagsBagIdEncodeTagRoute: typeof ApiBagsBagIdEncodeTagRoute
@@ -632,11 +722,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/change-password': {
+      id: '/change-password'
+      path: '/change-password'
+      fullPath: '/change-password'
+      preLoaderRoute: typeof ChangePasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/alarms': {
       id: '/alarms'
       path: '/alarms'
       fullPath: '/alarms'
       preLoaderRoute: typeof AlarmsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/access-denied': {
+      id: '/access-denied'
+      path: '/access-denied'
+      fullPath: '/access-denied'
+      preLoaderRoute: typeof AccessDeniedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -786,6 +890,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBagsPendingTaggingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/users': {
+      id: '/api/admin/users'
+      path: '/api/admin/users'
+      fullPath: '/api/admin/users'
+      preLoaderRoute: typeof ApiAdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/xray/bags/$bagId': {
       id: '/api/xray/bags/$bagId'
       path: '/api/xray/bags/$bagId'
@@ -828,6 +939,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBagsBagIdEncodeTagRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/users/invitations': {
+      id: '/api/admin/users/invitations'
+      path: '/invitations'
+      fullPath: '/api/admin/users/invitations'
+      preLoaderRoute: typeof ApiAdminUsersInvitationsRouteImport
+      parentRoute: typeof ApiAdminUsersRoute
+    }
+    '/api/admin/users/$userId': {
+      id: '/api/admin/users/$userId'
+      path: '/$userId'
+      fullPath: '/api/admin/users/$userId'
+      preLoaderRoute: typeof ApiAdminUsersUserIdRouteImport
+      parentRoute: typeof ApiAdminUsersRoute
+    }
     '/api/xray/bags/$bagId/refresh': {
       id: '/api/xray/bags/$bagId/refresh'
       path: '/refresh'
@@ -835,8 +960,49 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiXrayBagsBagIdRefreshRouteImport
       parentRoute: typeof ApiXrayBagsBagIdRoute
     }
+    '/api/admin/users/$userId/repair-profile': {
+      id: '/api/admin/users/$userId/repair-profile'
+      path: '/repair-profile'
+      fullPath: '/api/admin/users/$userId/repair-profile'
+      preLoaderRoute: typeof ApiAdminUsersUserIdRepairProfileRouteImport
+      parentRoute: typeof ApiAdminUsersUserIdRoute
+    }
+    '/api/admin/users/$userId/actions': {
+      id: '/api/admin/users/$userId/actions'
+      path: '/actions'
+      fullPath: '/api/admin/users/$userId/actions'
+      preLoaderRoute: typeof ApiAdminUsersUserIdActionsRouteImport
+      parentRoute: typeof ApiAdminUsersUserIdRoute
+    }
   }
 }
+
+interface ApiAdminUsersUserIdRouteChildren {
+  ApiAdminUsersUserIdActionsRoute: typeof ApiAdminUsersUserIdActionsRoute
+  ApiAdminUsersUserIdRepairProfileRoute: typeof ApiAdminUsersUserIdRepairProfileRoute
+}
+
+const ApiAdminUsersUserIdRouteChildren: ApiAdminUsersUserIdRouteChildren = {
+  ApiAdminUsersUserIdActionsRoute: ApiAdminUsersUserIdActionsRoute,
+  ApiAdminUsersUserIdRepairProfileRoute: ApiAdminUsersUserIdRepairProfileRoute,
+}
+
+const ApiAdminUsersUserIdRouteWithChildren =
+  ApiAdminUsersUserIdRoute._addFileChildren(ApiAdminUsersUserIdRouteChildren)
+
+interface ApiAdminUsersRouteChildren {
+  ApiAdminUsersUserIdRoute: typeof ApiAdminUsersUserIdRouteWithChildren
+  ApiAdminUsersInvitationsRoute: typeof ApiAdminUsersInvitationsRoute
+}
+
+const ApiAdminUsersRouteChildren: ApiAdminUsersRouteChildren = {
+  ApiAdminUsersUserIdRoute: ApiAdminUsersUserIdRouteWithChildren,
+  ApiAdminUsersInvitationsRoute: ApiAdminUsersInvitationsRoute,
+}
+
+const ApiAdminUsersRouteWithChildren = ApiAdminUsersRoute._addFileChildren(
+  ApiAdminUsersRouteChildren,
+)
 
 interface ApiXrayBagsBagIdRouteChildren {
   ApiXrayBagsBagIdRefreshRoute: typeof ApiXrayBagsBagIdRefreshRoute
@@ -851,7 +1017,9 @@ const ApiXrayBagsBagIdRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccessDeniedRoute: AccessDeniedRoute,
   AlarmsRoute: AlarmsRoute,
+  ChangePasswordRoute: ChangePasswordRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   HistoryRoute: HistoryRoute,
   LoginRoute: LoginRoute,
@@ -881,6 +1049,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsThreatsRoute: SettingsThreatsRoute,
   SettingsUsersRoute: SettingsUsersRoute,
   SupervisorOverviewRoute: SupervisorOverviewRoute,
+  ApiAdminUsersRoute: ApiAdminUsersRouteWithChildren,
   ApiBagsPendingTaggingRoute: ApiBagsPendingTaggingRoute,
   ApiBagsRfidTrackableRoute: ApiBagsRfidTrackableRoute,
   ApiBagsBagIdEncodeTagRoute: ApiBagsBagIdEncodeTagRoute,

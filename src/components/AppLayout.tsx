@@ -34,17 +34,12 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { GlobalBanners } from "./GlobalBanners";
-import {
-  FOCUS_MODE_KEY,
-  WORKSPACE_MODES,
-  hasUniversalWorkspaceAccess,
-  type WorkspaceMode,
-} from "@/auth/appRoles";
+import { FOCUS_MODE_KEY, WORKSPACE_MODES, type WorkspaceMode } from "@/auth/appRoles";
+import { roleIsAtLeast, type CanonicalRole } from "@/auth/canonicalRoles";
 import { useAuthSession, useWorkspaceMode } from "@/auth/SessionContext";
 import { useDebugFlag } from "@/hooks/useDebugFlag";
 import type { AuthSessionResponse } from "@/services/authService";
 import { useAppStore } from "@/store/appStore";
-import { roleIsAtLeast } from "@/services/roles";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,8 +53,7 @@ type NavItem = {
   label: string;
   icon: typeof LayoutDashboard;
   badge?: number;
-  minRole?: string;
-  workspaceMode?: WorkspaceMode;
+  minRole?: CanonicalRole;
 };
 
 const NAV: { section: string; items: NavItem[] }[] = [
@@ -76,7 +70,6 @@ const NAV: { section: string; items: NavItem[] }[] = [
         label: "Operator Scan",
         icon: ScanLine,
         minRole: "Operations Officer",
-        workspaceMode: "Operator",
       },
       { to: "/target", label: "Target Information", icon: Target },
       { to: "/recheck", label: "Recheck Station", icon: ScanLine },
@@ -92,7 +85,6 @@ const NAV: { section: string; items: NavItem[] }[] = [
         label: "Admin Overview",
         icon: LayoutDashboard,
         minRole: "Airport Administrator",
-        workspaceMode: "Admin",
       },
       {
         to: "/settings/system",
@@ -122,7 +114,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
         to: "/settings/roles",
         label: "Manage Roles",
         icon: UserCog,
-        minRole: "Airport Administrator",
+        minRole: "System Administrator",
       },
       {
         to: "/settings/users",
@@ -146,7 +138,6 @@ const NAV: { section: string; items: NavItem[] }[] = [
         label: "Overview",
         icon: ShieldAlert,
         minRole: "Customs Supervisor",
-        workspaceMode: "Supervisor",
       },
     ],
   },
@@ -157,7 +148,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
         to: "/audit/logs",
         label: "Logs",
         icon: ScrollText,
-        workspaceMode: "Auditor",
+        minRole: "Airport Administrator",
       },
     ],
   },
@@ -169,49 +160,42 @@ const NAV: { section: string; items: NavItem[] }[] = [
         label: "Console",
         icon: FlaskConical,
         minRole: "System Administrator",
-        workspaceMode: "Developer",
       },
       {
         to: "/dev/api",
         label: "API Explorer",
         icon: GitBranch,
         minRole: "System Administrator",
-        workspaceMode: "Developer",
       },
       {
         to: "/dev/simulator",
         label: "RFID Simulator",
         icon: Activity,
         minRole: "System Administrator",
-        workspaceMode: "Developer",
       },
       {
         to: "/dev/events",
         label: "Event Stream",
         icon: Radio,
         minRole: "System Administrator",
-        workspaceMode: "Developer",
       },
       {
         to: "/dev/flags",
         label: "Feature Flags",
         icon: Settings,
         minRole: "System Administrator",
-        workspaceMode: "Developer",
       },
       {
         to: "/dev/logs",
         label: "Logs & Traces",
         icon: ScrollText,
         minRole: "System Administrator",
-        workspaceMode: "Developer",
       },
       {
         to: "/dev/db",
         label: "DB Inspector",
         icon: Search,
         minRole: "System Administrator",
-        workspaceMode: "Developer",
       },
     ],
   },
@@ -230,7 +214,7 @@ function WorkspaceModeChip() {
   const { workspaceMode } = useWorkspaceMode();
   const { debugEnabled, setDebugEnabled } = useDebugFlag();
   const isPrivilegedMode = workspaceMode === "Admin" || workspaceMode === "Developer";
-  const isDeveloperMode = workspaceMode === "Developer";
+  const isDeveloperMode = workspaceMode === "Developer" && user.role === "System Administrator";
   const chipClassName = `inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[10px] font-semibold tracking-[0.12em] ${WORKSPACE_MODE_CHIP_STYLES[workspaceMode]}`;
 
   function switchWorkspaceMode() {
@@ -323,8 +307,6 @@ export function AppLayout({
   onLogout?: () => void | Promise<void>;
 }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const { workspaceMode } = useWorkspaceMode();
-  const hasUniversalAccess = hasUniversalWorkspaceAccess(workspaceMode);
   const openAlarms = useAppStore((s) => s.alarms.filter((a) => a.outcome === "OPEN").length);
   const currentUser = session.user;
   const userInitials = currentUser
@@ -333,13 +315,10 @@ export function AppLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const visibleNavigation = NAV.map((group) => ({
     ...group,
-    items: group.items.filter((item) => {
-      if (hasUniversalAccess) return true;
-      const canonicalRoleAllowed =
-        !item.minRole || Boolean(currentUser && roleIsAtLeast(currentUser.role, item.minRole));
-      const workspaceModeAllowed = !item.workspaceMode || item.workspaceMode === workspaceMode;
-      return canonicalRoleAllowed && workspaceModeAllowed;
-    }),
+    items: group.items.filter(
+      (item) =>
+        !item.minRole || Boolean(currentUser && roleIsAtLeast(currentUser.role, item.minRole)),
+    ),
   })).filter((group) => group.items.length > 0);
 
   return (
