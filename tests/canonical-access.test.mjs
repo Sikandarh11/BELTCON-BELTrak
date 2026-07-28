@@ -449,5 +449,6 @@ test("workspace code contains no universal access override", async () => {
   assert.doesNotMatch(combined, /hasUniversalWorkspaceAccess/);
   assert.doesNotMatch(combined, /allowWorkspaceOverride/);
   assert.doesNotMatch(combined, /workspaceMode\s*===\s*["']Developer["']\s*\|\|/);
-  assert.match(sources[2], /minRole:\s*"System Administrator"/);
+  assert.match(sources[2], /permission:\s*"developer\.access"/);
+  assert.match(sources[2], /hasPermission\(currentUser\?\.permissions/);
 });

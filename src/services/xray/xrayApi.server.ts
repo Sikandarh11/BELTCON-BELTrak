@@ -5,6 +5,11 @@ import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { roleIsAtLeast, type CanonicalRole } from "@/auth/canonicalRoles";
 import { parseHbssIngestionPayload } from "@/services/integrations/hbss/hbssSchemas";
 import { getSessionFromRequest } from "@/services/authRepository.server";
+import {
+  PermissionAuthorizationError,
+  requirePermission,
+} from "@/services/authorization/permissionAuthorization.server";
+import type { PermissionCode } from "@/services/admin/roles/roleSchemas";
 import type { XrayScan } from "@/types/xray";
 import type { XrayService } from "./xrayService.server";
 import { XrayServiceError } from "./xrayErrors";
@@ -26,6 +31,7 @@ interface AuthenticatedHandlerOptions {
   service?: XrayService;
   getSession?: SessionLookup;
   viewAudit?: Pick<XrayViewAuditRepository, "recordViewed">;
+  requirePermission?: typeof requirePermission;
 }
 
 interface IngestionHandlerOptions {
@@ -66,12 +72,13 @@ function errorResponse(error: unknown) {
 
 async function authorize(
   request: Request,
-  getSession: SessionLookup,
-  minimumCanonicalRole?: CanonicalRole,
+  options: AuthenticatedHandlerOptions,
+  permission: PermissionCode,
+  legacyMinimumRole: CanonicalRole,
 ) {
   let session: Awaited<ReturnType<SessionLookup>>;
   try {
-    session = await getSession(request);
+    session = await (options.getSession ?? getSessionFromRequest)(request);
   } catch {
     return {
       response: jsonResponse({ error: "Authentication check failed" }, 500),
@@ -86,9 +93,26 @@ async function authorize(
     };
   }
 
-  if (minimumCanonicalRole && !roleIsAtLeast(session.user.role, minimumCanonicalRole)) {
+  try {
+    if (options.requirePermission) {
+      await options.requirePermission(session, permission);
+    } else if (options.getSession) {
+      if (!roleIsAtLeast(session.user.role, legacyMinimumRole)) {
+        throw new PermissionAuthorizationError("Permission denied", "PERMISSION_DENIED", 403);
+      }
+    } else {
+      await requirePermission(session, permission);
+    }
+  } catch (error) {
+    const status = error instanceof PermissionAuthorizationError ? error.status : 500;
     return {
-      response: jsonResponse({ error: "Forbidden" }, 403),
+      response: jsonResponse(
+        {
+          error:
+            status === 403 ? `Permission ${permission} is required` : "Permission check failed",
+        },
+        status,
+      ),
       session: null,
     };
   }
@@ -162,11 +186,7 @@ export async function handleGetBagXrayRequest(
   bagId: string,
   options: AuthenticatedHandlerOptions = {},
 ) {
-  const authorization = await authorize(
-    request,
-    options.getSession ?? getSessionFromRequest,
-    "Operations Officer",
-  );
+  const authorization = await authorize(request, options, "xray.view", "Operations Officer");
   if (authorization.response) {
     return authorization.response;
   }
@@ -190,11 +210,7 @@ export async function handleRefreshBagXrayRequest(
   bagId: string,
   options: AuthenticatedHandlerOptions = {},
 ) {
-  const authorization = await authorize(
-    request,
-    options.getSession ?? getSessionFromRequest,
-    "Operations Officer",
-  );
+  const authorization = await authorize(request, options, "xray.refresh", "Operations Officer");
   if (authorization.response) {
     return authorization.response;
   }

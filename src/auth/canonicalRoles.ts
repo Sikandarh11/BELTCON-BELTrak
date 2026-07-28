@@ -55,7 +55,7 @@ export function requireCanonicalRole(role: unknown, requiredRole: CanonicalRole)
 
 export const PAGE_MINIMUM_CANONICAL_ROLE = [
   { prefix: "/dev", role: "System Administrator" },
-  { prefix: "/settings/roles", role: "System Administrator" },
+  { prefix: "/settings/roles", role: "Airport Administrator" },
   { prefix: "/settings/escalations", role: "Customs Supervisor" },
   { prefix: "/settings", role: "Airport Administrator" },
   { prefix: "/admin", role: "Airport Administrator" },

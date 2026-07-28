@@ -234,7 +234,7 @@ test("profile repair rejects a non-System-Administrator before invoking the serv
   assert.equal(repairCalls, 0);
   assert.match(
     await response.text(),
-    /Canonical System Administrator role(?: or higher)? is required/,
+    /Canonical System Administrator role(?: or higher)? is required|Permission user\.manage is required/,
   );
 });
 

@@ -53,9 +53,11 @@ import { Route as ApiDevSimulatorSuspectEventsRouteImport } from './routes/api.d
 import { Route as ApiBagsBagIdEncodeTagRouteImport } from './routes/api.bags.$bagId.encode-tag'
 import { Route as ApiAdminUsersInvitationsRouteImport } from './routes/api.admin.users.invitations'
 import { Route as ApiAdminUsersUserIdRouteImport } from './routes/api.admin.users.$userId'
+import { Route as ApiAdminRolesPermissionsRouteImport } from './routes/api.admin.roles.permissions'
 import { Route as ApiXrayBagsBagIdRefreshRouteImport } from './routes/api.xray.bags.$bagId.refresh'
 import { Route as ApiAdminUsersUserIdRepairProfileRouteImport } from './routes/api.admin.users.$userId.repair-profile'
 import { Route as ApiAdminUsersUserIdActionsRouteImport } from './routes/api.admin.users.$userId.actions'
+import { Route as ApiAdminRolesRoleIdPermissionsRouteImport } from './routes/api.admin.roles.$roleId.permissions'
 
 const TargetRoute = TargetRouteImport.update({
   id: '/target',
@@ -282,6 +284,12 @@ const ApiAdminUsersUserIdRoute = ApiAdminUsersUserIdRouteImport.update({
   path: '/$userId',
   getParentRoute: () => ApiAdminUsersRoute,
 } as any)
+const ApiAdminRolesPermissionsRoute =
+  ApiAdminRolesPermissionsRouteImport.update({
+    id: '/api/admin/roles/permissions',
+    path: '/api/admin/roles/permissions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiXrayBagsBagIdRefreshRoute = ApiXrayBagsBagIdRefreshRouteImport.update({
   id: '/refresh',
   path: '/refresh',
@@ -298,6 +306,12 @@ const ApiAdminUsersUserIdActionsRoute =
     id: '/actions',
     path: '/actions',
     getParentRoute: () => ApiAdminUsersUserIdRoute,
+  } as any)
+const ApiAdminRolesRoleIdPermissionsRoute =
+  ApiAdminRolesRoleIdPermissionsRouteImport.update({
+    id: '/api/admin/roles/$roleId/permissions',
+    path: '/api/admin/roles/$roleId/permissions',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -337,6 +351,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
   '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
+  '/api/admin/roles/permissions': typeof ApiAdminRolesPermissionsRoute
   '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
   '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
@@ -345,6 +360,7 @@ export interface FileRoutesByFullPath {
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
   '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
+  '/api/admin/roles/$roleId/permissions': typeof ApiAdminRolesRoleIdPermissionsRoute
   '/api/admin/users/$userId/actions': typeof ApiAdminUsersUserIdActionsRoute
   '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
@@ -386,6 +402,7 @@ export interface FileRoutesByTo {
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
   '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
+  '/api/admin/roles/permissions': typeof ApiAdminRolesPermissionsRoute
   '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
   '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
@@ -394,6 +411,7 @@ export interface FileRoutesByTo {
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
   '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
+  '/api/admin/roles/$roleId/permissions': typeof ApiAdminRolesRoleIdPermissionsRoute
   '/api/admin/users/$userId/actions': typeof ApiAdminUsersUserIdActionsRoute
   '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
@@ -436,6 +454,7 @@ export interface FileRoutesById {
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
   '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
+  '/api/admin/roles/permissions': typeof ApiAdminRolesPermissionsRoute
   '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
   '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
@@ -444,6 +463,7 @@ export interface FileRoutesById {
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
   '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
+  '/api/admin/roles/$roleId/permissions': typeof ApiAdminRolesRoleIdPermissionsRoute
   '/api/admin/users/$userId/actions': typeof ApiAdminUsersUserIdActionsRoute
   '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
@@ -487,6 +507,7 @@ export interface FileRouteTypes {
     | '/api/admin/users'
     | '/api/bags/pending-tagging'
     | '/api/bags/rfid-trackable'
+    | '/api/admin/roles/permissions'
     | '/api/admin/users/$userId'
     | '/api/admin/users/invitations'
     | '/api/bags/$bagId/encode-tag'
@@ -495,6 +516,7 @@ export interface FileRouteTypes {
     | '/api/integrations/hbss/scans'
     | '/api/integrations/screening/suspect-events'
     | '/api/xray/bags/$bagId'
+    | '/api/admin/roles/$roleId/permissions'
     | '/api/admin/users/$userId/actions'
     | '/api/admin/users/$userId/repair-profile'
     | '/api/xray/bags/$bagId/refresh'
@@ -536,6 +558,7 @@ export interface FileRouteTypes {
     | '/api/admin/users'
     | '/api/bags/pending-tagging'
     | '/api/bags/rfid-trackable'
+    | '/api/admin/roles/permissions'
     | '/api/admin/users/$userId'
     | '/api/admin/users/invitations'
     | '/api/bags/$bagId/encode-tag'
@@ -544,6 +567,7 @@ export interface FileRouteTypes {
     | '/api/integrations/hbss/scans'
     | '/api/integrations/screening/suspect-events'
     | '/api/xray/bags/$bagId'
+    | '/api/admin/roles/$roleId/permissions'
     | '/api/admin/users/$userId/actions'
     | '/api/admin/users/$userId/repair-profile'
     | '/api/xray/bags/$bagId/refresh'
@@ -585,6 +609,7 @@ export interface FileRouteTypes {
     | '/api/admin/users'
     | '/api/bags/pending-tagging'
     | '/api/bags/rfid-trackable'
+    | '/api/admin/roles/permissions'
     | '/api/admin/users/$userId'
     | '/api/admin/users/invitations'
     | '/api/bags/$bagId/encode-tag'
@@ -593,6 +618,7 @@ export interface FileRouteTypes {
     | '/api/integrations/hbss/scans'
     | '/api/integrations/screening/suspect-events'
     | '/api/xray/bags/$bagId'
+    | '/api/admin/roles/$roleId/permissions'
     | '/api/admin/users/$userId/actions'
     | '/api/admin/users/$userId/repair-profile'
     | '/api/xray/bags/$bagId/refresh'
@@ -635,12 +661,14 @@ export interface RootRouteChildren {
   ApiAdminUsersRoute: typeof ApiAdminUsersRouteWithChildren
   ApiBagsPendingTaggingRoute: typeof ApiBagsPendingTaggingRoute
   ApiBagsRfidTrackableRoute: typeof ApiBagsRfidTrackableRoute
+  ApiAdminRolesPermissionsRoute: typeof ApiAdminRolesPermissionsRoute
   ApiBagsBagIdEncodeTagRoute: typeof ApiBagsBagIdEncodeTagRoute
   ApiDevSimulatorSuspectEventsRoute: typeof ApiDevSimulatorSuspectEventsRoute
   ApiIntegrationsHbssHealthRoute: typeof ApiIntegrationsHbssHealthRoute
   ApiIntegrationsHbssScansRoute: typeof ApiIntegrationsHbssScansRoute
   ApiIntegrationsScreeningSuspectEventsRoute: typeof ApiIntegrationsScreeningSuspectEventsRoute
   ApiXrayBagsBagIdRoute: typeof ApiXrayBagsBagIdRouteWithChildren
+  ApiAdminRolesRoleIdPermissionsRoute: typeof ApiAdminRolesRoleIdPermissionsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -953,6 +981,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminUsersUserIdRouteImport
       parentRoute: typeof ApiAdminUsersRoute
     }
+    '/api/admin/roles/permissions': {
+      id: '/api/admin/roles/permissions'
+      path: '/api/admin/roles/permissions'
+      fullPath: '/api/admin/roles/permissions'
+      preLoaderRoute: typeof ApiAdminRolesPermissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/xray/bags/$bagId/refresh': {
       id: '/api/xray/bags/$bagId/refresh'
       path: '/refresh'
@@ -973,6 +1008,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/admin/users/$userId/actions'
       preLoaderRoute: typeof ApiAdminUsersUserIdActionsRouteImport
       parentRoute: typeof ApiAdminUsersUserIdRoute
+    }
+    '/api/admin/roles/$roleId/permissions': {
+      id: '/api/admin/roles/$roleId/permissions'
+      path: '/api/admin/roles/$roleId/permissions'
+      fullPath: '/api/admin/roles/$roleId/permissions'
+      preLoaderRoute: typeof ApiAdminRolesRoleIdPermissionsRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -1052,6 +1094,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminUsersRoute: ApiAdminUsersRouteWithChildren,
   ApiBagsPendingTaggingRoute: ApiBagsPendingTaggingRoute,
   ApiBagsRfidTrackableRoute: ApiBagsRfidTrackableRoute,
+  ApiAdminRolesPermissionsRoute: ApiAdminRolesPermissionsRoute,
   ApiBagsBagIdEncodeTagRoute: ApiBagsBagIdEncodeTagRoute,
   ApiDevSimulatorSuspectEventsRoute: ApiDevSimulatorSuspectEventsRoute,
   ApiIntegrationsHbssHealthRoute: ApiIntegrationsHbssHealthRoute,
@@ -1059,6 +1102,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIntegrationsScreeningSuspectEventsRoute:
     ApiIntegrationsScreeningSuspectEventsRoute,
   ApiXrayBagsBagIdRoute: ApiXrayBagsBagIdRouteWithChildren,
+  ApiAdminRolesRoleIdPermissionsRoute: ApiAdminRolesRoleIdPermissionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

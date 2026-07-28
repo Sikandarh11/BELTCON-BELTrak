@@ -4,6 +4,10 @@ import { z } from "zod";
 
 import { canonicalRoleSchema, type CanonicalRole } from "@/auth/canonicalRoles";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  loadEffectiveAuthorization,
+  type EffectiveAuthorization,
+} from "@/services/authorization/permissionAuthorization.server";
 import { getSupabaseAdminClient } from "@/services/supabaseAdmin.server";
 import { ACCOUNT_STATUSES, type SessionUser } from "@/services/authService";
 
@@ -58,6 +62,8 @@ export interface AuthAccountRepository {
   sendPasswordRecovery(email: string, redirectTo: string): Promise<void>;
 }
 
+type AuthorizationLoader = (userId: string) => Promise<EffectiveAuthorization>;
+
 export class AuthAccountError extends Error {
   readonly code:
     | "ACCOUNT_INELIGIBLE"
@@ -104,6 +110,10 @@ export function isEligibleProfile(profile: AuthProfile | null): profile is AuthP
 export function sessionUserFromProfile(
   identity: AuthIdentity,
   profile: AuthProfile | null,
+  authorization: Pick<EffectiveAuthorization, "permissions" | "authorizationVersion"> = {
+    permissions: [],
+    authorizationVersion: 0,
+  },
 ): SessionUser {
   if (!isEligibleProfile(profile) || profile.id !== identity.id) {
     throw new AuthAccountError(SAFE_SIGN_IN_MESSAGE, "ACCOUNT_INELIGIBLE");
@@ -120,6 +130,8 @@ export function sessionUserFromProfile(
     mustChangePassword: profile.mustChangePassword,
     createdAt: profile.createdAt,
     lastLogin: profile.lastLogin,
+    permissions: authorization.permissions,
+    authorizationVersion: authorization.authorizationVersion,
   };
 }
 
@@ -221,11 +233,26 @@ export const authAccountRepository: AuthAccountRepository = {
 
 export function createAuthAccountService(
   repository: AuthAccountRepository = authAccountRepository,
+  authorizationLoader?: AuthorizationLoader,
 ) {
+  const loadAuthorization =
+    authorizationLoader ??
+    (repository === authAccountRepository
+      ? loadEffectiveAuthorization
+      : async (userId: string): Promise<EffectiveAuthorization> => ({
+          canonicalRole:
+            (await repository.findProfileByUserId(userId))?.role ?? "Operations Officer",
+          permissions: [],
+          authorizationVersion: 0,
+        }));
+
   return {
     async getSessionUser(identity: AuthIdentity) {
       const profile = await repository.findProfileByUserId(identity.id);
-      return sessionUserFromProfile(identity, profile);
+      const authorization = isEligibleProfile(profile)
+        ? await loadAuthorization(identity.id)
+        : { permissions: [], authorizationVersion: 0 };
+      return sessionUserFromProfile(identity, profile, authorization);
     },
 
     async recordSuccessfulLogin(userId: string, timestamp: string) {
@@ -256,9 +283,14 @@ export function createAuthAccountService(
         timestamp: input.timestamp,
         otherSessionsRevoked,
       });
+      const authorization = await loadAuthorization(input.user.id);
 
       return {
-        user: sessionUserFromProfile({ id: input.user.id, email: input.user.email }, profile),
+        user: sessionUserFromProfile(
+          { id: input.user.id, email: input.user.email },
+          profile,
+          authorization,
+        ),
         otherSessionsRevoked,
       };
     },

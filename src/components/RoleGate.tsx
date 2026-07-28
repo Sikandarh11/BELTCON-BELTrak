@@ -6,6 +6,8 @@ import {
   roleIsAtLeast,
   type CanonicalRole,
 } from "@/auth/canonicalRoles";
+import { hasPermission, permissionForPath } from "@/auth/permissions";
+import type { PermissionCode } from "@/services/admin/roles/roleSchemas";
 
 interface RoleGateProps {
   userRole: unknown;
@@ -51,5 +53,56 @@ export function CanonicalPageGate({
     <RoleGate userRole={userRole} requiredRole={requiredRole} pageName={pathname}>
       {children}
     </RoleGate>
+  );
+}
+
+export function PermissionGate({
+  userPermissions,
+  requiredPermission,
+  children,
+  pageName,
+}: {
+  userPermissions: readonly string[] | null | undefined;
+  requiredPermission: PermissionCode;
+  children: ReactNode;
+  pageName?: string;
+}) {
+  if (!hasPermission(userPermissions, requiredPermission)) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <ShieldAlert className="size-10 text-muted-foreground mb-4" />
+        <div className="text-lg font-semibold">Access Denied</div>
+        <div className="text-[13px] text-muted-foreground mt-1 max-w-sm">
+          {pageName ? `The ${pageName} page requires` : "This page requires"}{" "}
+          <span className="font-medium text-foreground">{requiredPermission}</span>.
+        </div>
+        <div className="mt-4 text-[12px] text-muted-foreground">
+          Contact your System Administrator to request access.
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+export function PermissionPageGate({
+  pathname,
+  userPermissions,
+  children,
+}: {
+  pathname: string;
+  userPermissions: readonly string[] | null | undefined;
+  children: ReactNode;
+}) {
+  const requiredPermission = permissionForPath(pathname);
+  return (
+    <PermissionGate
+      userPermissions={userPermissions}
+      requiredPermission={requiredPermission}
+      pageName={pathname}
+    >
+      {children}
+    </PermissionGate>
   );
 }

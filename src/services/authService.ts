@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getLastMode, setLastMode, type WorkspaceMode } from "@/auth/appRoles";
 import type { CanonicalRole } from "@/auth/canonicalRoles";
+import type { PermissionCode } from "@/services/admin/roles/roleSchemas";
 
 export const AUTH_COOKIE_NAME = "etb_auth_token";
 export const AUTH_SESSION_KEY = ["auth", "session"] as const;
@@ -78,6 +79,8 @@ export type SessionUser = {
   mustChangePassword: boolean;
   createdAt: string;
   lastLogin: string | null;
+  permissions: PermissionCode[];
+  authorizationVersion: number;
 };
 
 export type AuthSessionResponse = {

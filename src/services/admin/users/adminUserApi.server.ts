@@ -2,8 +2,17 @@ import "@tanstack/react-start/server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { roleIsAtLeast, type CanonicalRole } from "@/auth/canonicalRoles";
+import {
+  isCanonicalRole,
+  roleIsAtLeast,
+  type CanonicalRole,
+} from "@/auth/canonicalRoles";
 import { getSessionFromRequest } from "@/services/authRepository.server";
+import {
+  PermissionAuthorizationError,
+  requirePermission,
+} from "@/services/authorization/permissionAuthorization.server";
+import type { PermissionCode } from "@/services/admin/roles/roleSchemas";
 import { recordAccessDenied, type AccessDeniedAuditInput } from "@/services/securityAudit.server";
 import { AdminUserError } from "./adminUserErrors";
 import {
@@ -29,6 +38,7 @@ export interface AdminUserApiOptions {
   getSession?: SessionLookup;
   service?: AdminUserService;
   recordAccessDenied?: (input: AccessDeniedAuditInput) => Promise<void>;
+  requirePermission?: typeof requirePermission;
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -41,7 +51,9 @@ function jsonResponse(body: unknown, status = 200) {
 async function authorize(
   request: Request,
   getSession: SessionLookup,
+  permission: PermissionCode,
   requiredRole: CanonicalRole,
+  enforcePermission: typeof requirePermission,
   deniedAudit?: (input: AccessDeniedAuditInput) => Promise<void>,
 ) {
   let session: Awaited<ReturnType<SessionLookup>>;
@@ -73,7 +85,9 @@ async function authorize(
     };
   }
 
-  if (!roleIsAtLeast(session.user.role, requiredRole)) {
+  try {
+    await enforcePermission(session, permission);
+  } catch (error) {
     if (deniedAudit) {
       try {
         await deniedAudit({
@@ -92,19 +106,48 @@ async function authorize(
         });
       }
     }
+    const status = error instanceof PermissionAuthorizationError ? error.status : 500;
     return {
       response: jsonResponse(
         {
-          error: `Canonical ${requiredRole} role or higher is required`,
-          code: "ADMIN_USER_FORBIDDEN",
+          error:
+            status === 403
+              ? `Permission ${permission} is required`
+              : "Unable to verify user-management permissions",
+          code: status === 403 ? "ADMIN_USER_FORBIDDEN" : "ADMIN_USER_PERSISTENCE_ERROR",
         },
-        403,
+        status,
       ),
       session: null,
     };
   }
 
   return { response: null, session };
+}
+
+function legacyPermissionEnforcer(requiredRole: CanonicalRole): typeof requirePermission {
+  return async (session) => {
+    const actorRole = session && "role" in session.user ? session.user.role : null;
+    if (!isCanonicalRole(actorRole) || !roleIsAtLeast(actorRole, requiredRole)) {
+      throw new PermissionAuthorizationError(
+        "Permission denied",
+        "PERMISSION_DENIED",
+        403,
+      );
+    }
+    return {
+      canonicalRole: actorRole,
+      permissions: [],
+      authorizationVersion: 0,
+    };
+  };
+}
+
+function permissionEnforcerFor(options: AdminUserApiOptions, requiredRole: CanonicalRole) {
+  return (
+    options.requirePermission ??
+    (options.getSession ? legacyPermissionEnforcer(requiredRole) : requirePermission)
+  );
 }
 
 function deniedAuditFor(options: AdminUserApiOptions) {
@@ -166,7 +209,9 @@ export async function handleListAdminUsersRequest(
   const authorization = await authorize(
     request,
     options.getSession ?? getSessionFromRequest,
+    "user.view",
     "Airport Administrator",
+    permissionEnforcerFor(options, "Airport Administrator"),
     deniedAuditFor(options),
   );
   if (authorization.response) return authorization.response;
@@ -223,7 +268,9 @@ export async function handleInviteAdminUserRequest(
   const authorization = await authorize(
     request,
     options.getSession ?? getSessionFromRequest,
+    "user.manage",
     "System Administrator",
+    permissionEnforcerFor(options, "System Administrator"),
     deniedAuditFor(options),
   );
   if (authorization.response || !authorization.session) return authorization.response;
@@ -273,7 +320,9 @@ export async function handleEditAdminUserRequest(
   const authorization = await authorize(
     request,
     options.getSession ?? getSessionFromRequest,
+    "user.manage",
     "Airport Administrator",
+    permissionEnforcerFor(options, "Airport Administrator"),
     deniedAuditFor(options),
   );
   if (authorization.response || !authorization.session) return authorization.response;
@@ -330,7 +379,9 @@ export async function handleAdminUserActionRequest(
   const authorization = await authorize(
     request,
     options.getSession ?? getSessionFromRequest,
+    "user.manage",
     "System Administrator",
+    permissionEnforcerFor(options, "System Administrator"),
     deniedAuditFor(options),
   );
   if (authorization.response || !authorization.session) return authorization.response;
@@ -387,7 +438,9 @@ export async function handleCreateAdminUserRequest(
   const authorization = await authorize(
     request,
     options.getSession ?? getSessionFromRequest,
+    "user.manage",
     "System Administrator",
+    permissionEnforcerFor(options, "System Administrator"),
     deniedAuditFor(options),
   );
   if (authorization.response || !authorization.session) return authorization.response;
@@ -436,7 +489,9 @@ export async function handleRepairAdminProfileRequest(
   const authorization = await authorize(
     request,
     options.getSession ?? getSessionFromRequest,
+    "user.manage",
     "System Administrator",
+    permissionEnforcerFor(options, "System Administrator"),
     deniedAuditFor(options),
   );
   if (authorization.response || !authorization.session) return authorization.response;

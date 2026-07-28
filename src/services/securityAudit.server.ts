@@ -3,12 +3,14 @@ import "@tanstack/react-start/server-only";
 import { randomUUID } from "node:crypto";
 
 import type { CanonicalRole } from "@/auth/canonicalRoles";
+import type { PermissionCode } from "@/services/admin/roles/roleSchemas";
 import { getSupabaseAdminClient } from "@/services/supabaseAdmin.server";
 
 export type AccessDeniedAuditInput = {
   actorId: string;
   canonicalRole: CanonicalRole;
-  requiredRole: CanonicalRole;
+  requiredRole?: CanonicalRole;
+  requiredPermission?: PermissionCode;
   resource: string;
   method: string;
   requestId?: string;
@@ -27,7 +29,8 @@ export async function recordAccessDenied(input: AccessDeniedAuditInput) {
       outcome: "DENIED",
       request_id: input.requestId ?? randomUUID(),
       metadata: {
-        requiredRole: input.requiredRole,
+        ...(input.requiredRole ? { requiredRole: input.requiredRole } : {}),
+        ...(input.requiredPermission ? { requiredPermission: input.requiredPermission } : {}),
         resource: input.resource,
         method: input.method,
       },

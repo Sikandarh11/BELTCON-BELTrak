@@ -2,6 +2,10 @@ import "@tanstack/react-start/server-only";
 
 import { roleIsAtLeast } from "@/auth/canonicalRoles";
 import { getSessionFromRequest } from "@/services/authRepository.server";
+import {
+  PermissionAuthorizationError,
+  requirePermission,
+} from "@/services/authorization/permissionAuthorization.server";
 import { listRfidTrackableBags } from "./rfidTrackableRepository.server";
 
 const MINIMUM_RFID_SIMULATOR_ROLE = "Operations Officer";
@@ -16,6 +20,7 @@ type BagLoader = typeof listRfidTrackableBags;
 export interface RfidTrackableApiOptions {
   getSession?: SessionLookup;
   loadBags?: BagLoader;
+  requirePermission?: typeof requirePermission;
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -52,13 +57,25 @@ export async function handleRfidTrackableBagsRequest(
     );
   }
 
-  if (!roleIsAtLeast(session.user.role, MINIMUM_RFID_SIMULATOR_ROLE)) {
+  try {
+    if (options.requirePermission) {
+      await options.requirePermission(session, "developer.access");
+    } else if (options.getSession) {
+      if (!roleIsAtLeast(session.user.role, MINIMUM_RFID_SIMULATOR_ROLE)) {
+        throw new PermissionAuthorizationError("Permission denied", "PERMISSION_DENIED", 403);
+      }
+    } else {
+      await requirePermission(session, "developer.access");
+    }
+  } catch (error) {
+    const status = error instanceof PermissionAuthorizationError ? error.status : 500;
     return jsonResponse(
       {
-        error: "Canonical Operations Officer role or higher is required",
-        code: "RFID_BAGS_FORBIDDEN",
+        error:
+          status === 403 ? "Permission developer.access is required" : "Permission check failed",
+        code: status === 403 ? "RFID_BAGS_FORBIDDEN" : "RFID_BAGS_INTERNAL_ERROR",
       },
-      403,
+      status,
     );
   }
 

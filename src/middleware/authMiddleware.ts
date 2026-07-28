@@ -1,7 +1,8 @@
 import { createMiddleware } from "@tanstack/react-start";
 
-import { canAccessCanonicalPath, minimumCanonicalRoleForPath } from "@/auth/canonicalRoles";
+import { permissionForPath } from "@/auth/permissions";
 import { blocksOperationalApi, passwordChangeRedirect } from "@/auth/passwordChangePolicy";
+import { requirePermission } from "@/services/authorization/permissionAuthorization.server";
 import { handleAuthRequest, getSessionFromRequest } from "@/services/authRepository.server";
 import { recordAccessDenied } from "@/services/securityAudit.server";
 
@@ -57,30 +58,34 @@ export const authMiddleware = createMiddleware().server(async ({ request, next }
     return redirect("/login");
   }
 
-  if (
-    session &&
-    !isPublicAuthRoute &&
-    url.pathname !== "/access-denied" &&
-    !canAccessCanonicalPath(session.user.role, url.pathname)
-  ) {
-    const requiredRole = minimumCanonicalRoleForPath(url.pathname);
+  if (session && !isPublicAuthRoute && url.pathname !== "/access-denied") {
+    const requiredPermission = permissionForPath(url.pathname);
     try {
-      await recordAccessDenied({
-        actorId: session.user.id,
-        canonicalRole: session.user.role,
-        requiredRole,
+      await requirePermission(session, requiredPermission);
+    } catch (permissionError) {
+      try {
+        await recordAccessDenied({
+          actorId: session.user.id,
+          canonicalRole: session.user.role,
+          requiredPermission,
+          resource: url.pathname,
+          method: request.method,
+          requestId: request.headers.get("x-request-id")?.trim() || undefined,
+        });
+      } catch (auditError) {
+        console.error("[BELTrak authorization audit] ACCESS_DENIED persistence failed", {
+          resource: url.pathname,
+          requiredPermission,
+          cause: auditError instanceof Error ? auditError.message : "unknown",
+        });
+      }
+      console.error("[BELTrak authorization] Permission denied", {
         resource: url.pathname,
-        method: request.method,
-        requestId: request.headers.get("x-request-id")?.trim() || undefined,
+        requiredPermission,
+        cause: permissionError instanceof Error ? permissionError.message : "unknown",
       });
-    } catch (error) {
-      console.error("[BELTrak authorization audit] ACCESS_DENIED persistence failed", {
-        resource: url.pathname,
-        requiredRole,
-        cause: error instanceof Error ? error.message : "unknown",
-      });
+      return redirect(`/access-denied?from=${encodeURIComponent(url.pathname)}`);
     }
-    return redirect(`/access-denied?from=${encodeURIComponent(url.pathname)}`);
   }
 
   return next();

@@ -4,6 +4,10 @@ import { randomUUID } from "node:crypto";
 
 import { getSessionFromRequest } from "@/services/authRepository.server";
 import {
+  PermissionAuthorizationError,
+  requirePermission,
+} from "@/services/authorization/permissionAuthorization.server";
+import {
   createMockScreeningAdapter,
   type MockScreeningAdapter,
 } from "@/services/integrations/screening/mockScreeningAdapter.server";
@@ -24,6 +28,7 @@ export interface ScreeningSimulatorApiOptions {
   getSession?: SessionLookup;
   service?: ScreeningIngestionService;
   adapter?: MockScreeningAdapter;
+  requirePermission?: typeof requirePermission;
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -105,13 +110,25 @@ export async function handleScreeningSimulatorRequest(
     );
   }
 
-  if (session.user.role !== SIMULATOR_SUBMIT_CANONICAL_ROLE) {
+  try {
+    if (options.requirePermission) {
+      await options.requirePermission(session, "developer.access");
+    } else if (options.getSession) {
+      if (session.user.role !== SIMULATOR_SUBMIT_CANONICAL_ROLE) {
+        throw new PermissionAuthorizationError("Permission denied", "PERMISSION_DENIED", 403);
+      }
+    } else {
+      await requirePermission(session, "developer.access");
+    }
+  } catch (error) {
+    const status = error instanceof PermissionAuthorizationError ? error.status : 500;
     return jsonResponse(
       {
-        error: "Canonical System Administrator role is required",
-        code: "SCREENING_FORBIDDEN",
+        error:
+          status === 403 ? "Permission developer.access is required" : "Permission check failed",
+        code: status === 403 ? "SCREENING_FORBIDDEN" : "SCREENING_SESSION_ERROR",
       },
-      403,
+      status,
     );
   }
 

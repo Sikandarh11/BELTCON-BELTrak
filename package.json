@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "preview": "srvx --dir .vercel/output/functions/__server.func --entry index.mjs -s ../../static --port 4174 --prod",
     "lint": "eslint .",
-    "test": "node --test --test-concurrency=1 tests/xray.test.mjs tests/screening-ingestion.test.mjs tests/screening-simulator.test.mjs tests/tagging-api.test.mjs tests/rfid-trackable.test.mjs tests/admin-users.test.mjs tests/admin-user-creation.test.mjs tests/admin-user-management.test.mjs tests/auth-password.test.mjs tests/canonical-access.test.mjs",
+    "test": "node --test --test-concurrency=1 tests/xray.test.mjs tests/screening-ingestion.test.mjs tests/screening-simulator.test.mjs tests/tagging-api.test.mjs tests/rfid-trackable.test.mjs tests/admin-users.test.mjs tests/admin-user-creation.test.mjs tests/admin-user-management.test.mjs tests/admin-role-permissions.test.mjs tests/auth-password.test.mjs tests/canonical-access.test.mjs",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write ."
   },

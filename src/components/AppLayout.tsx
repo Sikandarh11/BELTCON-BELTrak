@@ -35,9 +35,10 @@ import { toast } from "sonner";
 
 import { GlobalBanners } from "./GlobalBanners";
 import { FOCUS_MODE_KEY, WORKSPACE_MODES, type WorkspaceMode } from "@/auth/appRoles";
-import { roleIsAtLeast, type CanonicalRole } from "@/auth/canonicalRoles";
+import { hasPermission } from "@/auth/permissions";
 import { useAuthSession, useWorkspaceMode } from "@/auth/SessionContext";
 import { useDebugFlag } from "@/hooks/useDebugFlag";
+import type { PermissionCode } from "@/services/admin/roles/roleSchemas";
 import type { AuthSessionResponse } from "@/services/authService";
 import { useAppStore } from "@/store/appStore";
 import {
@@ -53,28 +54,34 @@ type NavItem = {
   label: string;
   icon: typeof LayoutDashboard;
   badge?: number;
-  minRole?: CanonicalRole;
+  permission: PermissionCode;
 };
 
 const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Operations",
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/map", label: "Live Operations Map", icon: Map },
-      { to: "/alarms", label: "Notifications & Alarms", icon: BellRing, badge: 4 },
-      { to: "/history", label: "Query Tag History", icon: History },
-      { to: "/tagging", label: "Tagging Station", icon: Tag },
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard.view" },
+      { to: "/map", label: "Live Operations Map", icon: Map, permission: "dashboard.view" },
+      {
+        to: "/alarms",
+        label: "Notifications & Alarms",
+        icon: BellRing,
+        badge: 4,
+        permission: "alarm.acknowledge",
+      },
+      { to: "/history", label: "Query Tag History", icon: History, permission: "report.view" },
+      { to: "/tagging", label: "Tagging Station", icon: Tag, permission: "bag.tag" },
       {
         to: "/ops/scan",
         label: "Operator Scan",
         icon: ScanLine,
-        minRole: "Operations Officer",
+        permission: "bag.manage",
       },
-      { to: "/target", label: "Target Information", icon: Target },
-      { to: "/recheck", label: "Recheck Station", icon: ScanLine },
-      { to: "/readers", label: "RFID Readers", icon: Radio, minRole: "Control Center Operator" },
-      { to: "/reports", label: "Reports", icon: FileBarChart2 },
+      { to: "/target", label: "Target Information", icon: Target, permission: "bag.recheck" },
+      { to: "/recheck", label: "Recheck Station", icon: ScanLine, permission: "bag.recheck" },
+      { to: "/readers", label: "RFID Readers", icon: Radio, permission: "reader.view" },
+      { to: "/reports", label: "Reports", icon: FileBarChart2, permission: "report.view" },
     ],
   },
   {
@@ -84,49 +91,49 @@ const NAV: { section: string; items: NavItem[] }[] = [
         to: "/admin/dashboard",
         label: "Admin Overview",
         icon: LayoutDashboard,
-        minRole: "Airport Administrator",
+        permission: "settings.manage",
       },
       {
         to: "/settings/system",
         label: "System Settings",
         icon: Settings,
-        minRole: "Airport Administrator",
+        permission: "settings.manage",
       },
       {
         to: "/settings/map",
         label: "Map Settings",
         icon: MapPinned,
-        minRole: "Airport Administrator",
+        permission: "settings.manage",
       },
       {
         to: "/settings/threats",
         label: "Threat Types",
         icon: ShieldAlert,
-        minRole: "Airport Administrator",
+        permission: "settings.manage",
       },
       {
         to: "/settings/escalations",
         label: "Escalations",
         icon: GitBranch,
-        minRole: "Customs Supervisor",
+        permission: "settings.manage",
       },
       {
         to: "/settings/roles",
         label: "Manage Roles",
         icon: UserCog,
-        minRole: "System Administrator",
+        permission: "role.view",
       },
       {
         to: "/settings/users",
         label: "Manage Users",
         icon: Users,
-        minRole: "Airport Administrator",
+        permission: "user.view",
       },
       {
         to: "/settings/audit",
         label: "Audit Log",
         icon: ScrollText,
-        minRole: "Airport Administrator",
+        permission: "audit.view",
       },
     ],
   },
@@ -137,7 +144,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
         to: "/supervisor/overview",
         label: "Overview",
         icon: ShieldAlert,
-        minRole: "Customs Supervisor",
+        permission: "alarm.escalate",
       },
     ],
   },
@@ -148,7 +155,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
         to: "/audit/logs",
         label: "Logs",
         icon: ScrollText,
-        minRole: "Airport Administrator",
+        permission: "audit.view",
       },
     ],
   },
@@ -159,43 +166,43 @@ const NAV: { section: string; items: NavItem[] }[] = [
         to: "/dev/console",
         label: "Console",
         icon: FlaskConical,
-        minRole: "System Administrator",
+        permission: "developer.access",
       },
       {
         to: "/dev/api",
         label: "API Explorer",
         icon: GitBranch,
-        minRole: "System Administrator",
+        permission: "developer.access",
       },
       {
         to: "/dev/simulator",
         label: "RFID Simulator",
         icon: Activity,
-        minRole: "System Administrator",
+        permission: "developer.access",
       },
       {
         to: "/dev/events",
         label: "Event Stream",
         icon: Radio,
-        minRole: "System Administrator",
+        permission: "developer.access",
       },
       {
         to: "/dev/flags",
         label: "Feature Flags",
         icon: Settings,
-        minRole: "System Administrator",
+        permission: "developer.access",
       },
       {
         to: "/dev/logs",
         label: "Logs & Traces",
         icon: ScrollText,
-        minRole: "System Administrator",
+        permission: "developer.access",
       },
       {
         to: "/dev/db",
         label: "DB Inspector",
         icon: Search,
-        minRole: "System Administrator",
+        permission: "developer.access",
       },
     ],
   },
@@ -214,7 +221,8 @@ function WorkspaceModeChip() {
   const { workspaceMode } = useWorkspaceMode();
   const { debugEnabled, setDebugEnabled } = useDebugFlag();
   const isPrivilegedMode = workspaceMode === "Admin" || workspaceMode === "Developer";
-  const isDeveloperMode = workspaceMode === "Developer" && user.role === "System Administrator";
+  const isDeveloperMode =
+    workspaceMode === "Developer" && hasPermission(user.permissions, "developer.access");
   const chipClassName = `inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[10px] font-semibold tracking-[0.12em] ${WORKSPACE_MODE_CHIP_STYLES[workspaceMode]}`;
 
   function switchWorkspaceMode() {
@@ -315,10 +323,7 @@ export function AppLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const visibleNavigation = NAV.map((group) => ({
     ...group,
-    items: group.items.filter(
-      (item) =>
-        !item.minRole || Boolean(currentUser && roleIsAtLeast(currentUser.role, item.minRole)),
-    ),
+    items: group.items.filter((item) => hasPermission(currentUser?.permissions, item.permission)),
   })).filter((group) => group.items.length > 0);
 
   return (

@@ -5,6 +5,10 @@ import { z } from "zod";
 
 import { roleIsAtLeast } from "@/auth/canonicalRoles";
 import { getSessionFromRequest } from "@/services/authRepository.server";
+import {
+  PermissionAuthorizationError,
+  requirePermission,
+} from "@/services/authorization/permissionAuthorization.server";
 import { TaggingServiceError } from "./taggingErrors";
 import type { TaggingService } from "./taggingService.server";
 import { taggingService } from "./taggingService.server";
@@ -26,6 +30,7 @@ type SessionLookup = typeof getSessionFromRequest;
 export interface TaggingApiOptions {
   getSession?: SessionLookup;
   service?: TaggingService;
+  requirePermission?: typeof requirePermission;
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -35,10 +40,10 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-async function authorize(request: Request, getSession: SessionLookup) {
+async function authorize(request: Request, options: TaggingApiOptions) {
   let session: Awaited<ReturnType<SessionLookup>>;
   try {
-    session = await getSession(request);
+    session = await (options.getSession ?? getSessionFromRequest)(request);
   } catch {
     return {
       response: jsonResponse(
@@ -65,14 +70,25 @@ async function authorize(request: Request, getSession: SessionLookup) {
     };
   }
 
-  if (!roleIsAtLeast(session.user.role, MINIMUM_TAGGING_ROLE)) {
+  try {
+    if (options.requirePermission) {
+      await options.requirePermission(session, "bag.tag");
+    } else if (options.getSession) {
+      if (!roleIsAtLeast(session.user.role, MINIMUM_TAGGING_ROLE)) {
+        throw new PermissionAuthorizationError("Permission denied", "PERMISSION_DENIED", 403);
+      }
+    } else {
+      await requirePermission(session, "bag.tag");
+    }
+  } catch (error) {
+    const status = error instanceof PermissionAuthorizationError ? error.status : 500;
     return {
       response: jsonResponse(
         {
-          error: "Canonical Operations Officer role or higher is required",
-          code: "TAGGING_FORBIDDEN",
+          error: status === 403 ? "Permission bag.tag is required" : "Permission check failed",
+          code: status === 403 ? "TAGGING_FORBIDDEN" : "TAGGING_INTERNAL_ERROR",
         },
-        403,
+        status,
       ),
       session: null,
     };
@@ -141,7 +157,7 @@ export async function handlePendingTaggingRequest(
   request: Request,
   options: TaggingApiOptions = {},
 ) {
-  const authorization = await authorize(request, options.getSession ?? getSessionFromRequest);
+  const authorization = await authorize(request, options);
   if (authorization.response) return authorization.response;
 
   try {
@@ -157,7 +173,7 @@ export async function handleEncodeTagRequest(
   bagId: string,
   options: TaggingApiOptions = {},
 ) {
-  const authorization = await authorize(request, options.getSession ?? getSessionFromRequest);
+  const authorization = await authorize(request, options);
   if (authorization.response || !authorization.session) {
     return authorization.response;
   }

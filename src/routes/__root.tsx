@@ -22,7 +22,7 @@ import { startRealtime, stopRealtime } from "@/services/realtimeService";
 import { SessionProvider } from "@/auth/SessionContext";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import { PageSkeleton } from "@/components/PageSkeleton";
-import { CanonicalPageGate } from "@/components/RoleGate";
+import { PermissionPageGate } from "@/components/RoleGate";
 
 function NotFoundComponent() {
   return (
@@ -146,11 +146,11 @@ function RootComponent() {
           {(session) => (
             <SessionProvider session={session} onLogout={handleLogout}>
               <AppLayout session={session} onLogout={handleLogout}>
-                <CanonicalPageGate pathname={pathname} userRole={session.user.role}>
+                <PermissionPageGate pathname={pathname} userPermissions={session.user.permissions}>
                   <PageErrorBoundary pageName="current">
                     {hydrated ? <Outlet /> : <PageSkeleton />}
                   </PageErrorBoundary>
-                </CanonicalPageGate>
+                </PermissionPageGate>
               </AppLayout>
             </SessionProvider>
           )}
