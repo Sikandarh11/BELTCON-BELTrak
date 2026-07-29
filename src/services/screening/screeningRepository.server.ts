@@ -12,6 +12,13 @@ const screeningAtomicResultSchema = z.object({
   bagId: z.string().nullable(),
   scanId: z.string().uuid().nullable(),
   scanStatus: z.enum(["AVAILABLE", "PENDING", "FAILED", "NOT_FOUND", "ARCHIVED"]).nullable(),
+  screeningReceived: z.boolean().optional().default(false),
+  bhsConfirmationStatus: z
+    .enum(["AWAITING_BHS_CONFIRMATION", "CONFIRMED"])
+    .nullable()
+    .optional()
+    .default(null),
+  canAssignTag: z.boolean().optional().default(false),
   errorCode: z.string().nullable(),
   errorMessage: z.string().nullable(),
 });
@@ -41,7 +48,7 @@ interface ScreeningRpcResponse {
 export type ScreeningRpcCall = (command: ScreeningAtomicCommand) => Promise<ScreeningRpcResponse>;
 
 const callAtomicScreeningRpc: ScreeningRpcCall = async (command) => {
-  const { data, error } = await getXrayAdminClient().rpc("ingest_screening_suspect_event_v1", {
+  const { data, error } = await getXrayAdminClient().rpc("ingest_screening_suspect_event_v2", {
     p_event: command.event,
     p_payload_hash: command.payloadHash,
     p_request_id: command.requestId,

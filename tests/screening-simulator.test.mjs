@@ -37,13 +37,14 @@ const { createScreeningIngestionService } = serviceModule;
 
 const validSimulatorPayload = {
   eventId: "00000000-0000-4000-8000-000000000701",
-  bhsUid: "BHS-SIM-000701",
+  bhsUid: "0000000701",
   iataCode: "0123456701",
   iataOrigin: "RUH",
   flightNo: "SV701",
   passengerName: "Simulator Passenger",
   threatType: "ORGANIC_DENSITY",
   threatLevel: 4,
+  screeningEvaluationRaw: "R",
   screeningStation: "HBSS-SIM-01",
   screeningTimestamp: "2026-07-26T12:00:00.000Z",
   externalScanId: "SCAN-SIM-000701",

@@ -20,7 +20,7 @@ function DeveloperSimulator() {
         <Tabs defaultValue="bhs">
           <TabsList aria-label="Simulator type">
             <TabsTrigger value="bhs">BELTCON BHS Simulator</TabsTrigger>
-            <TabsTrigger value="screening">Legacy Screening/HBSS Simulator</TabsTrigger>
+            <TabsTrigger value="screening">BELTCON HBSS Simulator</TabsTrigger>
             <TabsTrigger value="rfid">RFID Journey Simulator</TabsTrigger>
           </TabsList>
           <TabsContent value="bhs" className="-mx-6">

@@ -45,20 +45,21 @@ function TaggingStation() {
   const barcodeField = form.register("rfidTagBarcode");
   const bags = queue.data ?? [];
   const selected = bags.find((bag) => bag.id === selectedId) ?? null;
+  const tagAssignmentDisabled = !selected?.canAssignTag;
   const filtered = bags.filter((bag) =>
     `${bag.id} ${bag.bhsUid} ${bag.bhsLineId ?? ""}`.toLowerCase().includes(search.toLowerCase()),
   );
   useEffect(() => {
-    if (selected) {
+    if (selected?.id) {
       form.reset();
       requestAnimationFrame(() => barcodeRef.current?.focus());
     }
-  }, [selected?.id]);
+  }, [form, selected?.id]);
   useEffect(() => {
     if (selectedId && !selected) setSelectedId(null);
   }, [selected, selectedId]);
   const onSubmit = form.handleSubmit(async (values) => {
-    if (!selected) return;
+    if (!selected || !selected.canAssignTag) return;
     try {
       const bag = await assign.mutateAsync({
         bagId: selected.id,
@@ -149,7 +150,9 @@ function TaggingStation() {
                   >
                     <div className="flex justify-between gap-2">
                       <strong className="font-mono text-sm">{bag.bhsUid}</strong>
-                      <span className="text-xs">{bag.screeningEvaluation ?? "Legacy suspect"}</span>
+                      <span className="text-xs">
+                        {bag.screeningEvaluation ?? "Screening pending"}
+                      </span>
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       Bag {bag.id} · Line {display(bag.bhsLineId)} · {bag.status}
@@ -178,6 +181,14 @@ function TaggingStation() {
                 <dd>{display(selected.bhsLineId)}</dd>
                 <dt>Screening Result</dt>
                 <dd>{display(selected.screeningEvaluation)}</dd>
+                <dt>BHS routing</dt>
+                <dd>
+                  {selected.bhsConfirmationStatus === "CONFIRMED"
+                    ? "BHS diversion confirmed"
+                    : "Awaiting BHS diversion confirmation"}
+                </dd>
+                <dt>Tagging readiness</dt>
+                <dd>{selected.taggingReadiness}</dd>
                 <dt>Flight</dt>
                 <dd>{display(selected.flightNo)}</dd>
                 <dt>Passenger</dt>
@@ -189,6 +200,11 @@ function TaggingStation() {
                 <dt>Version</dt>
                 <dd>{selected.version}</dd>
               </dl>
+              {!selected.canAssignTag ? (
+                <p className="rounded border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
+                  RFID assignment will be enabled after BHS message 2001 confirms the diversion.
+                </p>
+              ) : null}
               <form onSubmit={onSubmit} className="space-y-3">
                 <label className="block text-sm font-medium">
                   RFID Tag Barcode
@@ -199,6 +215,7 @@ function TaggingStation() {
                       barcodeRef.current = element;
                     }}
                     autoComplete="off"
+                    disabled={tagAssignmentDisabled}
                     className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 font-mono"
                   />
                   {form.formState.errors.rfidTagBarcode && (
@@ -212,6 +229,7 @@ function TaggingStation() {
                   <input
                     {...form.register("epc")}
                     autoComplete="off"
+                    disabled={tagAssignmentDisabled}
                     className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 font-mono"
                   />
                   {form.formState.errors.epc && (
@@ -225,6 +243,7 @@ function TaggingStation() {
                     {...form.register("iataLpc")}
                     inputMode="numeric"
                     autoComplete="off"
+                    disabled={tagAssignmentDisabled}
                     className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 font-mono"
                   />
                 </label>
@@ -232,6 +251,7 @@ function TaggingStation() {
                   {workspaceMode === "Developer" ? (
                     <button
                       type="button"
+                      disabled={tagAssignmentDisabled}
                       onClick={() =>
                         form.setValue("epc", `EPC-${selected.id.slice(-8).toUpperCase()}`, {
                           shouldValidate: true,
@@ -245,7 +265,7 @@ function TaggingStation() {
                   ) : null}
                   <button
                     type="submit"
-                    disabled={assign.isPending}
+                    disabled={assign.isPending || tagAssignmentDisabled}
                     className="flex-1 rounded-md bg-primary px-4 py-2 font-semibold text-primary-foreground disabled:opacity-50"
                   >
                     <Tag className="mr-1 inline size-4" />

@@ -22,7 +22,7 @@ import {
   screeningSimulatorInputSchema,
   type ScreeningSimulatorInput,
 } from "@/services/integrations/screening/screeningSchemas";
-import { auditKeys, bagKeys, rfidKeys, taggingKeys } from "@/lib/queryKeys";
+import { auditKeys, bagKeys, bhsKeys, rfidKeys, taggingKeys } from "@/lib/queryKeys";
 import { getMockXraySet, MOCK_XRAY_SETS } from "./mockXraySets";
 
 type ScanState = ScreeningSimulatorInput["scanStatus"];
@@ -45,6 +45,7 @@ interface SimulatorFormState {
   passengerName: string;
   threatType: string;
   threatLevel: number;
+  screeningEvaluationRaw: ScreeningSimulatorInput["screeningEvaluationRaw"];
   screeningStation: string;
   screeningTimestamp: string;
   externalScanId: string;
@@ -59,6 +60,8 @@ interface SimulatorResponse {
   scanId?: string;
   scanStatus?: ScreeningSimulatorInput["scanStatus"] | "ARCHIVED";
   bhsUid?: string;
+  bhsConfirmationStatus?: "AWAITING_BHS_CONFIRMATION" | "CONFIRMED";
+  canAssignTag?: boolean;
   error?: string;
   code?: string;
   conflictCode?: string;
@@ -122,13 +125,14 @@ function createInitialForm(threatType: string): SimulatorFormState {
   const sequence = createSequence();
   return {
     eventId: createEventId(),
-    bhsUid: `BHS-SIM-${sequence}`,
+    bhsUid: sequence,
     iataCode: sequence,
     iataOrigin: "RUH",
     flightNo: "SV123",
     passengerName: "Simulator Passenger",
     threatType,
     threatLevel: 3,
+    screeningEvaluationRaw: "R",
     screeningStation: "HBSS-SIM-01",
     screeningTimestamp: toLocalDateTime(),
     externalScanId: `SCAN-SIM-${sequence}`,
@@ -225,6 +229,7 @@ export function ScreeningHbssSimulator() {
       setResultState(resultStateFor(body));
       await Promise.allSettled([
         queryClient.invalidateQueries({ queryKey: taggingKeys.all }),
+        queryClient.invalidateQueries({ queryKey: bhsKeys.pendingConfirmations() }),
         queryClient.invalidateQueries({ queryKey: bagKeys.all }),
         queryClient.invalidateQueries({ queryKey: rfidKeys.trackableBags() }),
         queryClient.invalidateQueries({ queryKey: auditKeys.all }),
@@ -368,6 +373,24 @@ export function ScreeningHbssSimulator() {
                         {level}
                       </option>
                     ))}
+                  </select>
+                </Field>
+                <Field label="Screening evaluation" htmlFor="sim-screening-evaluation">
+                  <select
+                    id="sim-screening-evaluation"
+                    value={form.screeningEvaluationRaw}
+                    onChange={(event) =>
+                      updateForm(
+                        "screeningEvaluationRaw",
+                        event.target.value as ScreeningSimulatorInput["screeningEvaluationRaw"],
+                      )
+                    }
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
+                  >
+                    <option value="R">R — Reject</option>
+                    <option value="T">T — Timeout</option>
+                    <option value="N">N — No decision</option>
+                    <option value="?">? — Mistrack</option>
                   </select>
                 </Field>
                 <Field label="Screening station" htmlFor="sim-station">
@@ -592,6 +615,15 @@ function SimulatorResult({
         <ResultField label="Scan ID" value={response?.scanId} />
         <ResultField label="Scan status" value={response?.scanStatus} />
         <ResultField label="BHS UID" value={response?.bhsUid} />
+        <ResultField label="BHS routing" value={response?.bhsConfirmationStatus} />
+        <ResultField
+          label="Tagging"
+          value={
+            response?.canAssignTag
+              ? "Ready for RFID tag assignment"
+              : "Awaiting BHS diversion confirmation"
+          }
+        />
       </dl>
 
       <div className="mt-4 flex flex-wrap gap-2">

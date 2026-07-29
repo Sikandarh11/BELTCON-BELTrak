@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+import { RawScreeningEvaluationSchema } from "@/domain/beltcon-sbts-baseline/beltconSbtsBaseline.schemas";
+
+// Compatibility integrations retain their existing input contract here. The
+// normal HBSS simulator and the V1 database ingestion transaction enforce the
+// exact ten-character BHS BagID before they create a canonical bag.
 const bhsUidSchema = z
   .string()
   .trim()
@@ -67,6 +72,9 @@ export const screeningEventV1Schema = z.object({
     station: z.string().trim().min(1),
     screenedAt: z.string().datetime({ offset: true }),
     notes: z.string().trim().max(2_000).optional(),
+    // Compatibility integrations may omit the decision. The authoritative
+    // ingestion transaction derives REJECT for a suspect event in that case.
+    evaluationRaw: RawScreeningEvaluationSchema.optional(),
   }),
   threat: z.object({
     type: z.string().trim().min(1),

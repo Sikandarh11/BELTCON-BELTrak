@@ -77,11 +77,13 @@ import { Route as ApiXrayBagsBagIdRefreshRouteImport } from './routes/api.xray.b
 import { Route as ApiReportsReportTypeExportCsvRouteImport } from './routes/api.reports.$reportType.export.csv'
 import { Route as ApiReadersReaderIdAntennasAntennaIdRouteImport } from './routes/api.readers.$readerId.antennas.$antennaId'
 import { Route as ApiDevSimulatorRfidReadsRouteImport } from './routes/api.dev.simulator.rfid.reads'
+import { Route as ApiDevSimulatorBhsPendingConfirmationsRouteImport } from './routes/api.dev.simulator.bhs.pending-confirmations'
 import { Route as ApiDevSimulatorBhsMessagesRouteImport } from './routes/api.dev.simulator.bhs.messages'
 import { Route as ApiAuditEventsExportCsvRouteImport } from './routes/api.audit.events.export.csv'
 import { Route as ApiAdminUsersUserIdRepairProfileRouteImport } from './routes/api.admin.users.$userId.repair-profile'
 import { Route as ApiAdminUsersUserIdActionsRouteImport } from './routes/api.admin.users.$userId.actions'
 import { Route as ApiAdminRolesRoleIdPermissionsRouteImport } from './routes/api.admin.roles.$roleId.permissions'
+import { Route as ApiDevSimulatorBhsPendingConfirmationsBagIdConfirmRouteImport } from './routes/api.dev.simulator.bhs.pending-confirmations.$bagId.confirm'
 
 const TargetRoute = TargetRouteImport.update({
   id: '/target',
@@ -439,6 +441,12 @@ const ApiDevSimulatorRfidReadsRoute =
     path: '/api/dev/simulator/rfid/reads',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiDevSimulatorBhsPendingConfirmationsRoute =
+  ApiDevSimulatorBhsPendingConfirmationsRouteImport.update({
+    id: '/api/dev/simulator/bhs/pending-confirmations',
+    path: '/api/dev/simulator/bhs/pending-confirmations',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiDevSimulatorBhsMessagesRoute =
   ApiDevSimulatorBhsMessagesRouteImport.update({
     id: '/api/dev/simulator/bhs/messages',
@@ -467,6 +475,12 @@ const ApiAdminRolesRoleIdPermissionsRoute =
     id: '/api/admin/roles/$roleId/permissions',
     path: '/api/admin/roles/$roleId/permissions',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiDevSimulatorBhsPendingConfirmationsBagIdConfirmRoute =
+  ApiDevSimulatorBhsPendingConfirmationsBagIdConfirmRouteImport.update({
+    id: '/$bagId/confirm',
+    path: '/$bagId/confirm',
+    getParentRoute: () => ApiDevSimulatorBhsPendingConfirmationsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -539,10 +553,12 @@ export interface FileRoutesByFullPath {
   '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
   '/api/audit/events/export/csv': typeof ApiAuditEventsExportCsvRoute
   '/api/dev/simulator/bhs/messages': typeof ApiDevSimulatorBhsMessagesRoute
+  '/api/dev/simulator/bhs/pending-confirmations': typeof ApiDevSimulatorBhsPendingConfirmationsRouteWithChildren
   '/api/dev/simulator/rfid/reads': typeof ApiDevSimulatorRfidReadsRoute
   '/api/readers/$readerId/antennas/$antennaId': typeof ApiReadersReaderIdAntennasAntennaIdRoute
   '/api/reports/$reportType/export/csv': typeof ApiReportsReportTypeExportCsvRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
+  '/api/dev/simulator/bhs/pending-confirmations/$bagId/confirm': typeof ApiDevSimulatorBhsPendingConfirmationsBagIdConfirmRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -614,10 +630,12 @@ export interface FileRoutesByTo {
   '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
   '/api/audit/events/export/csv': typeof ApiAuditEventsExportCsvRoute
   '/api/dev/simulator/bhs/messages': typeof ApiDevSimulatorBhsMessagesRoute
+  '/api/dev/simulator/bhs/pending-confirmations': typeof ApiDevSimulatorBhsPendingConfirmationsRouteWithChildren
   '/api/dev/simulator/rfid/reads': typeof ApiDevSimulatorRfidReadsRoute
   '/api/readers/$readerId/antennas/$antennaId': typeof ApiReadersReaderIdAntennasAntennaIdRoute
   '/api/reports/$reportType/export/csv': typeof ApiReportsReportTypeExportCsvRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
+  '/api/dev/simulator/bhs/pending-confirmations/$bagId/confirm': typeof ApiDevSimulatorBhsPendingConfirmationsBagIdConfirmRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -690,10 +708,12 @@ export interface FileRoutesById {
   '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
   '/api/audit/events/export/csv': typeof ApiAuditEventsExportCsvRoute
   '/api/dev/simulator/bhs/messages': typeof ApiDevSimulatorBhsMessagesRoute
+  '/api/dev/simulator/bhs/pending-confirmations': typeof ApiDevSimulatorBhsPendingConfirmationsRouteWithChildren
   '/api/dev/simulator/rfid/reads': typeof ApiDevSimulatorRfidReadsRoute
   '/api/readers/$readerId/antennas/$antennaId': typeof ApiReadersReaderIdAntennasAntennaIdRoute
   '/api/reports/$reportType/export/csv': typeof ApiReportsReportTypeExportCsvRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
+  '/api/dev/simulator/bhs/pending-confirmations/$bagId/confirm': typeof ApiDevSimulatorBhsPendingConfirmationsBagIdConfirmRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -767,10 +787,12 @@ export interface FileRouteTypes {
     | '/api/admin/users/$userId/repair-profile'
     | '/api/audit/events/export/csv'
     | '/api/dev/simulator/bhs/messages'
+    | '/api/dev/simulator/bhs/pending-confirmations'
     | '/api/dev/simulator/rfid/reads'
     | '/api/readers/$readerId/antennas/$antennaId'
     | '/api/reports/$reportType/export/csv'
     | '/api/xray/bags/$bagId/refresh'
+    | '/api/dev/simulator/bhs/pending-confirmations/$bagId/confirm'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -842,10 +864,12 @@ export interface FileRouteTypes {
     | '/api/admin/users/$userId/repair-profile'
     | '/api/audit/events/export/csv'
     | '/api/dev/simulator/bhs/messages'
+    | '/api/dev/simulator/bhs/pending-confirmations'
     | '/api/dev/simulator/rfid/reads'
     | '/api/readers/$readerId/antennas/$antennaId'
     | '/api/reports/$reportType/export/csv'
     | '/api/xray/bags/$bagId/refresh'
+    | '/api/dev/simulator/bhs/pending-confirmations/$bagId/confirm'
   id:
     | '__root__'
     | '/'
@@ -917,10 +941,12 @@ export interface FileRouteTypes {
     | '/api/admin/users/$userId/repair-profile'
     | '/api/audit/events/export/csv'
     | '/api/dev/simulator/bhs/messages'
+    | '/api/dev/simulator/bhs/pending-confirmations'
     | '/api/dev/simulator/rfid/reads'
     | '/api/readers/$readerId/antennas/$antennaId'
     | '/api/reports/$reportType/export/csv'
     | '/api/xray/bags/$bagId/refresh'
+    | '/api/dev/simulator/bhs/pending-confirmations/$bagId/confirm'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -979,6 +1005,7 @@ export interface RootRouteChildren {
   ApiXrayBagsBagIdRoute: typeof ApiXrayBagsBagIdRouteWithChildren
   ApiAdminRolesRoleIdPermissionsRoute: typeof ApiAdminRolesRoleIdPermissionsRoute
   ApiDevSimulatorBhsMessagesRoute: typeof ApiDevSimulatorBhsMessagesRoute
+  ApiDevSimulatorBhsPendingConfirmationsRoute: typeof ApiDevSimulatorBhsPendingConfirmationsRouteWithChildren
   ApiDevSimulatorRfidReadsRoute: typeof ApiDevSimulatorRfidReadsRoute
 }
 
@@ -1460,6 +1487,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDevSimulatorRfidReadsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/dev/simulator/bhs/pending-confirmations': {
+      id: '/api/dev/simulator/bhs/pending-confirmations'
+      path: '/api/dev/simulator/bhs/pending-confirmations'
+      fullPath: '/api/dev/simulator/bhs/pending-confirmations'
+      preLoaderRoute: typeof ApiDevSimulatorBhsPendingConfirmationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/dev/simulator/bhs/messages': {
       id: '/api/dev/simulator/bhs/messages'
       path: '/api/dev/simulator/bhs/messages'
@@ -1494,6 +1528,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/admin/roles/$roleId/permissions'
       preLoaderRoute: typeof ApiAdminRolesRoleIdPermissionsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/dev/simulator/bhs/pending-confirmations/$bagId/confirm': {
+      id: '/api/dev/simulator/bhs/pending-confirmations/$bagId/confirm'
+      path: '/$bagId/confirm'
+      fullPath: '/api/dev/simulator/bhs/pending-confirmations/$bagId/confirm'
+      preLoaderRoute: typeof ApiDevSimulatorBhsPendingConfirmationsBagIdConfirmRouteImport
+      parentRoute: typeof ApiDevSimulatorBhsPendingConfirmationsRoute
     }
   }
 }
@@ -1628,6 +1669,21 @@ const ApiXrayBagsBagIdRouteChildren: ApiXrayBagsBagIdRouteChildren = {
 const ApiXrayBagsBagIdRouteWithChildren =
   ApiXrayBagsBagIdRoute._addFileChildren(ApiXrayBagsBagIdRouteChildren)
 
+interface ApiDevSimulatorBhsPendingConfirmationsRouteChildren {
+  ApiDevSimulatorBhsPendingConfirmationsBagIdConfirmRoute: typeof ApiDevSimulatorBhsPendingConfirmationsBagIdConfirmRoute
+}
+
+const ApiDevSimulatorBhsPendingConfirmationsRouteChildren: ApiDevSimulatorBhsPendingConfirmationsRouteChildren =
+  {
+    ApiDevSimulatorBhsPendingConfirmationsBagIdConfirmRoute:
+      ApiDevSimulatorBhsPendingConfirmationsBagIdConfirmRoute,
+  }
+
+const ApiDevSimulatorBhsPendingConfirmationsRouteWithChildren =
+  ApiDevSimulatorBhsPendingConfirmationsRoute._addFileChildren(
+    ApiDevSimulatorBhsPendingConfirmationsRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccessDeniedRoute: AccessDeniedRoute,
@@ -1685,6 +1741,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiXrayBagsBagIdRoute: ApiXrayBagsBagIdRouteWithChildren,
   ApiAdminRolesRoleIdPermissionsRoute: ApiAdminRolesRoleIdPermissionsRoute,
   ApiDevSimulatorBhsMessagesRoute: ApiDevSimulatorBhsMessagesRoute,
+  ApiDevSimulatorBhsPendingConfirmationsRoute:
+    ApiDevSimulatorBhsPendingConfirmationsRouteWithChildren,
   ApiDevSimulatorRfidReadsRoute: ApiDevSimulatorRfidReadsRoute,
 }
 export const routeTree = rootRouteImport

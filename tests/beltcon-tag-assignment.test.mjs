@@ -22,8 +22,9 @@ test("new server routes share authoritative service paths without browser creden
     read("src/routes/api.bags.$bagId.assign-tag.ts"),
     read("src/services/bags/taggingClient.ts"),
   ]);
-  assert.match(simulator, /sourceSystem: SOURCE_SYSTEM/);
-  assert.match(simulator, /requirePermission\)\(session, "developer\.access"\)/);
+  assert.match(simulator, /sourceSystem: BHS_SIMULATOR_SOURCE_SYSTEM/);
+  assert.match(simulator, /"simulator\.use"/);
+  assert.doesNotMatch(simulator, /"developer\.access"/);
   assert.doesNotMatch(simulator, /BHS_INTEGRATION_KEY/);
   assert.match(assignRoute, /handleAssignRfidTagRequest/);
   assert.match(client, /useTaggingQueue/);

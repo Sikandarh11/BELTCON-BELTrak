@@ -151,6 +151,10 @@ export function createTaggingService(
           "BHS BagID is required before RFID tag assignment",
           "TAG_ASSIGNMENT_BHS_UID_REQUIRED",
         ],
+        TAG_ASSIGNMENT_BHS_CONFIRMATION_REQUIRED: [
+          "BHS diversion confirmation is required before assigning an RFID tag",
+          "TAG_ASSIGNMENT_BHS_CONFIRMATION_REQUIRED",
+        ],
         BAG_INELIGIBLE: [
           "Bag is no longer eligible for RFID tag assignment",
           "TAG_ASSIGNMENT_BAG_INELIGIBLE",

@@ -70,7 +70,7 @@ function createMemoryRepository() {
         return { ...existingEvent, status: "DUPLICATE" };
       }
 
-      const bagKey = `${input.sourceSystem}:${input.bhsUid}`;
+      const bagKey = input.bhsUid;
       const existingBag = bags.get(bagKey);
       if (
         existingBag &&
@@ -198,7 +198,7 @@ test("leading-zero BHS BagIDs are preserved and fingerprints are deterministic",
   assert.equal([...repository.events.values()][0].processingAttemptCount, 2);
 });
 
-test("different sources retain separate idempotency scopes and conflicts never reset a bag", async () => {
+test("different sources retain separate idempotency scopes but correlate one canonical BHS BagID", async () => {
   const repository = createMemoryRepository();
   const service = createService(repository);
   const first = await service.ingestMessage(message, { sourceSystem: "BHS_A" });
@@ -209,9 +209,10 @@ test("different sources retain separate idempotency scopes and conflicts never r
   );
   assert.equal(first.outcome, "ACCEPTED");
   assert.equal(separateSource.outcome, "ACCEPTED");
+  assert.equal(separateSource.bagId, first.bagId);
   assert.equal(conflict.outcome, "REJECTED");
   assert.equal(conflict.acknowledgement.outcome, "REJECTED");
-  assert.equal(repository.bags.get("BHS_A:0012345678").status, "IDENTIFIED");
+  assert.equal(repository.bags.get("0012345678").status, "IDENTIFIED");
 });
 
 test("semantic acknowledgement is returned only as an application DTO", async () => {

@@ -5,6 +5,10 @@ import {
   screeningImageV1Schema,
   type ScreeningSuspectEvent,
 } from "@/types/screening";
+import {
+  BhsUidSchema,
+  RawScreeningEvaluationSchema,
+} from "@/domain/beltcon-sbts-baseline/beltconSbtsBaseline.schemas";
 
 const inboundObjectSchema = z.record(z.unknown());
 const trustedSourceSystemSchema = z
@@ -17,15 +21,9 @@ const trustedSourceSystemSchema = z
 export const screeningSimulatorInputSchema = z
   .object({
     eventId: z.string().uuid("Event ID must be a UUID"),
-    bhsUid: z
-      .string()
-      .trim()
-      .min(1, "BHS UID is required")
-      .max(128, "BHS UID is too long")
-      .regex(
-        /^[A-Za-z0-9._:-]+$/,
-        "BHS UID may only contain letters, numbers, dots, underscores, colons, and hyphens",
-      ),
+    // A simulator event represents the same external identity used by BHS
+    // message 2001. Preserve its ten characters exactly, including zeros.
+    bhsUid: BhsUidSchema,
     iataCode: z
       .string()
       .trim()
@@ -38,6 +36,9 @@ export const screeningSimulatorInputSchema = z
     passengerName: z.string().trim().min(1, "Passenger name is required").max(256),
     threatType: z.string().trim().min(1, "Threat type is required"),
     threatLevel: z.number().int().min(1).max(5),
+    screeningEvaluationRaw: RawScreeningEvaluationSchema.refine((value) => value !== "A", {
+      message: "A suspect event cannot use the Accept evaluation",
+    }),
     screeningStation: z.string().trim().min(1, "Screening station is required"),
     screeningTimestamp: z.string().datetime({ offset: true }),
     externalScanId: z.string().trim().min(1, "External scan ID is required"),

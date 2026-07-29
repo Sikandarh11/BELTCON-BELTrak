@@ -43,6 +43,7 @@ export function createMockScreeningAdapter(
           screening: {
             station: input.screeningStation,
             screenedAt: input.screeningTimestamp,
+            evaluationRaw: input.screeningEvaluationRaw,
           },
           threat: {
             type: input.threatType,

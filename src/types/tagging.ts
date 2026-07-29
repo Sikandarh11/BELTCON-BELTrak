@@ -2,6 +2,8 @@ import type { BagStatus } from "./bag";
 import type { XrayScanStatus } from "./xray";
 
 export type TaggingXrayStatus = XrayScanStatus | "NOT_REQUESTED";
+export type BhsConfirmationStatus = "AWAITING_BHS_CONFIRMATION" | "CONFIRMED" | null;
+export type TaggingReadiness = "AWAITING_BHS_CONFIRMATION" | "READY_FOR_TAGGING";
 
 export interface TaggingBag {
   id: string;
@@ -9,6 +11,11 @@ export interface TaggingBag {
   bhsUid: string;
   bhsLineId: string | null;
   screeningEvaluation: string | null;
+  screeningReceivedAt: string | null;
+  bhsConfirmationStatus: BhsConfirmationStatus;
+  bhsConfirmedAt: string | null;
+  taggingReadiness: TaggingReadiness;
+  canAssignTag: boolean;
   iataCode: string | null;
   iataOrigin: string | null;
   flightNo: string | null;

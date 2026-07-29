@@ -29,7 +29,7 @@ export type BhsRpcCall = (message: NormalizedBhsMessage) => Promise<{
 }>;
 
 const callBhsIngestionRpc: BhsRpcCall = async (message) => {
-  const { data, error } = await getXrayAdminClient().rpc("ingest_beltcon_bhs_message_v1", {
+  const { data, error } = await getXrayAdminClient().rpc("ingest_beltcon_bhs_message_v2", {
     p_message: {
       messageType: message.messageType,
       trigger: message.trigger,

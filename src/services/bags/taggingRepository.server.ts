@@ -13,6 +13,13 @@ const bagRowSchema = z.object({
   bhs_uid: z.string().min(1),
   bhs_line_id: z.string().nullable().optional().default(null),
   screening_evaluation: z.string().nullable().optional().default(null),
+  screening_received_at: z.string().nullable().optional().default(null),
+  bhs_confirmation_status: z
+    .enum(["AWAITING_BHS_CONFIRMATION", "CONFIRMED"])
+    .nullable()
+    .optional()
+    .default(null),
+  bhs_confirmed_at: z.string().nullable().optional().default(null),
   iata_code: z.string().nullable(),
   iata_origin: z.string().nullable(),
   epc: z.string().nullable(),
@@ -68,6 +75,7 @@ const assignmentResultSchema = z.discriminatedUnion("status", [
       "INVALID_VERSION",
       "BAG_NOT_FOUND",
       "BHS_UID_REQUIRED",
+      "TAG_ASSIGNMENT_BHS_CONFIRMATION_REQUIRED",
       "BAG_INELIGIBLE",
       "DUPLICATE_EPC",
       "DUPLICATE_BARCODE",
@@ -129,6 +137,9 @@ const BAG_SELECT = [
   "bhs_uid",
   "bhs_line_id",
   "screening_evaluation",
+  "screening_received_at",
+  "bhs_confirmation_status",
+  "bhs_confirmed_at",
   "iata_code",
   "iata_origin",
   "epc",
@@ -162,6 +173,30 @@ function parseBagRow(rowInput: unknown): BagRow {
   return parsed.data;
 }
 
+/**
+ * The database guard prevents new duplicates. Until a reviewed repair runs,
+ * legacy duplicate rows are represented once in the operational read model.
+ */
+function canonicalQueueRows(rows: BagRow[]) {
+  const byBhsUid = new Map<string, BagRow>();
+  for (const row of rows) {
+    const current = byBhsUid.get(row.bhs_uid);
+    if (!current) {
+      byBhsUid.set(row.bhs_uid, row);
+      continue;
+    }
+    const rowConfirmed = row.bhs_confirmation_status === "CONFIRMED";
+    const currentConfirmed = current.bhs_confirmation_status === "CONFIRMED";
+    if (
+      (rowConfirmed && !currentConfirmed) ||
+      (rowConfirmed === currentConfirmed && row.id.localeCompare(current.id) < 0)
+    ) {
+      byBhsUid.set(row.bhs_uid, row);
+    }
+  }
+  return [...byBhsUid.values()];
+}
+
 export function mapTaggingBag(rowInput: unknown, xray: XraySummary = NO_XRAY): TaggingBag {
   const row = parseBagRow(rowInput);
   const flaggedAt = row.flagged_at ?? row.created_at;
@@ -176,6 +211,19 @@ export function mapTaggingBag(rowInput: unknown, xray: XraySummary = NO_XRAY): T
     bhsUid: row.bhs_uid,
     bhsLineId: row.bhs_line_id,
     screeningEvaluation: row.screening_evaluation,
+    screeningReceivedAt: row.screening_received_at,
+    bhsConfirmationStatus: row.bhs_confirmation_status,
+    bhsConfirmedAt: row.bhs_confirmed_at,
+    taggingReadiness:
+      row.bhs_confirmation_status === "CONFIRMED"
+        ? "READY_FOR_TAGGING"
+        : "AWAITING_BHS_CONFIRMATION",
+    canAssignTag:
+      row.status === "IDENTIFIED" &&
+      row.bhs_confirmation_status === "CONFIRMED" &&
+      row.screening_evaluation !== "ACCEPT" &&
+      !row.epc &&
+      !row.rfid_tag_barcode,
     iataCode: row.iata_code,
     iataOrigin: row.iata_origin,
     flightNo: row.flight,
@@ -247,7 +295,7 @@ export const taggingRepository: TaggingRepository = {
       });
     }
 
-    const rows = ((data ?? []) as unknown[]).map(parseBagRow);
+    const rows = canonicalQueueRows(((data ?? []) as unknown[]).map(parseBagRow));
     const summaries = await loadLatestXraySummaries(rows.map((row) => String(row.id)));
     return rows.map((row) => mapTaggingBag(row, summaries.get(String(row.id)) ?? NO_XRAY));
   },

@@ -168,3 +168,8 @@ export const integrationKeys = {
   rfidEvents: (filters: object = {}) =>
     ["integrations", "rfid-events", normalizeQueryFilters(filters)] as const,
 } as const;
+
+export const bhsKeys = {
+  all: ["bhs"] as const,
+  pendingConfirmations: () => ["bhs", "pending-confirmations"] as const,
+} as const;

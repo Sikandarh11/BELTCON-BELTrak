@@ -19,6 +19,9 @@ export interface ScreeningIngestionResult {
   bagId: string;
   scanId: string;
   scanStatus: "AVAILABLE" | "PENDING" | "FAILED" | "NOT_FOUND" | "ARCHIVED";
+  screeningReceived: boolean;
+  bhsConfirmationStatus: "AWAITING_BHS_CONFIRMATION" | "CONFIRMED" | null;
+  canAssignTag: boolean;
 }
 
 export interface ScreeningIngestionContext {
@@ -70,6 +73,9 @@ function requireSuccessfulResult(result: ScreeningAtomicResult): ScreeningIngest
     bagId: result.bagId,
     scanId: result.scanId,
     scanStatus: result.scanStatus,
+    screeningReceived: result.screeningReceived,
+    bhsConfirmationStatus: result.bhsConfirmationStatus,
+    canAssignTag: result.canAssignTag,
   };
 }
 
