@@ -11,10 +11,15 @@ const bagRowSchema = z.object({
   id: z.string().min(1),
   source_system: z.string().min(1),
   bhs_uid: z.string().min(1),
+  bhs_line_id: z.string().nullable().optional().default(null),
+  screening_evaluation: z.string().nullable().optional().default(null),
   iata_code: z.string().nullable(),
   iata_origin: z.string().nullable(),
   epc: z.string().nullable(),
-  flight: z.string().min(1),
+  rfid_tag_barcode: z.string().nullable().optional().default(null),
+  version: z.number().int().min(1).optional().default(1),
+  // BHS 2001 baseline messages do not include a flight number.
+  flight: z.string().min(1).nullable(),
   passenger_name: z.string().nullable(),
   threat_type: z.string().nullable(),
   threat_level: z.number().int().min(1).max(5).nullable(),
@@ -52,6 +57,26 @@ const atomicResultSchema = z.discriminatedUnion("status", [
   }),
 ]);
 
+const assignmentResultSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("ASSIGNED"), bag: bagRowSchema }),
+  z.object({
+    status: z.enum([
+      "INVALID_BAG_ID",
+      "INVALID_EPC",
+      "INVALID_BARCODE",
+      "INVALID_LPC",
+      "INVALID_VERSION",
+      "BAG_NOT_FOUND",
+      "BHS_UID_REQUIRED",
+      "BAG_INELIGIBLE",
+      "DUPLICATE_EPC",
+      "DUPLICATE_BARCODE",
+      "VERSION_CONFLICT",
+    ]),
+    errorMessage: z.string().optional(),
+  }),
+]);
+
 type BagRow = z.infer<typeof bagRowSchema>;
 
 export type EncodeTagAtomicResult =
@@ -74,9 +99,23 @@ export interface EncodeTagCommand {
   requestId: string | null;
 }
 
+export interface AssignRfidTagCommand extends EncodeTagCommand {
+  rfidTagBarcode: string;
+  iataLpc: string | null;
+  expectedVersion: number;
+}
+
+export type AssignRfidTagAtomicResult =
+  | { status: "ASSIGNED"; bag: TaggingBag }
+  | {
+      status: Exclude<z.infer<typeof assignmentResultSchema>["status"], "ASSIGNED">;
+      errorMessage?: string;
+    };
+
 export interface TaggingRepository {
   listPendingTagging(): Promise<TaggingBag[]>;
   encodeTagAtomic(command: EncodeTagCommand): Promise<EncodeTagAtomicResult>;
+  assignRfidTagAtomic(command: AssignRfidTagCommand): Promise<AssignRfidTagAtomicResult>;
 }
 
 interface XraySummary {
@@ -88,9 +127,13 @@ const BAG_SELECT = [
   "id",
   "source_system",
   "bhs_uid",
+  "bhs_line_id",
+  "screening_evaluation",
   "iata_code",
   "iata_origin",
   "epc",
+  "rfid_tag_barcode",
+  "version",
   "flight",
   "passenger_name",
   "threat_type",
@@ -131,6 +174,8 @@ export function mapTaggingBag(rowInput: unknown, xray: XraySummary = NO_XRAY): T
     id: row.id,
     sourceSystem: row.source_system,
     bhsUid: row.bhs_uid,
+    bhsLineId: row.bhs_line_id,
+    screeningEvaluation: row.screening_evaluation,
     iataCode: row.iata_code,
     iataOrigin: row.iata_origin,
     flightNo: row.flight,
@@ -143,6 +188,8 @@ export function mapTaggingBag(rowInput: unknown, xray: XraySummary = NO_XRAY): T
     flaggedAt,
     taggedAt: row.tagged_at,
     epc: row.epc,
+    rfidTagBarcode: row.rfid_tag_barcode,
+    version: row.version,
     xrayStatus: xray.status,
     xrayViewCount: xray.viewCount,
     rfidState: row.epc ? "ENCODED" : "NOT_ENCODED",
@@ -240,6 +287,37 @@ export const taggingRepository: TaggingRepository = {
       };
     }
 
+    return parsed.data;
+  },
+
+  async assignRfidTagAtomic(command) {
+    const { data, error } = await getXrayAdminClient().rpc("assign_beltcon_rfid_tag_v1", {
+      p_bag_id: command.bagId,
+      p_rfid_tag_barcode: command.rfidTagBarcode,
+      p_epc: command.epc,
+      p_iata_lpc: command.iataLpc,
+      p_expected_version: command.expectedVersion,
+      p_actor_id: command.actorId,
+      p_canonical_role: command.canonicalRole,
+      p_request_id: command.requestId,
+    });
+    if (error)
+      throw new TaggingPersistenceError("RFID tag assignment transaction failed", { cause: error });
+    const parsed = assignmentResultSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new TaggingPersistenceError("RFID tag assignment transaction returned invalid data", {
+        cause: parsed.error,
+      });
+    }
+    if (parsed.data.status === "ASSIGNED") {
+      const bag = mapTaggingBag(parsed.data.bag);
+      if (bag.status !== "TAGGED" || !bag.epc || !bag.rfidTagBarcode || !bag.taggedAt) {
+        throw new TaggingPersistenceError(
+          "RFID tag assignment did not return a durably tagged bag",
+        );
+      }
+      return { status: "ASSIGNED", bag };
+    }
     return parsed.data;
   },
 };

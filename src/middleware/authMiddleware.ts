@@ -1,8 +1,8 @@
 import { createMiddleware } from "@tanstack/react-start";
 
-import { permissionForPath } from "@/auth/permissions";
+import { permissionForPath, permissionRuleForPath } from "@/auth/permissions";
 import { blocksOperationalApi, passwordChangeRedirect } from "@/auth/passwordChangePolicy";
-import { requirePermission } from "@/services/authorization/permissionAuthorization.server";
+import { requireAnyPermission } from "@/services/authorization/permissionAuthorization.server";
 import { handleAuthRequest, getSessionFromRequest } from "@/services/authRepository.server";
 import { recordAccessDenied } from "@/services/securityAudit.server";
 
@@ -59,9 +59,10 @@ export const authMiddleware = createMiddleware().server(async ({ request, next }
   }
 
   if (session && !isPublicAuthRoute && url.pathname !== "/access-denied") {
+    const routeRule = permissionRuleForPath(url.pathname);
     const requiredPermission = permissionForPath(url.pathname);
     try {
-      await requirePermission(session, requiredPermission);
+      await requireAnyPermission(session, routeRule.anyOf);
     } catch (permissionError) {
       try {
         await recordAccessDenied({

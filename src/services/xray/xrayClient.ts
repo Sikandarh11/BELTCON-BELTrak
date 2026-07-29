@@ -1,3 +1,7 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { auditKeys, hbssKeys, recheckKeys } from "@/lib/queryKeys";
+import { BELTCON_QUERY_STALE_TIME } from "@/lib/queryPolicy";
 import type { XrayScanSelection } from "@/types/xray";
 
 export interface HbssHealth {
@@ -102,4 +106,28 @@ export async function getHbssHealth(): Promise<HbssHealth> {
   }
 
   return body as HbssHealth;
+}
+
+export function useXrayForBag(bagId: string | null, viewSessionId: string | undefined) {
+  return useQuery({
+    queryKey: hbssKeys.xraySelection(bagId ?? ""),
+    queryFn: () => getXrayForBag(bagId ?? "", viewSessionId),
+    enabled: Boolean(bagId),
+    staleTime: BELTCON_QUERY_STALE_TIME.activeOperationalQueue,
+  });
+}
+
+export function useRefreshXrayForBag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ bagId, viewSessionId }: { bagId: string; viewSessionId: string }) =>
+      refreshXrayForBag(bagId, viewSessionId),
+    onSuccess: async (_result, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: hbssKeys.xraySelection(variables.bagId) }),
+        queryClient.invalidateQueries({ queryKey: recheckKeys.caseByBag(variables.bagId) }),
+        queryClient.invalidateQueries({ queryKey: auditKeys.all }),
+      ]);
+    },
+  });
 }

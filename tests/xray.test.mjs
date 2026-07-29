@@ -38,9 +38,6 @@ const [
   hbssSchemasModule,
   auditRepositoryModule,
   emptyStateModule,
-  storeModule,
-  bagServiceModule,
-  persistenceModule,
   selectionModule,
   viewerNavigationModule,
 ] = await Promise.all([
@@ -56,9 +53,6 @@ const [
   vite.ssrLoadModule("/src/services/integrations/hbss/hbssSchemas.ts"),
   vite.ssrLoadModule("/src/services/xray/xrayViewAuditRepository.server.ts"),
   vite.ssrLoadModule("/src/components/xray/XrayEmptyState.tsx"),
-  vite.ssrLoadModule("/src/store/appStore.ts"),
-  vite.ssrLoadModule("/src/services/bagService.ts"),
-  vite.ssrLoadModule("/src/services/persistenceService.ts"),
   vite.ssrLoadModule("/src/services/xray/xrayScanSelection.ts"),
   vite.ssrLoadModule("/src/components/xray/xrayViewerNavigation.ts"),
 ]);
@@ -79,9 +73,6 @@ const { screeningEventV1Schema } = screeningModule;
 const { hbssScanResultSchema } = hbssSchemasModule;
 const { createXrayViewAuditRepository } = auditRepositoryModule;
 const { XrayEmptyState } = emptyStateModule;
-const { useAppStore } = storeModule;
-const { bagService } = bagServiceModule;
-const { persistenceService } = persistenceModule;
 const { isUsableXrayScan, scanForDisplay, selectXrayScans, shouldStoreAsSeparateAttempt } =
   selectionModule;
 const {
@@ -562,76 +553,18 @@ test("X-ray unavailable state explicitly preserves manual resolution", () => {
   assert.match(html, /existing resolution actions below/);
 });
 
-test("existing bag lifecycle remains IDENTIFIED through RESOLVED", async () => {
-  const originalState = useAppStore.getState();
-  const persistenceMethods = [
-    "updateBag",
-    "insertEvent",
-    "insertAlarm",
-    "updateAlarm",
-    "insertResolution",
-  ];
-  const originalPersistence = Object.fromEntries(
-    persistenceMethods.map((method) => [method, persistenceService[method]]),
+test("X-ray support does not restore browser-owned bag lifecycle state", async () => {
+  const [storeSource, persistenceSource, bagServiceSource] = await Promise.all(
+    [
+      "src/store/appStore.ts",
+      "src/services/persistenceService.ts",
+      "src/services/bagService.ts",
+    ].map((file) => readFile(path.join(repositoryRoot, file), "utf8")),
   );
-  for (const method of persistenceMethods) {
-    persistenceService[method] = async () => undefined;
-  }
 
-  try {
-    useAppStore.setState({
-      bags: [
-        {
-          id: "ETB-LIFECYCLE",
-          sourceSystem: "SIMULATED_HBSS",
-          bhsUid: "BHS-LIFECYCLE",
-          iataCode: "0012345678",
-          epc: "E28068940000501A2B3C4D5E",
-          flightNo: "SV100",
-          status: "IDENTIFIED",
-          flaggedAt: "2026-07-24T10:00:00.000Z",
-        },
-      ],
-      alarms: [],
-      events: [],
-      resolutions: [],
-      auditLog: [],
-    });
-
-    const statuses = [useAppStore.getState().bags[0].status];
-    useAppStore.getState().updateBag("ETB-LIFECYCLE", {
-      status: "TAGGED",
-      taggedAt: "2026-07-24T10:01:00.000Z",
-    });
-    statuses.push(useAppStore.getState().bags[0].status);
-
-    await bagService.registerRead("ETB-LIFECYCLE", "ARRIVALS_HALL", "READER-01");
-    statuses.push(useAppStore.getState().bags[0].status);
-    await bagService.registerRead("ETB-LIFECYCLE", "CUSTOMS_EXIT", "READER-02");
-    statuses.push(useAppStore.getState().bags[0].status);
-    await bagService.sendToRecheck("ETB-LIFECYCLE", "Officer One");
-    statuses.push(useAppStore.getState().bags[0].status);
-    await bagService.resolve("ETB-LIFECYCLE", {
-      action: "CLEARED",
-      officer: "Officer One",
-      notes: "Manual inspection complete",
-    });
-    statuses.push(useAppStore.getState().bags[0].status);
-
-    assert.deepEqual(statuses, [
-      "IDENTIFIED",
-      "TAGGED",
-      "IN_TRANSIT",
-      "ALARMED",
-      "AT_RECHECK",
-      "RESOLVED",
-    ]);
-  } finally {
-    for (const method of persistenceMethods) {
-      persistenceService[method] = originalPersistence[method];
-    }
-    useAppStore.setState(originalState, true);
-  }
+  assert.doesNotMatch(storeSource, /bags:|alarms:|events:|resolutions:/);
+  assert.doesNotMatch(persistenceSource, /supabase\.from\(/);
+  assert.match(bagServiceSource, /Browser bag lifecycle authority was removed/);
 });
 
 test("repository maps snake_case rows to the X-ray domain model", () => {

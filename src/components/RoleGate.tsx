@@ -6,7 +6,7 @@ import {
   roleIsAtLeast,
   type CanonicalRole,
 } from "@/auth/canonicalRoles";
-import { hasPermission, permissionForPath } from "@/auth/permissions";
+import { hasPermission, hasRoutePermission, permissionRuleForPath } from "@/auth/permissions";
 import type { PermissionCode } from "@/services/admin/roles/roleSchemas";
 
 interface RoleGateProps {
@@ -95,14 +95,17 @@ export function PermissionPageGate({
   userPermissions: readonly string[] | null | undefined;
   children: ReactNode;
 }) {
-  const requiredPermission = permissionForPath(pathname);
-  return (
-    <PermissionGate
-      userPermissions={userPermissions}
-      requiredPermission={requiredPermission}
-      pageName={pathname}
-    >
-      {children}
-    </PermissionGate>
-  );
+  const rule = permissionRuleForPath(pathname);
+  if (!hasRoutePermission(userPermissions, pathname)) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <ShieldAlert className="size-10 text-muted-foreground mb-4" />
+        <div className="text-lg font-semibold">Access Denied</div>
+        <div className="text-[13px] text-muted-foreground mt-1 max-w-sm">
+          This page requires {rule.anyOf.join(" or ")}.
+        </div>
+      </div>
+    );
+  }
+  return <>{children}</>;
 }

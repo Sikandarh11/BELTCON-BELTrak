@@ -7,9 +7,11 @@ export interface TaggingBag {
   id: string;
   sourceSystem: string;
   bhsUid: string;
+  bhsLineId: string | null;
+  screeningEvaluation: string | null;
   iataCode: string | null;
   iataOrigin: string | null;
-  flightNo: string;
+  flightNo: string | null;
   passengerName: string | null;
   threatType: string | null;
   threatLevel: number | null;
@@ -19,6 +21,8 @@ export interface TaggingBag {
   flaggedAt: string;
   taggedAt: string | null;
   epc: string | null;
+  rfidTagBarcode: string | null;
+  version: number;
   xrayStatus: TaggingXrayStatus;
   xrayViewCount: number;
   rfidState: "NOT_ENCODED" | "ENCODED";
@@ -30,5 +34,16 @@ export interface PendingTaggingResponse {
 }
 
 export interface EncodeTagResponse {
+  bag: TaggingBag;
+}
+
+export interface AssignRfidTagRequest {
+  rfidTagBarcode: string;
+  epc: string;
+  iataLpc?: string;
+  expectedVersion: number;
+}
+
+export interface AssignRfidTagResponse {
   bag: TaggingBag;
 }

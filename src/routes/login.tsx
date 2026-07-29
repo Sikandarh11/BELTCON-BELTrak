@@ -8,7 +8,10 @@ import {
   LockKeyhole,
   PlaneLanding,
 } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { z } from "zod";
 
 import {
   FOCUS_MODE_KEY,
@@ -20,7 +23,7 @@ import {
   WorkspaceModeSelector,
   type WorkspaceModeSelectorHandle,
 } from "@/components/WorkspaceModeSelector";
-import { AUTH_SESSION_KEY, login, type LoginInput, AuthApiError } from "@/services/authService";
+import { AUTH_SESSION_KEY, login, loginSchema, AuthApiError } from "@/services/authService";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Login · BELTrak" }] }),
@@ -31,13 +34,18 @@ function LoginPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const workspaceModeSelectorRef = useRef<WorkspaceModeSelectorHandle>(null);
-  const [form, setForm] = useState<Omit<LoginInput, "workspaceMode">>({
-    email: "",
-    password: "",
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError: setFieldError,
+    formState: { errors, isSubmitting },
+  } = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
   });
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("Admin");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setWorkspaceMode(getLastMode("Admin"));
@@ -48,10 +56,8 @@ function LoginPage() {
     }
   }, []);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submit(form: z.infer<typeof loginSchema>) {
     setError(null);
-    setLoading(true);
 
     try {
       const session = await login({ ...form, workspaceMode });
@@ -65,11 +71,18 @@ function LoginPage() {
     } catch (submissionError) {
       if (submissionError instanceof AuthApiError) {
         setError(submissionError.message);
+        for (const [field, message] of Object.entries(submissionError.fieldErrors ?? {})) {
+          if (field === "email" || field === "password") {
+            setFieldError(field, { type: "server", message });
+          }
+        }
       } else {
         setError("Unable to authenticate. Please try again.");
       }
     } finally {
-      setLoading(false);
+      // Passwords remain only inside react-hook-form state and are cleared
+      // after every attempt; retain email solely to make retry practical.
+      reset((current) => ({ ...current, password: "" }));
     }
   }
 
@@ -157,7 +170,7 @@ function LoginPage() {
               </div>
             ) : null}
 
-            <form className="space-y-4" onSubmit={handleSubmit}>
+            <form className="space-y-4" onSubmit={handleSubmit(submit)} noValidate>
               <WorkspaceModeSelector
                 ref={workspaceModeSelectorRef}
                 workspaceLabel="Continue as"
@@ -169,15 +182,15 @@ function LoginPage() {
                 <span className="text-sm text-slate-700">Email</span>
                 <input
                   type="email"
-                  required
-                  value={form.email}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, email: event.target.value }))
-                  }
+                  {...register("email")}
+                  aria-invalid={Boolean(errors.email)}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
                   placeholder="name@ops.local"
                   autoComplete="email"
                 />
+                {errors.email ? (
+                  <span className="text-xs text-red-700">{errors.email.message}</span>
+                ) : null}
               </label>
 
               <label className="block space-y-2">
@@ -192,23 +205,23 @@ function LoginPage() {
                 </span>
                 <input
                   type="password"
-                  required
-                  value={form.password}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, password: event.target.value }))
-                  }
+                  {...register("password")}
+                  aria-invalid={Boolean(errors.password)}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
                   placeholder="Enter your password"
                   autoComplete="current-password"
                 />
+                {errors.password ? (
+                  <span className="text-xs text-red-700">{errors.password.message}</span>
+                ) : null}
               </label>
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isSubmitting}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loading ? "Signing in..." : "Secure sign in"}
+                {isSubmitting ? "Signing in..." : "Secure sign in"}
                 <ArrowRight className="size-4" />
               </button>
             </form>

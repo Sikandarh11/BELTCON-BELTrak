@@ -1,197 +1,21 @@
-import type { Bag, BagStatus, ResolutionAction, RfidEvent } from "@/types";
-import { useAppStore } from "@/store/appStore";
-import { alarmService } from "@/services/alarmService";
 import { encodeBagTag } from "@/services/bags/taggingClient";
 
-export type FlagSuspectInput = {
-  id: string;
-  bhsUid?: string;
-  flightNo: string;
-  iataOrigin?: string;
-  passengerName?: string;
-  threatType?: string;
-  notes?: string;
-};
-
-export type ResolutionInput = {
-  action: ResolutionAction;
-  officer: string;
-  notes?: string;
-};
-
-const EXIT_ZONES = ["CUSTOMS_EXIT", "EMPLOYEE_EXIT", "EMERGENCY_DOOR"];
-let eventCounter = 10_000;
-let resolutionCounter = 1_000;
-
-function getBag(bagId: string) {
-  const bag = useAppStore.getState().bags.find((candidate) => candidate.id === bagId);
-  if (!bag) throw new Error(`Bag ${bagId} not found`);
-  return bag;
-}
-
-async function updateLifecycle(
-  bagId: string,
-  status: BagStatus,
-  patch: Partial<Bag> = {},
-): Promise<Bag> {
-  await useAppStore.getState().updateBag(bagId, { ...patch, status });
-  return getBag(bagId);
-}
-
-function isExitZone(zone: string) {
-  return EXIT_ZONES.some((exitZone) => zone.includes(exitZone));
+/**
+ * @deprecated This compatibility facade deliberately exposes no browser
+ * lifecycle authority.  New code must use domain hooks and server APIs.
+ */
+function removed(): never {
+  throw new Error(
+    "Browser bag lifecycle authority was removed. Use an authenticated server mutation.",
+  );
 }
 
 export const bagService = {
-  async flagSuspect(input: FlagSuspectInput): Promise<Bag> {
-    const id = input.id.trim().toUpperCase();
-    const store = useAppStore.getState();
-    if (!id) throw new Error("Bag ID is required");
-    if (store.bags.some((bag) => bag.id.toUpperCase() === id)) {
-      throw new Error(`Bag ${id} already exists`);
-    }
-
-    const bag: Bag = {
-      id,
-      bhsUid: input.bhsUid?.trim() || undefined,
-      flightNo: input.flightNo.trim().toUpperCase(),
-      iataOrigin: input.iataOrigin?.trim().toUpperCase() || undefined,
-      passengerName: input.passengerName?.trim() || undefined,
-      threatType: input.threatType?.trim() || "Suspect Bag",
-      status: "IDENTIFIED",
-      flaggedAt: new Date().toISOString(),
-      lastSeenZone: "TAGGING_STATION",
-      notes: input.notes?.trim() || undefined,
-    };
-
-    store.upsertBag(bag);
-    store.addAuditEntry({
-      action: "BAG_FLAGGED",
-      userId: "system",
-      userName: "BHS Adaptor",
-      detail: `BHS flagged suspect ${bag.id}`,
-    });
-    return bag;
+  async encodeTag(bagId: string, epc: string) {
+    return await encodeBagTag(bagId, epc);
   },
-
-  async encodeTag(bagId: string, epc: string): Promise<Bag> {
-    const taggedBag = await encodeBagTag(bagId, epc);
-    return {
-      id: taggedBag.id,
-      sourceSystem: taggedBag.sourceSystem,
-      bhsUid: taggedBag.bhsUid,
-      iataCode: taggedBag.iataCode ?? undefined,
-      iataOrigin: taggedBag.iataOrigin ?? undefined,
-      epc: taggedBag.epc ?? undefined,
-      flightNo: taggedBag.flightNo,
-      passengerName: taggedBag.passengerName ?? undefined,
-      threatType: taggedBag.threatType ?? undefined,
-      threatLevel: taggedBag.threatLevel ?? undefined,
-      screeningStation: taggedBag.screeningStation ?? undefined,
-      screenedAt: taggedBag.screenedAt ?? undefined,
-      status: taggedBag.status,
-      flaggedAt: taggedBag.flaggedAt,
-      taggedAt: taggedBag.taggedAt ?? undefined,
-      lastSeenZone: "TAGGING_STATION",
-      updatedAt: taggedBag.updatedAt ?? undefined,
-    };
-  },
-
-  async registerRead(bagId: string, zone: string, readerId: string): Promise<void> {
-    const store = useAppStore.getState();
-    const bag = getBag(bagId);
-    if (!bag.epc) throw new Error(`Tag ${bag.id} at Tagging Station first`);
-
-    const seenAt = new Date().toISOString();
-    const event: RfidEvent = {
-      id: `ev-${Date.now()}-${++eventCounter}`,
-      epc: bag.epc,
-      readerId,
-      zone,
-      eventType: isExitZone(zone) ? "EXIT_PORTAL_READ" : "RFID_READ",
-      firstSeen: seenAt,
-      lastSeen: seenAt,
-      readCount: 1,
-      rssi: -42,
-    };
-    store.addEvent(event);
-
-    if (isExitZone(zone) && (bag.status === "TAGGED" || bag.status === "IN_TRANSIT")) {
-      const alarm = alarmService.open({ bagId, zone, severity: "high" });
-      await updateLifecycle(bagId, "ALARMED", {
-        alarmId: alarm.id,
-        lastSeenAt: seenAt,
-        lastSeenZone: zone,
-      });
-      return;
-    }
-
-    if (bag.status === "TAGGED") {
-      await updateLifecycle(bagId, "IN_TRANSIT", {
-        lastSeenAt: seenAt,
-        lastSeenZone: zone,
-      });
-      return;
-    }
-
-    await useAppStore.getState().updateBag(bagId, {
-      lastSeenAt: seenAt,
-      lastSeenZone: zone,
-    });
-  },
-
-  async sendToRecheck(bagId: string, officer: string): Promise<void> {
-    const bag = getBag(bagId);
-    if (bag.status !== "ALARMED") {
-      throw new Error(`${bag.id} must be ALARMED before it can be sent to recheck`);
-    }
-
-    await updateLifecycle(bagId, "AT_RECHECK", {
-      lastSeenAt: new Date().toISOString(),
-      lastSeenZone: "HBSS_RECHECK",
-    });
-    useAppStore.getState().addAuditEntry({
-      action: "BAG_SENT_TO_RECHECK",
-      userId: officer,
-      userName: officer,
-      detail: `Bag ${bag.id} routed to secondary inspection`,
-    });
-  },
-
-  async resolve(bagId: string, resolution: ResolutionInput): Promise<void> {
-    const store = useAppStore.getState();
-    const bag = getBag(bagId);
-    if (bag.status !== "AT_RECHECK") {
-      throw new Error(`${bag.id} must be AT_RECHECK before it can be resolved`);
-    }
-
-    const alarm =
-      store.alarms.find((candidate) => candidate.id === bag.alarmId) ??
-      store.alarms.find(
-        (candidate) =>
-          candidate.bagId === bagId &&
-          ["OPEN", "UNDER_INVESTIGATION", "ESCALATED"].includes(candidate.outcome),
-      );
-    if (alarm) {
-      alarmService.close(alarm.id, resolution.action, resolution.officer);
-    }
-
-    store.addResolution({
-      id: `res-${Date.now()}-${++resolutionCounter}`,
-      bagId,
-      officerId: resolution.officer,
-      action: resolution.action,
-      resolvedAt: new Date().toISOString(),
-    });
-    await updateLifecycle(bagId, "RESOLVED", {
-      notes: resolution.notes?.trim() || bag.notes,
-      lastSeenAt: new Date().toISOString(),
-    });
-    store.addAuditEntry({
-      action: "BAG_RESOLVED",
-      userId: resolution.officer,
-      userName: resolution.officer,
-      detail: `Bag ${bag.id} resolved: ${resolution.action}`,
-    });
-  },
+  flagSuspect: async (_input: unknown) => removed(),
+  registerRead: async (_bagId: string, _zone: string, _readerId: string) => removed(),
+  sendToRecheck: async (_bagId: string, _officer: string) => removed(),
+  resolve: async (_bagId: string, _input: unknown) => removed(),
 };

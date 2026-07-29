@@ -23,21 +23,15 @@ test.after(async () => {
   await vite.close();
 });
 
-const [modelModule, apiModule, repositoryModule, storeModule, bagServiceModule] = await Promise.all(
-  [
-    vite.ssrLoadModule("/src/types/rfid.ts"),
-    vite.ssrLoadModule("/src/services/bags/rfidTrackableApi.server.ts"),
-    vite.ssrLoadModule("/src/services/bags/rfidTrackableRepository.server.ts"),
-    vite.ssrLoadModule("/src/store/appStore.ts"),
-    vite.ssrLoadModule("/src/services/bagService.ts"),
-  ],
-);
+const [modelModule, apiModule, repositoryModule] = await Promise.all([
+  vite.ssrLoadModule("/src/types/rfid.ts"),
+  vite.ssrLoadModule("/src/services/bags/rfidTrackableApi.server.ts"),
+  vite.ssrLoadModule("/src/services/bags/rfidTrackableRepository.server.ts"),
+]);
 
 const { isRfidTrackableBag, matchesRfidBagSearch, RFID_MOVEMENT_STATUSES } = modelModule;
 const { handleRfidTrackableBagsRequest } = apiModule;
 const { mapRfidTrackableBag } = repositoryModule;
-const { useAppStore } = storeModule;
-const { bagService } = bagServiceModule;
 
 function createBag(overrides = {}) {
   return {
@@ -169,40 +163,33 @@ test("RFID-trackable query requires a canonical Operations Officer or higher", a
   assert.equal(unknownRole.status, 403);
 });
 
-test("simulator and Tagging wire the authoritative query and refresh triggers", () => {
+test("simulator and Tagging wire authoritative server queries and refresh triggers", () => {
   const simulatorSource = readFileSync(
     path.join(repositoryRoot, "src/features/simulator/SimulatorPanel.tsx"),
     "utf8",
   );
   const taggingSource = readFileSync(path.join(repositoryRoot, "src/routes/tagging.tsx"), "utf8");
 
-  assert.match(
-    simulatorSource,
-    /const activeBags = useMemo\(\(\) => activeBagsQuery\.data \?\? \[\]/,
-  );
+  assert.match(simulatorSource, /useRfidTrackableBags\(\)/);
+  assert.match(simulatorSource, /useReaderAntennaMap\(\)/);
+  assert.match(simulatorSource, /useSubmitSimulatedRfidRead\(\)/);
   assert.doesNotMatch(
     simulatorSource,
     /const activeBags = bags\.filter\(\(bag\) => bag\.status === "TAGGED"/,
   );
-  assert.match(simulatorSource, /refetchOnMount: "always"/);
-  assert.match(simulatorSource, /Refresh bags/);
-  assert.match(simulatorSource, /handleZoneRead[\s\S]*?await refreshActiveBags\(\)/);
-  assert.match(simulatorSource, /handleAutoJourney[\s\S]*?await activeBagsQuery\.refetch\(\)/);
+  assert.match(simulatorSource, /Refresh data/);
+  assert.doesNotMatch(simulatorSource, /useAppStore|eventService|bagService|alarmService/);
   assert.match(taggingSource, /RFID_TRACKABLE_BAGS_QUERY_KEY[\s\S]*?refetchType: "all"/);
 });
 
-test("existing RFID lifecycle still moves TAGGED to IN_TRANSIT and then ALARMED", async () => {
-  const bag = createBag({ id: "ETB-LIFECYCLE-001", epc: "EPC-LIFECYCLE-001" });
-  useAppStore.setState({
-    bags: [bag],
-    alarms: [],
-    events: [],
-  });
+test("browser legacy lifecycle authority is removed while the server RFID pipeline remains authoritative", () => {
+  const serviceSource = readFileSync(
+    path.join(repositoryRoot, "src/services/bagService.ts"),
+    "utf8",
+  );
+  const storeSource = readFileSync(path.join(repositoryRoot, "src/store/appStore.ts"), "utf8");
 
-  await bagService.registerRead(bag.id, "ARRIVAL_HALL", "RDR-004");
-  assert.equal(useAppStore.getState().bags[0].status, "IN_TRANSIT");
-
-  await bagService.registerRead(bag.id, "CUSTOMS_EXIT_GATE_1", "RDR-021");
-  assert.equal(useAppStore.getState().bags[0].status, "ALARMED");
-  assert.equal(useAppStore.getState().alarms[0].bagId, bag.id);
+  assert.doesNotMatch(serviceSource, /useAppStore|registerRead\(bagId/);
+  assert.match(serviceSource, /Browser bag lifecycle authority was removed/);
+  assert.doesNotMatch(storeSource, /bags:|alarms:|events:/);
 });

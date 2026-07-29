@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useBlocker } from "@tanstack/react-router";
 import { AlertTriangle, LoaderCircle, RefreshCw, Save, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ import {
   type RolesWithPermissions,
 } from "@/services/admin/roles/roleSchemas";
 import { AUTH_SESSION_KEY } from "@/services/authService";
+import { useAuthorizedMutation } from "@/hooks/useAuthorizedMutation";
 
 export const Route = createFileRoute("/settings/roles")({
   head: () => ({ meta: [{ title: "Manage Roles · BELTrak" }] }),
@@ -108,7 +109,7 @@ function ManageRoles() {
     }
   }, [blocker]);
 
-  const saveMutation = useMutation({
+  const saveMutation = useAuthorizedMutation({
     mutationFn: async ({
       roles,
       changeReason,

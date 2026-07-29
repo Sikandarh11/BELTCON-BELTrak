@@ -1,7 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Mail } from "lucide-react";
-import { useState, type FormEvent } from "react";
-import { forgotPassword } from "@/services/authService";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { z } from "zod";
+
+import { forgotPassword, forgotPasswordSchema } from "@/services/authService";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({ meta: [{ title: "Forgot Password · BELTrak" }] }),
@@ -9,21 +13,26 @@ export const Route = createFileRoute("/forgot-password")({
 });
 
 function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<z.infer<typeof forgotPasswordSchema>>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: "" },
+  });
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submit(input: z.infer<typeof forgotPasswordSchema>) {
     setMessage(null);
-    setLoading(true);
     try {
-      await forgotPassword(email);
+      await forgotPassword(input);
       setMessage("If an account exists for this email, a password reset link has been sent.");
     } catch {
       setMessage("If an account exists for this email, a password reset link has been sent.");
     } finally {
-      setLoading(false);
+      reset();
     }
   }
 
@@ -40,25 +49,27 @@ function ForgotPasswordPage() {
 
         {message ? <div className="mb-4 text-sm text-slate-700">{message}</div> : null}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
           <label className="block">
             <span className="text-sm text-slate-700">Email</span>
             <input
               type="email"
-              required
               autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              {...register("email")}
+              aria-invalid={Boolean(errors.email)}
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400"
             />
+            {errors.email ? (
+              <span className="mt-1 block text-xs text-red-700">{errors.email.message}</span>
+            ) : null}
           </label>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="w-full rounded-2xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60"
           >
-            {loading ? "Sending..." : "Send reset link"}
+            {isSubmitting ? "Sending..." : "Send reset link"}
           </button>
         </form>
 

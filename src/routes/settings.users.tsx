@@ -1,5 +1,5 @@
 import { useDeferredValue, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -23,9 +23,11 @@ import {
 import { toast } from "sonner";
 
 import { useSession } from "@/auth/SessionContext";
-import { CANONICAL_ROLES, roleIsAtLeast } from "@/auth/canonicalRoles";
+import { CANONICAL_ROLES } from "@/auth/canonicalRoles";
+import { hasPermission } from "@/auth/permissions";
 import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
-import { RoleGate } from "@/components/RoleGate";
+import { PermissionGate } from "@/components/RoleGate";
+import { useAuthorizedMutation } from "@/hooks/useAuthorizedMutation";
 import {
   CreateUserDialog,
   EditUserDialog,
@@ -256,7 +258,6 @@ function ManageUsers() {
   const [syncStatus, setSyncStatus] = useState<AdminUserSyncStatus | "ALL">("ALL");
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
-  const [createPending, setCreatePending] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [editTarget, setEditTarget] = useState<AdminUser | null>(null);
   const [repairTarget, setRepairTarget] = useState<AdminUser | null>(null);
@@ -277,7 +278,7 @@ function ManageUsers() {
   const usersQuery = useQuery({
     queryKey: adminUsersQueryKey(filters),
     queryFn: () => listAdminUsers(filters),
-    enabled: roleIsAtLeast(session.role, "Airport Administrator"),
+    enabled: hasPermission(session.permissions, "user.view"),
     placeholderData: (previous) => previous,
     staleTime: 30_000,
   });
@@ -286,21 +287,23 @@ function ManageUsers() {
     await queryClient.invalidateQueries({ queryKey: ADMIN_USERS_QUERY_KEY });
   }
 
-  async function handleCreateUser(input: CreateAdminUserRequest) {
-    setCreatePending(true);
-    try {
-      const user = await createAdminUser(input);
+  const createMutation = useAuthorizedMutation({
+    mutationFn: (input: CreateAdminUserRequest) => createAdminUser(input),
+    onSuccess: async (user) => {
       setShowCreate(false);
-      toast.success(`BELTrak user created for ${user.email}`);
+      toast.success(`BELTCON user created for ${user.email}`);
       await refreshUsers();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to create user");
-    } finally {
-      setCreatePending(false);
-    }
+    },
+    onError: (error) => {
+      toast.error(error.message || "Unable to create user");
+    },
+  });
+
+  function handleCreateUser(input: CreateAdminUserRequest) {
+    createMutation.mutate(input);
   }
 
-  const inviteMutation = useMutation({
+  const inviteMutation = useAuthorizedMutation({
     mutationFn: inviteAdminUser,
     onSuccess: async (invitation) => {
       setShowInvite(false);
@@ -319,7 +322,7 @@ function ManageUsers() {
     },
   });
 
-  const editMutation = useMutation({
+  const editMutation = useAuthorizedMutation({
     mutationFn: ({ userId, input }: { userId: string; input: EditAdminUserRequest }) =>
       editAdminUser(userId, input),
     onSuccess: async (user) => {
@@ -332,7 +335,7 @@ function ManageUsers() {
     },
   });
 
-  const repairMutation = useMutation({
+  const repairMutation = useAuthorizedMutation({
     mutationFn: ({ userId, input }: { userId: string; input: RepairAdminProfileRequest }) =>
       repairAdminUserProfile(userId, input),
     onSuccess: async (user) => {
@@ -345,7 +348,7 @@ function ManageUsers() {
     },
   });
 
-  const actionMutation = useMutation({
+  const actionMutation = useAuthorizedMutation({
     mutationFn: ({ userId, input }: { userId: string; input: AdminUserActionRequest }) =>
       performAdminUserAction(userId, input),
     onSuccess: async (result) => {
@@ -365,6 +368,8 @@ function ManageUsers() {
   const result = usersQuery.data;
   const totalPages = Math.max(1, result?.pagination.totalPages ?? 1);
   const isSystemAdministrator = session.role === "System Administrator";
+  const canCreate = hasPermission(session.permissions, "user.create");
+  const canEdit = hasPermission(session.permissions, "user.update");
   const assignableRoles = isSystemAdministrator
     ? CANONICAL_ROLES
     : CANONICAL_ROLES.filter((candidate) => candidate !== "System Administrator");
@@ -379,7 +384,11 @@ function ManageUsers() {
   }
 
   return (
-    <RoleGate userRole={session.role} requiredRole="System Administrator" pageName="Manage Users">
+    <PermissionGate
+      userPermissions={session.permissions}
+      requiredPermission="user.view"
+      pageName="Manage Users"
+    >
       <div className="p-6">
         <PageHeader
           title="Manage Users"
@@ -390,7 +399,7 @@ function ManageUsers() {
           }
           actions={
             <div className="flex flex-wrap gap-2">
-              {isSystemAdministrator && (
+              {canCreate && (
                 <>
                   <button
                     type="button"
@@ -652,9 +661,9 @@ function ManageUsers() {
 
       {showCreate && (
         <CreateUserDialog
-          pending={createPending}
+          pending={createMutation.isPending}
           onClose={closeCreate}
-          onSubmit={(input: CreateAdminUserRequest) => void handleCreateUser(input)}
+          onSubmit={handleCreateUser}
         />
       )}
 
@@ -671,7 +680,7 @@ function ManageUsers() {
           key={`${editTarget.id}:${editTarget.version}`}
           user={editTarget}
           assignableRoles={assignableRoles}
-          canEditActive={isSystemAdministrator}
+          canEditActive={canEdit && isSystemAdministrator}
           pending={editMutation.isPending}
           onClose={() => setEditTarget(null)}
           onSubmit={(input) => editMutation.mutate({ userId: editTarget.id, input })}
@@ -698,6 +707,6 @@ function ManageUsers() {
           onSubmit={(input) => actionMutation.mutate({ userId: actionTarget.user.id, input })}
         />
       )}
-    </RoleGate>
+    </PermissionGate>
   );
 }

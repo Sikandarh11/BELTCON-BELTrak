@@ -1,231 +1,34 @@
 import { create } from "zustand";
-import type { Bag, Alarm, RfidEvent, Resolution, Reader } from "@/types";
-import {
-  SEED_BAGS,
-  SEED_ALARMS,
-  SEED_EVENTS,
-  SEED_READERS,
-  USERS,
-  ESCALATIONS,
-  THREAT_TYPES,
-} from "@/mocks/seed";
-import { createMockAuditEntries } from "@/mocks/workspace";
-import { persistenceService } from "@/services/persistenceService";
 
-export interface AppUser {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: "Active" | "On Break" | "Inactive";
-  last: string;
+/**
+ * Local interface preferences only.  BELTCON SBTS operational records belong
+ * in authenticated server APIs and the TanStack Query cache, never this store.
+ */
+export type TableDensity = "compact" | "comfortable";
+export type MapLayer = "operations" | "zones" | "readers";
+
+interface UiPreferenceState {
+  sidebarCollapsed: boolean;
+  tableDensity: TableDensity;
+  selectedMapLayer: MapLayer;
+  simulatorPlaybackSpeed: number;
+  simulatorPanelTab: "screening" | "rfid";
+  setSidebarCollapsed: (sidebarCollapsed: boolean) => void;
+  setTableDensity: (tableDensity: TableDensity) => void;
+  setSelectedMapLayer: (selectedMapLayer: MapLayer) => void;
+  setSimulatorPlaybackSpeed: (simulatorPlaybackSpeed: number) => void;
+  setSimulatorPanelTab: (simulatorPanelTab: "screening" | "rfid") => void;
 }
 
-export interface EscalationRule {
-  id: string;
-  trigger: string;
-  role: string;
-  method: string;
-  sla: string;
-  enabled: boolean;
-}
-
-export interface AuditEntry {
-  id: string;
-  action: string;
-  userId: string;
-  userName: string;
-  detail: string;
-  timestamp: string;
-}
-
-interface AppState {
-  bags: Bag[];
-  alarms: Alarm[];
-  events: RfidEvent[];
-  resolutions: Resolution[];
-  readers: Reader[];
-  users: AppUser[];
-  escalationRules: EscalationRule[];
-  auditLog: AuditEntry[];
-  threatTypes: string[];
-  resetKey: number;
-  hydrated: boolean;
-
-  hydrate: () => Promise<void>;
-  mergeBagsFromServer: (bags: Bag[]) => void;
-  upsertBag: (bag: Bag) => void;
-  updateBag: (id: string, patch: Partial<Bag>) => Promise<void>;
-  addAlarm: (alarm: Alarm) => void;
-  updateAlarm: (id: string, patch: Partial<Alarm>) => void;
-  addEvent: (event: RfidEvent) => void;
-  updateEvent: (id: string, patch: Partial<RfidEvent>) => void;
-  addResolution: (resolution: Resolution) => void;
-  updateReader: (id: string, patch: Partial<Reader>) => void;
-  addUser: (user: AppUser) => void;
-  updateUser: (id: string, patch: Partial<AppUser>) => void;
-  deleteUser: (id: string) => void;
-  addEscalationRule: (rule: EscalationRule) => void;
-  updateEscalationRule: (id: string, patch: Partial<EscalationRule>) => void;
-  deleteEscalationRule: (id: string) => void;
-  addAuditEntry: (entry: Omit<AuditEntry, "id" | "timestamp">) => void;
-  setThreatTypes: (threatTypes: string[]) => void;
-  reset: () => void;
-}
-
-const INITIAL_STATE = {
-  bags: SEED_BAGS,
-  alarms: SEED_ALARMS,
-  events: SEED_EVENTS,
-  resolutions: [] as Resolution[],
-  readers: SEED_READERS,
-  users: USERS.map((u, i) => ({
-    id: `user-${i + 1}`,
-    name: u.name,
-    email: u.email,
-    role: u.role,
-    status: u.status as "Active" | "On Break" | "Inactive",
-    last: u.last,
-  })),
-  escalationRules: ESCALATIONS.map((e, i) => ({
-    id: `esc-${i + 1}`,
-    trigger: e.trigger,
-    role: e.role,
-    method: e.method,
-    sla: e.sla,
-    enabled: true,
-  })),
-  auditLog: createMockAuditEntries(),
-  threatTypes: [...THREAT_TYPES],
-  resetKey: 0,
-  hydrated: false,
-};
-
-export const useAppStore = create<AppState>((set) => ({
-  ...INITIAL_STATE,
-
-  hydrate: async () => {
-    try {
-      const data = await persistenceService.loadAll();
-      if (data.bags.length > 0 || data.readers.length > 0) {
-        set({
-          bags: data.bags.length > 0 ? data.bags : SEED_BAGS,
-          alarms: data.alarms,
-          events: data.events,
-          resolutions: data.resolutions,
-          readers: data.readers.length > 0 ? data.readers : SEED_READERS,
-          hydrated: true,
-        });
-      } else {
-        set({ hydrated: true });
-      }
-    } catch (err) {
-      console.warn("[store] Hydration failed, using seed data:", err);
-      set({ hydrated: true });
-    }
-  },
-
-  mergeBagsFromServer: (bags) =>
-    set((state) => {
-      const incoming = new Map(bags.map((bag) => [bag.id, bag]));
-      const merged = state.bags.map((bag) => incoming.get(bag.id) ?? bag);
-      const existingIds = new Set(state.bags.map((bag) => bag.id));
-      return {
-        bags: [...merged, ...bags.filter((bag) => !existingIds.has(bag.id))],
-      };
-    }),
-
-  upsertBag: (bag) =>
-    set((s) => {
-      const idx = s.bags.findIndex((b) => b.id === bag.id);
-      if (idx >= 0) {
-        const next = [...s.bags];
-        next[idx] = bag;
-        persistenceService.upsertBag(bag);
-        return { bags: next };
-      }
-      persistenceService.upsertBag(bag);
-      return { bags: [...s.bags, bag] };
-    }),
-
-  updateBag: async (id, patch) => {
-    set((state) => ({
-      bags: state.bags.map((bag) => (bag.id === id ? { ...bag, ...patch } : bag)),
-    }));
-    await persistenceService.updateBag(id, patch);
-  },
-
-  addAlarm: (alarm) =>
-    set((s) => {
-      persistenceService.insertAlarm(alarm);
-      return { alarms: [alarm, ...s.alarms] };
-    }),
-
-  updateAlarm: (id, patch) =>
-    set((s) => {
-      persistenceService.updateAlarm(id, patch);
-      return {
-        alarms: s.alarms.map((a) => (a.id === id ? { ...a, ...patch } : a)),
-      };
-    }),
-
-  addEvent: (event) =>
-    set((s) => {
-      persistenceService.insertEvent(event);
-      return { events: [event, ...s.events] };
-    }),
-
-  updateEvent: (id, patch) =>
-    set((s) => {
-      persistenceService.updateEvent(id, patch);
-      return {
-        events: s.events.map((e) => (e.id === id ? { ...e, ...patch } : e)),
-      };
-    }),
-
-  addResolution: (resolution) =>
-    set((s) => {
-      persistenceService.insertResolution(resolution);
-      return { resolutions: [resolution, ...s.resolutions] };
-    }),
-
-  updateReader: (id, patch) =>
-    set((s) => {
-      persistenceService.updateReader(id, patch);
-      return {
-        readers: s.readers.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-      };
-    }),
-
-  addUser: (user) => set((s) => ({ users: [...s.users, user] })),
-
-  updateUser: (id, patch) =>
-    set((s) => ({ users: s.users.map((u) => (u.id === id ? { ...u, ...patch } : u)) })),
-
-  deleteUser: (id) => set((s) => ({ users: s.users.filter((u) => u.id !== id) })),
-
-  addEscalationRule: (rule) => set((s) => ({ escalationRules: [...s.escalationRules, rule] })),
-
-  updateEscalationRule: (id, patch) =>
-    set((s) => ({
-      escalationRules: s.escalationRules.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-    })),
-
-  deleteEscalationRule: (id) =>
-    set((s) => ({ escalationRules: s.escalationRules.filter((r) => r.id !== id) })),
-
-  addAuditEntry: (entry) =>
-    set((s) => ({
-      auditLog: [
-        { ...entry, id: `audit-${Date.now()}`, timestamp: new Date().toISOString() },
-        ...s.auditLog,
-      ].slice(0, 500),
-    })),
-
-  setThreatTypes: (threatTypes) => set({ threatTypes }),
-
-  reset: () => {
-    persistenceService.resetAll();
-    set({ ...INITIAL_STATE, resetKey: Date.now() });
-  },
+export const useAppStore = create<UiPreferenceState>((set) => ({
+  sidebarCollapsed: false,
+  tableDensity: "comfortable",
+  selectedMapLayer: "operations",
+  simulatorPlaybackSpeed: 1,
+  simulatorPanelTab: "screening",
+  setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+  setTableDensity: (tableDensity) => set({ tableDensity }),
+  setSelectedMapLayer: (selectedMapLayer) => set({ selectedMapLayer }),
+  setSimulatorPlaybackSpeed: (simulatorPlaybackSpeed) => set({ simulatorPlaybackSpeed }),
+  setSimulatorPanelTab: (simulatorPanelTab) => set({ simulatorPanelTab }),
 }));

@@ -3,6 +3,7 @@ import "@tanstack/react-start/server-only";
 import type { TaggingBag } from "@/types/tagging";
 import {
   TaggingAlreadyEncodedError,
+  TagAssignmentConflictError,
   TaggingBagNotFoundError,
   TaggingDuplicateEpcError,
   TaggingValidationError,
@@ -10,6 +11,7 @@ import {
 import {
   taggingRepository,
   type EncodeTagCommand,
+  type AssignRfidTagCommand,
   type TaggingRepository,
 } from "./taggingRepository.server";
 
@@ -24,6 +26,13 @@ export interface EncodeTagInput {
 export interface TaggingService {
   listPendingTagging(): Promise<TaggingBag[]>;
   encodeTag(input: EncodeTagInput): Promise<TaggingBag>;
+  assignRfidTag(input: AssignRfidTagInput): Promise<TaggingBag>;
+}
+
+export interface AssignRfidTagInput extends EncodeTagInput {
+  rfidTagBarcode: string;
+  iataLpc?: string;
+  expectedVersion: number;
 }
 
 export function normalizeEpc(epcInput: string): string {
@@ -51,6 +60,22 @@ function normalizeBagId(bagIdInput: string): string {
     throw new TaggingValidationError("Bag ID is too long");
   }
   return bagId;
+}
+
+function normalizeBarcode(value: string): string {
+  const barcode = value.trim().toUpperCase();
+  if (!barcode || barcode.length > 128 || !/^[A-Z0-9][A-Z0-9._:/+-]*$/.test(barcode)) {
+    throw new TaggingValidationError("RFID tag barcode contains unsupported characters");
+  }
+  return barcode;
+}
+
+function normalizeIataLpc(value: string | undefined): string | null {
+  if (!value?.trim()) return null;
+  const lpc = value.trim();
+  if (!/^\d{10}$/.test(lpc))
+    throw new TaggingValidationError("IATA Licence Plate Code must be 10 numeric digits");
+  return lpc;
 }
 
 export function createTaggingService(
@@ -91,6 +116,57 @@ export function createTaggingService(
         case "DUPLICATE_EPC":
           throw new TaggingDuplicateEpcError(result.errorMessage);
       }
+    },
+
+    async assignRfidTag(input) {
+      const command: AssignRfidTagCommand = {
+        bagId: normalizeBagId(input.bagId),
+        epc: normalizeEpc(input.epc),
+        rfidTagBarcode: normalizeBarcode(input.rfidTagBarcode),
+        iataLpc: normalizeIataLpc(input.iataLpc),
+        expectedVersion: input.expectedVersion,
+        actorId: input.actorId,
+        canonicalRole: input.canonicalRole,
+        requestId: input.requestId?.trim() || null,
+      };
+      if (!Number.isInteger(command.expectedVersion) || command.expectedVersion < 1) {
+        throw new TaggingValidationError("Expected bag version is required");
+      }
+      const result = await repository.assignRfidTagAtomic(command);
+      if (result.status === "ASSIGNED") return result.bag;
+      if (result.status === "BAG_NOT_FOUND") throw new TaggingBagNotFoundError(result.errorMessage);
+      if (
+        result.status === "INVALID_BAG_ID" ||
+        result.status === "INVALID_EPC" ||
+        result.status === "INVALID_BARCODE" ||
+        result.status === "INVALID_LPC" ||
+        result.status === "INVALID_VERSION"
+      ) {
+        throw new TaggingValidationError(
+          result.errorMessage ?? "Invalid RFID tag assignment input",
+        );
+      }
+      const errors = {
+        BHS_UID_REQUIRED: [
+          "BHS BagID is required before RFID tag assignment",
+          "TAG_ASSIGNMENT_BHS_UID_REQUIRED",
+        ],
+        BAG_INELIGIBLE: [
+          "Bag is no longer eligible for RFID tag assignment",
+          "TAG_ASSIGNMENT_BAG_INELIGIBLE",
+        ],
+        DUPLICATE_EPC: ["EPC is already assigned to another bag", "TAG_ASSIGNMENT_EPC_CONFLICT"],
+        DUPLICATE_BARCODE: [
+          "RFID tag barcode is already assigned to another bag",
+          "TAG_ASSIGNMENT_BARCODE_CONFLICT",
+        ],
+        VERSION_CONFLICT: [
+          "Bag changed by another operator. Refresh and review it.",
+          "TAG_ASSIGNMENT_VERSION_CONFLICT",
+        ],
+      } as const;
+      const [message, code] = errors[result.status];
+      throw new TagAssignmentConflictError(result.errorMessage ?? message, code);
     },
   };
 }

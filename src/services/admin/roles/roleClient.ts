@@ -3,24 +3,24 @@ import type {
   RolesWithPermissions,
   UpdateRolePermissionsRequest,
 } from "./roleSchemas";
+import { roleKeys } from "@/lib/queryKeys";
+import { AppApiError, readApiResponse } from "@/services/api/appApiError";
 
-export const ADMIN_ROLE_PERMISSIONS_QUERY_KEY = ["admin", "roles", "permissions"] as const;
+export const ADMIN_ROLE_PERMISSIONS_QUERY_KEY = roleKeys.permissions();
 
-export class RolePermissionApiError extends Error {
+export class RolePermissionApiError extends AppApiError {
   readonly code: string;
-  readonly status: number;
 
   constructor(message: string, code: string, status: number) {
-    super(message);
+    super(message, status, { code });
     this.name = "RolePermissionApiError";
     this.code = code;
-    this.status = status;
   }
 }
 
 async function parseError(response: Response) {
   try {
-    const body = (await response.json()) as { error?: string; code?: string };
+    const body = (await response.json()) as { error?: string; code?: string; requestId?: string };
     return new RolePermissionApiError(
       body.error ?? "Role permission request failed",
       body.code ?? "ROLE_PERMISSION_REQUEST_FAILED",
@@ -41,7 +41,7 @@ export async function getRolesWithPermissions(): Promise<RolesWithPermissions> {
     headers: { accept: "application/json" },
   });
   if (!response.ok) throw await parseError(response);
-  return (await response.json()) as RolesWithPermissions;
+  return readApiResponse<RolesWithPermissions>(response, "Role permission request failed");
 }
 
 export async function updateRolePermissions(
@@ -55,6 +55,9 @@ export async function updateRolePermissions(
     body: JSON.stringify(input),
   });
   if (!response.ok) throw await parseError(response);
-  const body = (await response.json()) as { update: RolePermissionUpdateResult };
+  const body = await readApiResponse<{ update: RolePermissionUpdateResult }>(
+    response,
+    "Role permission request failed",
+  );
   return body.update;
 }

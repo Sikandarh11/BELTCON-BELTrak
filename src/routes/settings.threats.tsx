@@ -4,7 +4,7 @@ import { Plus, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useSession } from "@/auth/SessionContext";
-import { RoleGate } from "@/components/RoleGate";
+import { PermissionGate } from "@/components/RoleGate";
 
 export const Route = createFileRoute("/settings/threats")({
   head: () => ({ meta: [{ title: "Threat Types · BELTrak" }] }),
@@ -22,7 +22,7 @@ function Threats() {
   const [editDesc, setEditDesc] = useState("");
 
   return (
-    <RoleGate userRole={session.role} requiredRole="Airport Administrator" pageName="Threat Types">
+    <PermissionGate userPermissions={session.permissions} requiredPermission="settings.manage" pageName="Threat Types">
     <div className="p-6 max-w-5xl">
       <PageHeader
         title="Threat Types"
@@ -76,6 +76,6 @@ function Threats() {
         <strong>Design note:</strong> BELTrak deliberately avoids 5-tier threat severity. Every flagged bag is treated as a single, equal "Suspect Bag" — officers determine handling at the recheck station.
       </div>
     </div>
-    </RoleGate>
+    </PermissionGate>
   );
 }

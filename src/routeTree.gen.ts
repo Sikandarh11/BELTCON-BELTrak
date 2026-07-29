@@ -41,20 +41,44 @@ import { Route as DevDbRouteImport } from './routes/dev.db'
 import { Route as DevConsoleRouteImport } from './routes/dev.console'
 import { Route as DevApiRouteImport } from './routes/dev.api'
 import { Route as AuditLogsRouteImport } from './routes/audit.logs'
+import { Route as ApiReadersRouteImport } from './routes/api.readers'
+import { Route as ApiAlarmsRouteImport } from './routes/api.alarms'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as ApiReportsReportTypeRouteImport } from './routes/api.reports.$reportType'
+import { Route as ApiRecheckQueueRouteImport } from './routes/api.recheck.queue'
+import { Route as ApiRecheckBagIdRouteImport } from './routes/api.recheck.$bagId'
+import { Route as ApiReadersAntennaMapRouteImport } from './routes/api.readers.antenna-map'
+import { Route as ApiReadersReaderIdRouteImport } from './routes/api.readers.$readerId'
 import { Route as ApiBagsRfidTrackableRouteImport } from './routes/api.bags.rfid-trackable'
 import { Route as ApiBagsPendingTaggingRouteImport } from './routes/api.bags.pending-tagging'
+import { Route as ApiAuditEventsRouteImport } from './routes/api.audit.events'
+import { Route as ApiAlarmsAlarmIdRouteImport } from './routes/api.alarms.$alarmId'
 import { Route as ApiAdminUsersRouteImport } from './routes/api.admin.users'
 import { Route as ApiXrayBagsBagIdRouteImport } from './routes/api.xray.bags.$bagId'
+import { Route as ApiRecheckByTagTagBarcodeRouteImport } from './routes/api.recheck.by-tag.$tagBarcode'
+import { Route as ApiRecheckBagIdResolveRouteImport } from './routes/api.recheck.$bagId.resolve'
+import { Route as ApiRecheckBagIdHbssRecallRouteImport } from './routes/api.recheck.$bagId.hbss-recall'
 import { Route as ApiIntegrationsScreeningSuspectEventsRouteImport } from './routes/api.integrations.screening.suspect-events'
+import { Route as ApiIntegrationsRfidReadsRouteImport } from './routes/api.integrations.rfid.reads'
 import { Route as ApiIntegrationsHbssScansRouteImport } from './routes/api.integrations.hbss.scans'
 import { Route as ApiIntegrationsHbssHealthRouteImport } from './routes/api.integrations.hbss.health'
+import { Route as ApiIntegrationsBhsMessagesRouteImport } from './routes/api.integrations.bhs.messages'
 import { Route as ApiDevSimulatorSuspectEventsRouteImport } from './routes/api.dev.simulator.suspect-events'
 import { Route as ApiBagsBagIdEncodeTagRouteImport } from './routes/api.bags.$bagId.encode-tag'
+import { Route as ApiBagsBagIdAssignTagRouteImport } from './routes/api.bags.$bagId.assign-tag'
+import { Route as ApiAuditEventsAuditIdRouteImport } from './routes/api.audit.events.$auditId'
+import { Route as ApiAlarmsAlarmIdSendToRecheckRouteImport } from './routes/api.alarms.$alarmId.send-to-recheck'
+import { Route as ApiAlarmsAlarmIdEscalateRouteImport } from './routes/api.alarms.$alarmId.escalate'
+import { Route as ApiAlarmsAlarmIdAcknowledgeRouteImport } from './routes/api.alarms.$alarmId.acknowledge'
 import { Route as ApiAdminUsersInvitationsRouteImport } from './routes/api.admin.users.invitations'
 import { Route as ApiAdminUsersUserIdRouteImport } from './routes/api.admin.users.$userId'
 import { Route as ApiAdminRolesPermissionsRouteImport } from './routes/api.admin.roles.permissions'
 import { Route as ApiXrayBagsBagIdRefreshRouteImport } from './routes/api.xray.bags.$bagId.refresh'
+import { Route as ApiReportsReportTypeExportCsvRouteImport } from './routes/api.reports.$reportType.export.csv'
+import { Route as ApiReadersReaderIdAntennasAntennaIdRouteImport } from './routes/api.readers.$readerId.antennas.$antennaId'
+import { Route as ApiDevSimulatorRfidReadsRouteImport } from './routes/api.dev.simulator.rfid.reads'
+import { Route as ApiDevSimulatorBhsMessagesRouteImport } from './routes/api.dev.simulator.bhs.messages'
+import { Route as ApiAuditEventsExportCsvRouteImport } from './routes/api.audit.events.export.csv'
 import { Route as ApiAdminUsersUserIdRepairProfileRouteImport } from './routes/api.admin.users.$userId.repair-profile'
 import { Route as ApiAdminUsersUserIdActionsRouteImport } from './routes/api.admin.users.$userId.actions'
 import { Route as ApiAdminRolesRoleIdPermissionsRouteImport } from './routes/api.admin.roles.$roleId.permissions'
@@ -219,10 +243,45 @@ const AuditLogsRoute = AuditLogsRouteImport.update({
   path: '/audit/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiReadersRoute = ApiReadersRouteImport.update({
+  id: '/api/readers',
+  path: '/api/readers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAlarmsRoute = ApiAlarmsRouteImport.update({
+  id: '/api/alarms',
+  path: '/api/alarms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/admin/dashboard',
   path: '/admin/dashboard',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReportsReportTypeRoute = ApiReportsReportTypeRouteImport.update({
+  id: '/api/reports/$reportType',
+  path: '/api/reports/$reportType',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRecheckQueueRoute = ApiRecheckQueueRouteImport.update({
+  id: '/api/recheck/queue',
+  path: '/api/recheck/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRecheckBagIdRoute = ApiRecheckBagIdRouteImport.update({
+  id: '/api/recheck/$bagId',
+  path: '/api/recheck/$bagId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReadersAntennaMapRoute = ApiReadersAntennaMapRouteImport.update({
+  id: '/antenna-map',
+  path: '/antenna-map',
+  getParentRoute: () => ApiReadersRoute,
+} as any)
+const ApiReadersReaderIdRoute = ApiReadersReaderIdRouteImport.update({
+  id: '/$readerId',
+  path: '/$readerId',
+  getParentRoute: () => ApiReadersRoute,
 } as any)
 const ApiBagsRfidTrackableRoute = ApiBagsRfidTrackableRouteImport.update({
   id: '/api/bags/rfid-trackable',
@@ -234,6 +293,16 @@ const ApiBagsPendingTaggingRoute = ApiBagsPendingTaggingRouteImport.update({
   path: '/api/bags/pending-tagging',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuditEventsRoute = ApiAuditEventsRouteImport.update({
+  id: '/api/audit/events',
+  path: '/api/audit/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAlarmsAlarmIdRoute = ApiAlarmsAlarmIdRouteImport.update({
+  id: '/$alarmId',
+  path: '/$alarmId',
+  getParentRoute: () => ApiAlarmsRoute,
+} as any)
 const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
   id: '/api/admin/users',
   path: '/api/admin/users',
@@ -244,10 +313,33 @@ const ApiXrayBagsBagIdRoute = ApiXrayBagsBagIdRouteImport.update({
   path: '/api/xray/bags/$bagId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRecheckByTagTagBarcodeRoute =
+  ApiRecheckByTagTagBarcodeRouteImport.update({
+    id: '/api/recheck/by-tag/$tagBarcode',
+    path: '/api/recheck/by-tag/$tagBarcode',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiRecheckBagIdResolveRoute = ApiRecheckBagIdResolveRouteImport.update({
+  id: '/resolve',
+  path: '/resolve',
+  getParentRoute: () => ApiRecheckBagIdRoute,
+} as any)
+const ApiRecheckBagIdHbssRecallRoute =
+  ApiRecheckBagIdHbssRecallRouteImport.update({
+    id: '/hbss-recall',
+    path: '/hbss-recall',
+    getParentRoute: () => ApiRecheckBagIdRoute,
+  } as any)
 const ApiIntegrationsScreeningSuspectEventsRoute =
   ApiIntegrationsScreeningSuspectEventsRouteImport.update({
     id: '/api/integrations/screening/suspect-events',
     path: '/api/integrations/screening/suspect-events',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntegrationsRfidReadsRoute =
+  ApiIntegrationsRfidReadsRouteImport.update({
+    id: '/api/integrations/rfid/reads',
+    path: '/api/integrations/rfid/reads',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiIntegrationsHbssScansRoute =
@@ -262,6 +354,12 @@ const ApiIntegrationsHbssHealthRoute =
     path: '/api/integrations/hbss/health',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiIntegrationsBhsMessagesRoute =
+  ApiIntegrationsBhsMessagesRouteImport.update({
+    id: '/api/integrations/bhs/messages',
+    path: '/api/integrations/bhs/messages',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiDevSimulatorSuspectEventsRoute =
   ApiDevSimulatorSuspectEventsRouteImport.update({
     id: '/api/dev/simulator/suspect-events',
@@ -273,6 +371,34 @@ const ApiBagsBagIdEncodeTagRoute = ApiBagsBagIdEncodeTagRouteImport.update({
   path: '/api/bags/$bagId/encode-tag',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBagsBagIdAssignTagRoute = ApiBagsBagIdAssignTagRouteImport.update({
+  id: '/api/bags/$bagId/assign-tag',
+  path: '/api/bags/$bagId/assign-tag',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuditEventsAuditIdRoute = ApiAuditEventsAuditIdRouteImport.update({
+  id: '/$auditId',
+  path: '/$auditId',
+  getParentRoute: () => ApiAuditEventsRoute,
+} as any)
+const ApiAlarmsAlarmIdSendToRecheckRoute =
+  ApiAlarmsAlarmIdSendToRecheckRouteImport.update({
+    id: '/send-to-recheck',
+    path: '/send-to-recheck',
+    getParentRoute: () => ApiAlarmsAlarmIdRoute,
+  } as any)
+const ApiAlarmsAlarmIdEscalateRoute =
+  ApiAlarmsAlarmIdEscalateRouteImport.update({
+    id: '/escalate',
+    path: '/escalate',
+    getParentRoute: () => ApiAlarmsAlarmIdRoute,
+  } as any)
+const ApiAlarmsAlarmIdAcknowledgeRoute =
+  ApiAlarmsAlarmIdAcknowledgeRouteImport.update({
+    id: '/acknowledge',
+    path: '/acknowledge',
+    getParentRoute: () => ApiAlarmsAlarmIdRoute,
+  } as any)
 const ApiAdminUsersInvitationsRoute =
   ApiAdminUsersInvitationsRouteImport.update({
     id: '/invitations',
@@ -294,6 +420,35 @@ const ApiXrayBagsBagIdRefreshRoute = ApiXrayBagsBagIdRefreshRouteImport.update({
   id: '/refresh',
   path: '/refresh',
   getParentRoute: () => ApiXrayBagsBagIdRoute,
+} as any)
+const ApiReportsReportTypeExportCsvRoute =
+  ApiReportsReportTypeExportCsvRouteImport.update({
+    id: '/export/csv',
+    path: '/export/csv',
+    getParentRoute: () => ApiReportsReportTypeRoute,
+  } as any)
+const ApiReadersReaderIdAntennasAntennaIdRoute =
+  ApiReadersReaderIdAntennasAntennaIdRouteImport.update({
+    id: '/antennas/$antennaId',
+    path: '/antennas/$antennaId',
+    getParentRoute: () => ApiReadersReaderIdRoute,
+  } as any)
+const ApiDevSimulatorRfidReadsRoute =
+  ApiDevSimulatorRfidReadsRouteImport.update({
+    id: '/api/dev/simulator/rfid/reads',
+    path: '/api/dev/simulator/rfid/reads',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiDevSimulatorBhsMessagesRoute =
+  ApiDevSimulatorBhsMessagesRouteImport.update({
+    id: '/api/dev/simulator/bhs/messages',
+    path: '/api/dev/simulator/bhs/messages',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAuditEventsExportCsvRoute = ApiAuditEventsExportCsvRouteImport.update({
+  id: '/export/csv',
+  path: '/export/csv',
+  getParentRoute: () => ApiAuditEventsRoute,
 } as any)
 const ApiAdminUsersUserIdRepairProfileRoute =
   ApiAdminUsersUserIdRepairProfileRouteImport.update({
@@ -331,6 +486,8 @@ export interface FileRoutesByFullPath {
   '/tagging': typeof TaggingRoute
   '/target': typeof TargetRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/api/alarms': typeof ApiAlarmsRouteWithChildren
+  '/api/readers': typeof ApiReadersRouteWithChildren
   '/audit/logs': typeof AuditLogsRoute
   '/dev/api': typeof DevApiRoute
   '/dev/console': typeof DevConsoleRoute
@@ -349,20 +506,42 @@ export interface FileRoutesByFullPath {
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
+  '/api/alarms/$alarmId': typeof ApiAlarmsAlarmIdRouteWithChildren
+  '/api/audit/events': typeof ApiAuditEventsRouteWithChildren
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
   '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
+  '/api/readers/$readerId': typeof ApiReadersReaderIdRouteWithChildren
+  '/api/readers/antenna-map': typeof ApiReadersAntennaMapRoute
+  '/api/recheck/$bagId': typeof ApiRecheckBagIdRouteWithChildren
+  '/api/recheck/queue': typeof ApiRecheckQueueRoute
+  '/api/reports/$reportType': typeof ApiReportsReportTypeRouteWithChildren
   '/api/admin/roles/permissions': typeof ApiAdminRolesPermissionsRoute
   '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
   '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
+  '/api/alarms/$alarmId/acknowledge': typeof ApiAlarmsAlarmIdAcknowledgeRoute
+  '/api/alarms/$alarmId/escalate': typeof ApiAlarmsAlarmIdEscalateRoute
+  '/api/alarms/$alarmId/send-to-recheck': typeof ApiAlarmsAlarmIdSendToRecheckRoute
+  '/api/audit/events/$auditId': typeof ApiAuditEventsAuditIdRoute
+  '/api/bags/$bagId/assign-tag': typeof ApiBagsBagIdAssignTagRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
+  '/api/integrations/bhs/messages': typeof ApiIntegrationsBhsMessagesRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
+  '/api/integrations/rfid/reads': typeof ApiIntegrationsRfidReadsRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
+  '/api/recheck/$bagId/hbss-recall': typeof ApiRecheckBagIdHbssRecallRoute
+  '/api/recheck/$bagId/resolve': typeof ApiRecheckBagIdResolveRoute
+  '/api/recheck/by-tag/$tagBarcode': typeof ApiRecheckByTagTagBarcodeRoute
   '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
   '/api/admin/roles/$roleId/permissions': typeof ApiAdminRolesRoleIdPermissionsRoute
   '/api/admin/users/$userId/actions': typeof ApiAdminUsersUserIdActionsRoute
   '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
+  '/api/audit/events/export/csv': typeof ApiAuditEventsExportCsvRoute
+  '/api/dev/simulator/bhs/messages': typeof ApiDevSimulatorBhsMessagesRoute
+  '/api/dev/simulator/rfid/reads': typeof ApiDevSimulatorRfidReadsRoute
+  '/api/readers/$readerId/antennas/$antennaId': typeof ApiReadersReaderIdAntennasAntennaIdRoute
+  '/api/reports/$reportType/export/csv': typeof ApiReportsReportTypeExportCsvRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
 }
 export interface FileRoutesByTo {
@@ -382,6 +561,8 @@ export interface FileRoutesByTo {
   '/tagging': typeof TaggingRoute
   '/target': typeof TargetRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/api/alarms': typeof ApiAlarmsRouteWithChildren
+  '/api/readers': typeof ApiReadersRouteWithChildren
   '/audit/logs': typeof AuditLogsRoute
   '/dev/api': typeof DevApiRoute
   '/dev/console': typeof DevConsoleRoute
@@ -400,20 +581,42 @@ export interface FileRoutesByTo {
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
+  '/api/alarms/$alarmId': typeof ApiAlarmsAlarmIdRouteWithChildren
+  '/api/audit/events': typeof ApiAuditEventsRouteWithChildren
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
   '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
+  '/api/readers/$readerId': typeof ApiReadersReaderIdRouteWithChildren
+  '/api/readers/antenna-map': typeof ApiReadersAntennaMapRoute
+  '/api/recheck/$bagId': typeof ApiRecheckBagIdRouteWithChildren
+  '/api/recheck/queue': typeof ApiRecheckQueueRoute
+  '/api/reports/$reportType': typeof ApiReportsReportTypeRouteWithChildren
   '/api/admin/roles/permissions': typeof ApiAdminRolesPermissionsRoute
   '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
   '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
+  '/api/alarms/$alarmId/acknowledge': typeof ApiAlarmsAlarmIdAcknowledgeRoute
+  '/api/alarms/$alarmId/escalate': typeof ApiAlarmsAlarmIdEscalateRoute
+  '/api/alarms/$alarmId/send-to-recheck': typeof ApiAlarmsAlarmIdSendToRecheckRoute
+  '/api/audit/events/$auditId': typeof ApiAuditEventsAuditIdRoute
+  '/api/bags/$bagId/assign-tag': typeof ApiBagsBagIdAssignTagRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
+  '/api/integrations/bhs/messages': typeof ApiIntegrationsBhsMessagesRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
+  '/api/integrations/rfid/reads': typeof ApiIntegrationsRfidReadsRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
+  '/api/recheck/$bagId/hbss-recall': typeof ApiRecheckBagIdHbssRecallRoute
+  '/api/recheck/$bagId/resolve': typeof ApiRecheckBagIdResolveRoute
+  '/api/recheck/by-tag/$tagBarcode': typeof ApiRecheckByTagTagBarcodeRoute
   '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
   '/api/admin/roles/$roleId/permissions': typeof ApiAdminRolesRoleIdPermissionsRoute
   '/api/admin/users/$userId/actions': typeof ApiAdminUsersUserIdActionsRoute
   '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
+  '/api/audit/events/export/csv': typeof ApiAuditEventsExportCsvRoute
+  '/api/dev/simulator/bhs/messages': typeof ApiDevSimulatorBhsMessagesRoute
+  '/api/dev/simulator/rfid/reads': typeof ApiDevSimulatorRfidReadsRoute
+  '/api/readers/$readerId/antennas/$antennaId': typeof ApiReadersReaderIdAntennasAntennaIdRoute
+  '/api/reports/$reportType/export/csv': typeof ApiReportsReportTypeExportCsvRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
 }
 export interface FileRoutesById {
@@ -434,6 +637,8 @@ export interface FileRoutesById {
   '/tagging': typeof TaggingRoute
   '/target': typeof TargetRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/api/alarms': typeof ApiAlarmsRouteWithChildren
+  '/api/readers': typeof ApiReadersRouteWithChildren
   '/audit/logs': typeof AuditLogsRoute
   '/dev/api': typeof DevApiRoute
   '/dev/console': typeof DevConsoleRoute
@@ -452,20 +657,42 @@ export interface FileRoutesById {
   '/settings/users': typeof SettingsUsersRoute
   '/supervisor/overview': typeof SupervisorOverviewRoute
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
+  '/api/alarms/$alarmId': typeof ApiAlarmsAlarmIdRouteWithChildren
+  '/api/audit/events': typeof ApiAuditEventsRouteWithChildren
   '/api/bags/pending-tagging': typeof ApiBagsPendingTaggingRoute
   '/api/bags/rfid-trackable': typeof ApiBagsRfidTrackableRoute
+  '/api/readers/$readerId': typeof ApiReadersReaderIdRouteWithChildren
+  '/api/readers/antenna-map': typeof ApiReadersAntennaMapRoute
+  '/api/recheck/$bagId': typeof ApiRecheckBagIdRouteWithChildren
+  '/api/recheck/queue': typeof ApiRecheckQueueRoute
+  '/api/reports/$reportType': typeof ApiReportsReportTypeRouteWithChildren
   '/api/admin/roles/permissions': typeof ApiAdminRolesPermissionsRoute
   '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
   '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
+  '/api/alarms/$alarmId/acknowledge': typeof ApiAlarmsAlarmIdAcknowledgeRoute
+  '/api/alarms/$alarmId/escalate': typeof ApiAlarmsAlarmIdEscalateRoute
+  '/api/alarms/$alarmId/send-to-recheck': typeof ApiAlarmsAlarmIdSendToRecheckRoute
+  '/api/audit/events/$auditId': typeof ApiAuditEventsAuditIdRoute
+  '/api/bags/$bagId/assign-tag': typeof ApiBagsBagIdAssignTagRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
+  '/api/integrations/bhs/messages': typeof ApiIntegrationsBhsMessagesRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
+  '/api/integrations/rfid/reads': typeof ApiIntegrationsRfidReadsRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
+  '/api/recheck/$bagId/hbss-recall': typeof ApiRecheckBagIdHbssRecallRoute
+  '/api/recheck/$bagId/resolve': typeof ApiRecheckBagIdResolveRoute
+  '/api/recheck/by-tag/$tagBarcode': typeof ApiRecheckByTagTagBarcodeRoute
   '/api/xray/bags/$bagId': typeof ApiXrayBagsBagIdRouteWithChildren
   '/api/admin/roles/$roleId/permissions': typeof ApiAdminRolesRoleIdPermissionsRoute
   '/api/admin/users/$userId/actions': typeof ApiAdminUsersUserIdActionsRoute
   '/api/admin/users/$userId/repair-profile': typeof ApiAdminUsersUserIdRepairProfileRoute
+  '/api/audit/events/export/csv': typeof ApiAuditEventsExportCsvRoute
+  '/api/dev/simulator/bhs/messages': typeof ApiDevSimulatorBhsMessagesRoute
+  '/api/dev/simulator/rfid/reads': typeof ApiDevSimulatorRfidReadsRoute
+  '/api/readers/$readerId/antennas/$antennaId': typeof ApiReadersReaderIdAntennasAntennaIdRoute
+  '/api/reports/$reportType/export/csv': typeof ApiReportsReportTypeExportCsvRoute
   '/api/xray/bags/$bagId/refresh': typeof ApiXrayBagsBagIdRefreshRoute
 }
 export interface FileRouteTypes {
@@ -487,6 +714,8 @@ export interface FileRouteTypes {
     | '/tagging'
     | '/target'
     | '/admin/dashboard'
+    | '/api/alarms'
+    | '/api/readers'
     | '/audit/logs'
     | '/dev/api'
     | '/dev/console'
@@ -505,20 +734,42 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/supervisor/overview'
     | '/api/admin/users'
+    | '/api/alarms/$alarmId'
+    | '/api/audit/events'
     | '/api/bags/pending-tagging'
     | '/api/bags/rfid-trackable'
+    | '/api/readers/$readerId'
+    | '/api/readers/antenna-map'
+    | '/api/recheck/$bagId'
+    | '/api/recheck/queue'
+    | '/api/reports/$reportType'
     | '/api/admin/roles/permissions'
     | '/api/admin/users/$userId'
     | '/api/admin/users/invitations'
+    | '/api/alarms/$alarmId/acknowledge'
+    | '/api/alarms/$alarmId/escalate'
+    | '/api/alarms/$alarmId/send-to-recheck'
+    | '/api/audit/events/$auditId'
+    | '/api/bags/$bagId/assign-tag'
     | '/api/bags/$bagId/encode-tag'
     | '/api/dev/simulator/suspect-events'
+    | '/api/integrations/bhs/messages'
     | '/api/integrations/hbss/health'
     | '/api/integrations/hbss/scans'
+    | '/api/integrations/rfid/reads'
     | '/api/integrations/screening/suspect-events'
+    | '/api/recheck/$bagId/hbss-recall'
+    | '/api/recheck/$bagId/resolve'
+    | '/api/recheck/by-tag/$tagBarcode'
     | '/api/xray/bags/$bagId'
     | '/api/admin/roles/$roleId/permissions'
     | '/api/admin/users/$userId/actions'
     | '/api/admin/users/$userId/repair-profile'
+    | '/api/audit/events/export/csv'
+    | '/api/dev/simulator/bhs/messages'
+    | '/api/dev/simulator/rfid/reads'
+    | '/api/readers/$readerId/antennas/$antennaId'
+    | '/api/reports/$reportType/export/csv'
     | '/api/xray/bags/$bagId/refresh'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -538,6 +789,8 @@ export interface FileRouteTypes {
     | '/tagging'
     | '/target'
     | '/admin/dashboard'
+    | '/api/alarms'
+    | '/api/readers'
     | '/audit/logs'
     | '/dev/api'
     | '/dev/console'
@@ -556,20 +809,42 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/supervisor/overview'
     | '/api/admin/users'
+    | '/api/alarms/$alarmId'
+    | '/api/audit/events'
     | '/api/bags/pending-tagging'
     | '/api/bags/rfid-trackable'
+    | '/api/readers/$readerId'
+    | '/api/readers/antenna-map'
+    | '/api/recheck/$bagId'
+    | '/api/recheck/queue'
+    | '/api/reports/$reportType'
     | '/api/admin/roles/permissions'
     | '/api/admin/users/$userId'
     | '/api/admin/users/invitations'
+    | '/api/alarms/$alarmId/acknowledge'
+    | '/api/alarms/$alarmId/escalate'
+    | '/api/alarms/$alarmId/send-to-recheck'
+    | '/api/audit/events/$auditId'
+    | '/api/bags/$bagId/assign-tag'
     | '/api/bags/$bagId/encode-tag'
     | '/api/dev/simulator/suspect-events'
+    | '/api/integrations/bhs/messages'
     | '/api/integrations/hbss/health'
     | '/api/integrations/hbss/scans'
+    | '/api/integrations/rfid/reads'
     | '/api/integrations/screening/suspect-events'
+    | '/api/recheck/$bagId/hbss-recall'
+    | '/api/recheck/$bagId/resolve'
+    | '/api/recheck/by-tag/$tagBarcode'
     | '/api/xray/bags/$bagId'
     | '/api/admin/roles/$roleId/permissions'
     | '/api/admin/users/$userId/actions'
     | '/api/admin/users/$userId/repair-profile'
+    | '/api/audit/events/export/csv'
+    | '/api/dev/simulator/bhs/messages'
+    | '/api/dev/simulator/rfid/reads'
+    | '/api/readers/$readerId/antennas/$antennaId'
+    | '/api/reports/$reportType/export/csv'
     | '/api/xray/bags/$bagId/refresh'
   id:
     | '__root__'
@@ -589,6 +864,8 @@ export interface FileRouteTypes {
     | '/tagging'
     | '/target'
     | '/admin/dashboard'
+    | '/api/alarms'
+    | '/api/readers'
     | '/audit/logs'
     | '/dev/api'
     | '/dev/console'
@@ -607,20 +884,42 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/supervisor/overview'
     | '/api/admin/users'
+    | '/api/alarms/$alarmId'
+    | '/api/audit/events'
     | '/api/bags/pending-tagging'
     | '/api/bags/rfid-trackable'
+    | '/api/readers/$readerId'
+    | '/api/readers/antenna-map'
+    | '/api/recheck/$bagId'
+    | '/api/recheck/queue'
+    | '/api/reports/$reportType'
     | '/api/admin/roles/permissions'
     | '/api/admin/users/$userId'
     | '/api/admin/users/invitations'
+    | '/api/alarms/$alarmId/acknowledge'
+    | '/api/alarms/$alarmId/escalate'
+    | '/api/alarms/$alarmId/send-to-recheck'
+    | '/api/audit/events/$auditId'
+    | '/api/bags/$bagId/assign-tag'
     | '/api/bags/$bagId/encode-tag'
     | '/api/dev/simulator/suspect-events'
+    | '/api/integrations/bhs/messages'
     | '/api/integrations/hbss/health'
     | '/api/integrations/hbss/scans'
+    | '/api/integrations/rfid/reads'
     | '/api/integrations/screening/suspect-events'
+    | '/api/recheck/$bagId/hbss-recall'
+    | '/api/recheck/$bagId/resolve'
+    | '/api/recheck/by-tag/$tagBarcode'
     | '/api/xray/bags/$bagId'
     | '/api/admin/roles/$roleId/permissions'
     | '/api/admin/users/$userId/actions'
     | '/api/admin/users/$userId/repair-profile'
+    | '/api/audit/events/export/csv'
+    | '/api/dev/simulator/bhs/messages'
+    | '/api/dev/simulator/rfid/reads'
+    | '/api/readers/$readerId/antennas/$antennaId'
+    | '/api/reports/$reportType/export/csv'
     | '/api/xray/bags/$bagId/refresh'
   fileRoutesById: FileRoutesById
 }
@@ -641,6 +940,8 @@ export interface RootRouteChildren {
   TaggingRoute: typeof TaggingRoute
   TargetRoute: typeof TargetRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  ApiAlarmsRoute: typeof ApiAlarmsRouteWithChildren
+  ApiReadersRoute: typeof ApiReadersRouteWithChildren
   AuditLogsRoute: typeof AuditLogsRoute
   DevApiRoute: typeof DevApiRoute
   DevConsoleRoute: typeof DevConsoleRoute
@@ -659,16 +960,26 @@ export interface RootRouteChildren {
   SettingsUsersRoute: typeof SettingsUsersRoute
   SupervisorOverviewRoute: typeof SupervisorOverviewRoute
   ApiAdminUsersRoute: typeof ApiAdminUsersRouteWithChildren
+  ApiAuditEventsRoute: typeof ApiAuditEventsRouteWithChildren
   ApiBagsPendingTaggingRoute: typeof ApiBagsPendingTaggingRoute
   ApiBagsRfidTrackableRoute: typeof ApiBagsRfidTrackableRoute
+  ApiRecheckBagIdRoute: typeof ApiRecheckBagIdRouteWithChildren
+  ApiRecheckQueueRoute: typeof ApiRecheckQueueRoute
+  ApiReportsReportTypeRoute: typeof ApiReportsReportTypeRouteWithChildren
   ApiAdminRolesPermissionsRoute: typeof ApiAdminRolesPermissionsRoute
+  ApiBagsBagIdAssignTagRoute: typeof ApiBagsBagIdAssignTagRoute
   ApiBagsBagIdEncodeTagRoute: typeof ApiBagsBagIdEncodeTagRoute
   ApiDevSimulatorSuspectEventsRoute: typeof ApiDevSimulatorSuspectEventsRoute
+  ApiIntegrationsBhsMessagesRoute: typeof ApiIntegrationsBhsMessagesRoute
   ApiIntegrationsHbssHealthRoute: typeof ApiIntegrationsHbssHealthRoute
   ApiIntegrationsHbssScansRoute: typeof ApiIntegrationsHbssScansRoute
+  ApiIntegrationsRfidReadsRoute: typeof ApiIntegrationsRfidReadsRoute
   ApiIntegrationsScreeningSuspectEventsRoute: typeof ApiIntegrationsScreeningSuspectEventsRoute
+  ApiRecheckByTagTagBarcodeRoute: typeof ApiRecheckByTagTagBarcodeRoute
   ApiXrayBagsBagIdRoute: typeof ApiXrayBagsBagIdRouteWithChildren
   ApiAdminRolesRoleIdPermissionsRoute: typeof ApiAdminRolesRoleIdPermissionsRoute
+  ApiDevSimulatorBhsMessagesRoute: typeof ApiDevSimulatorBhsMessagesRoute
+  ApiDevSimulatorRfidReadsRoute: typeof ApiDevSimulatorRfidReadsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -897,12 +1208,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuditLogsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/readers': {
+      id: '/api/readers'
+      path: '/api/readers'
+      fullPath: '/api/readers'
+      preLoaderRoute: typeof ApiReadersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/alarms': {
+      id: '/api/alarms'
+      path: '/api/alarms'
+      fullPath: '/api/alarms'
+      preLoaderRoute: typeof ApiAlarmsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/dashboard': {
       id: '/admin/dashboard'
       path: '/admin/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/reports/$reportType': {
+      id: '/api/reports/$reportType'
+      path: '/api/reports/$reportType'
+      fullPath: '/api/reports/$reportType'
+      preLoaderRoute: typeof ApiReportsReportTypeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/recheck/queue': {
+      id: '/api/recheck/queue'
+      path: '/api/recheck/queue'
+      fullPath: '/api/recheck/queue'
+      preLoaderRoute: typeof ApiRecheckQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/recheck/$bagId': {
+      id: '/api/recheck/$bagId'
+      path: '/api/recheck/$bagId'
+      fullPath: '/api/recheck/$bagId'
+      preLoaderRoute: typeof ApiRecheckBagIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/readers/antenna-map': {
+      id: '/api/readers/antenna-map'
+      path: '/antenna-map'
+      fullPath: '/api/readers/antenna-map'
+      preLoaderRoute: typeof ApiReadersAntennaMapRouteImport
+      parentRoute: typeof ApiReadersRoute
+    }
+    '/api/readers/$readerId': {
+      id: '/api/readers/$readerId'
+      path: '/$readerId'
+      fullPath: '/api/readers/$readerId'
+      preLoaderRoute: typeof ApiReadersReaderIdRouteImport
+      parentRoute: typeof ApiReadersRoute
     }
     '/api/bags/rfid-trackable': {
       id: '/api/bags/rfid-trackable'
@@ -918,6 +1278,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBagsPendingTaggingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/audit/events': {
+      id: '/api/audit/events'
+      path: '/api/audit/events'
+      fullPath: '/api/audit/events'
+      preLoaderRoute: typeof ApiAuditEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/alarms/$alarmId': {
+      id: '/api/alarms/$alarmId'
+      path: '/$alarmId'
+      fullPath: '/api/alarms/$alarmId'
+      preLoaderRoute: typeof ApiAlarmsAlarmIdRouteImport
+      parentRoute: typeof ApiAlarmsRoute
+    }
     '/api/admin/users': {
       id: '/api/admin/users'
       path: '/api/admin/users'
@@ -932,11 +1306,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiXrayBagsBagIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/recheck/by-tag/$tagBarcode': {
+      id: '/api/recheck/by-tag/$tagBarcode'
+      path: '/api/recheck/by-tag/$tagBarcode'
+      fullPath: '/api/recheck/by-tag/$tagBarcode'
+      preLoaderRoute: typeof ApiRecheckByTagTagBarcodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/recheck/$bagId/resolve': {
+      id: '/api/recheck/$bagId/resolve'
+      path: '/resolve'
+      fullPath: '/api/recheck/$bagId/resolve'
+      preLoaderRoute: typeof ApiRecheckBagIdResolveRouteImport
+      parentRoute: typeof ApiRecheckBagIdRoute
+    }
+    '/api/recheck/$bagId/hbss-recall': {
+      id: '/api/recheck/$bagId/hbss-recall'
+      path: '/hbss-recall'
+      fullPath: '/api/recheck/$bagId/hbss-recall'
+      preLoaderRoute: typeof ApiRecheckBagIdHbssRecallRouteImport
+      parentRoute: typeof ApiRecheckBagIdRoute
+    }
     '/api/integrations/screening/suspect-events': {
       id: '/api/integrations/screening/suspect-events'
       path: '/api/integrations/screening/suspect-events'
       fullPath: '/api/integrations/screening/suspect-events'
       preLoaderRoute: typeof ApiIntegrationsScreeningSuspectEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/integrations/rfid/reads': {
+      id: '/api/integrations/rfid/reads'
+      path: '/api/integrations/rfid/reads'
+      fullPath: '/api/integrations/rfid/reads'
+      preLoaderRoute: typeof ApiIntegrationsRfidReadsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/integrations/hbss/scans': {
@@ -953,6 +1355,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiIntegrationsHbssHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/integrations/bhs/messages': {
+      id: '/api/integrations/bhs/messages'
+      path: '/api/integrations/bhs/messages'
+      fullPath: '/api/integrations/bhs/messages'
+      preLoaderRoute: typeof ApiIntegrationsBhsMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/dev/simulator/suspect-events': {
       id: '/api/dev/simulator/suspect-events'
       path: '/api/dev/simulator/suspect-events'
@@ -966,6 +1375,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/bags/$bagId/encode-tag'
       preLoaderRoute: typeof ApiBagsBagIdEncodeTagRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/bags/$bagId/assign-tag': {
+      id: '/api/bags/$bagId/assign-tag'
+      path: '/api/bags/$bagId/assign-tag'
+      fullPath: '/api/bags/$bagId/assign-tag'
+      preLoaderRoute: typeof ApiBagsBagIdAssignTagRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/audit/events/$auditId': {
+      id: '/api/audit/events/$auditId'
+      path: '/$auditId'
+      fullPath: '/api/audit/events/$auditId'
+      preLoaderRoute: typeof ApiAuditEventsAuditIdRouteImport
+      parentRoute: typeof ApiAuditEventsRoute
+    }
+    '/api/alarms/$alarmId/send-to-recheck': {
+      id: '/api/alarms/$alarmId/send-to-recheck'
+      path: '/send-to-recheck'
+      fullPath: '/api/alarms/$alarmId/send-to-recheck'
+      preLoaderRoute: typeof ApiAlarmsAlarmIdSendToRecheckRouteImport
+      parentRoute: typeof ApiAlarmsAlarmIdRoute
+    }
+    '/api/alarms/$alarmId/escalate': {
+      id: '/api/alarms/$alarmId/escalate'
+      path: '/escalate'
+      fullPath: '/api/alarms/$alarmId/escalate'
+      preLoaderRoute: typeof ApiAlarmsAlarmIdEscalateRouteImport
+      parentRoute: typeof ApiAlarmsAlarmIdRoute
+    }
+    '/api/alarms/$alarmId/acknowledge': {
+      id: '/api/alarms/$alarmId/acknowledge'
+      path: '/acknowledge'
+      fullPath: '/api/alarms/$alarmId/acknowledge'
+      preLoaderRoute: typeof ApiAlarmsAlarmIdAcknowledgeRouteImport
+      parentRoute: typeof ApiAlarmsAlarmIdRoute
     }
     '/api/admin/users/invitations': {
       id: '/api/admin/users/invitations'
@@ -995,6 +1439,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiXrayBagsBagIdRefreshRouteImport
       parentRoute: typeof ApiXrayBagsBagIdRoute
     }
+    '/api/reports/$reportType/export/csv': {
+      id: '/api/reports/$reportType/export/csv'
+      path: '/export/csv'
+      fullPath: '/api/reports/$reportType/export/csv'
+      preLoaderRoute: typeof ApiReportsReportTypeExportCsvRouteImport
+      parentRoute: typeof ApiReportsReportTypeRoute
+    }
+    '/api/readers/$readerId/antennas/$antennaId': {
+      id: '/api/readers/$readerId/antennas/$antennaId'
+      path: '/antennas/$antennaId'
+      fullPath: '/api/readers/$readerId/antennas/$antennaId'
+      preLoaderRoute: typeof ApiReadersReaderIdAntennasAntennaIdRouteImport
+      parentRoute: typeof ApiReadersReaderIdRoute
+    }
+    '/api/dev/simulator/rfid/reads': {
+      id: '/api/dev/simulator/rfid/reads'
+      path: '/api/dev/simulator/rfid/reads'
+      fullPath: '/api/dev/simulator/rfid/reads'
+      preLoaderRoute: typeof ApiDevSimulatorRfidReadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/dev/simulator/bhs/messages': {
+      id: '/api/dev/simulator/bhs/messages'
+      path: '/api/dev/simulator/bhs/messages'
+      fullPath: '/api/dev/simulator/bhs/messages'
+      preLoaderRoute: typeof ApiDevSimulatorBhsMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/audit/events/export/csv': {
+      id: '/api/audit/events/export/csv'
+      path: '/export/csv'
+      fullPath: '/api/audit/events/export/csv'
+      preLoaderRoute: typeof ApiAuditEventsExportCsvRouteImport
+      parentRoute: typeof ApiAuditEventsRoute
+    }
     '/api/admin/users/$userId/repair-profile': {
       id: '/api/admin/users/$userId/repair-profile'
       path: '/repair-profile'
@@ -1018,6 +1497,59 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ApiAlarmsAlarmIdRouteChildren {
+  ApiAlarmsAlarmIdAcknowledgeRoute: typeof ApiAlarmsAlarmIdAcknowledgeRoute
+  ApiAlarmsAlarmIdEscalateRoute: typeof ApiAlarmsAlarmIdEscalateRoute
+  ApiAlarmsAlarmIdSendToRecheckRoute: typeof ApiAlarmsAlarmIdSendToRecheckRoute
+}
+
+const ApiAlarmsAlarmIdRouteChildren: ApiAlarmsAlarmIdRouteChildren = {
+  ApiAlarmsAlarmIdAcknowledgeRoute: ApiAlarmsAlarmIdAcknowledgeRoute,
+  ApiAlarmsAlarmIdEscalateRoute: ApiAlarmsAlarmIdEscalateRoute,
+  ApiAlarmsAlarmIdSendToRecheckRoute: ApiAlarmsAlarmIdSendToRecheckRoute,
+}
+
+const ApiAlarmsAlarmIdRouteWithChildren =
+  ApiAlarmsAlarmIdRoute._addFileChildren(ApiAlarmsAlarmIdRouteChildren)
+
+interface ApiAlarmsRouteChildren {
+  ApiAlarmsAlarmIdRoute: typeof ApiAlarmsAlarmIdRouteWithChildren
+}
+
+const ApiAlarmsRouteChildren: ApiAlarmsRouteChildren = {
+  ApiAlarmsAlarmIdRoute: ApiAlarmsAlarmIdRouteWithChildren,
+}
+
+const ApiAlarmsRouteWithChildren = ApiAlarmsRoute._addFileChildren(
+  ApiAlarmsRouteChildren,
+)
+
+interface ApiReadersReaderIdRouteChildren {
+  ApiReadersReaderIdAntennasAntennaIdRoute: typeof ApiReadersReaderIdAntennasAntennaIdRoute
+}
+
+const ApiReadersReaderIdRouteChildren: ApiReadersReaderIdRouteChildren = {
+  ApiReadersReaderIdAntennasAntennaIdRoute:
+    ApiReadersReaderIdAntennasAntennaIdRoute,
+}
+
+const ApiReadersReaderIdRouteWithChildren =
+  ApiReadersReaderIdRoute._addFileChildren(ApiReadersReaderIdRouteChildren)
+
+interface ApiReadersRouteChildren {
+  ApiReadersReaderIdRoute: typeof ApiReadersReaderIdRouteWithChildren
+  ApiReadersAntennaMapRoute: typeof ApiReadersAntennaMapRoute
+}
+
+const ApiReadersRouteChildren: ApiReadersRouteChildren = {
+  ApiReadersReaderIdRoute: ApiReadersReaderIdRouteWithChildren,
+  ApiReadersAntennaMapRoute: ApiReadersAntennaMapRoute,
+}
+
+const ApiReadersRouteWithChildren = ApiReadersRoute._addFileChildren(
+  ApiReadersRouteChildren,
+)
 
 interface ApiAdminUsersUserIdRouteChildren {
   ApiAdminUsersUserIdActionsRoute: typeof ApiAdminUsersUserIdActionsRoute
@@ -1045,6 +1577,45 @@ const ApiAdminUsersRouteChildren: ApiAdminUsersRouteChildren = {
 const ApiAdminUsersRouteWithChildren = ApiAdminUsersRoute._addFileChildren(
   ApiAdminUsersRouteChildren,
 )
+
+interface ApiAuditEventsRouteChildren {
+  ApiAuditEventsAuditIdRoute: typeof ApiAuditEventsAuditIdRoute
+  ApiAuditEventsExportCsvRoute: typeof ApiAuditEventsExportCsvRoute
+}
+
+const ApiAuditEventsRouteChildren: ApiAuditEventsRouteChildren = {
+  ApiAuditEventsAuditIdRoute: ApiAuditEventsAuditIdRoute,
+  ApiAuditEventsExportCsvRoute: ApiAuditEventsExportCsvRoute,
+}
+
+const ApiAuditEventsRouteWithChildren = ApiAuditEventsRoute._addFileChildren(
+  ApiAuditEventsRouteChildren,
+)
+
+interface ApiRecheckBagIdRouteChildren {
+  ApiRecheckBagIdHbssRecallRoute: typeof ApiRecheckBagIdHbssRecallRoute
+  ApiRecheckBagIdResolveRoute: typeof ApiRecheckBagIdResolveRoute
+}
+
+const ApiRecheckBagIdRouteChildren: ApiRecheckBagIdRouteChildren = {
+  ApiRecheckBagIdHbssRecallRoute: ApiRecheckBagIdHbssRecallRoute,
+  ApiRecheckBagIdResolveRoute: ApiRecheckBagIdResolveRoute,
+}
+
+const ApiRecheckBagIdRouteWithChildren = ApiRecheckBagIdRoute._addFileChildren(
+  ApiRecheckBagIdRouteChildren,
+)
+
+interface ApiReportsReportTypeRouteChildren {
+  ApiReportsReportTypeExportCsvRoute: typeof ApiReportsReportTypeExportCsvRoute
+}
+
+const ApiReportsReportTypeRouteChildren: ApiReportsReportTypeRouteChildren = {
+  ApiReportsReportTypeExportCsvRoute: ApiReportsReportTypeExportCsvRoute,
+}
+
+const ApiReportsReportTypeRouteWithChildren =
+  ApiReportsReportTypeRoute._addFileChildren(ApiReportsReportTypeRouteChildren)
 
 interface ApiXrayBagsBagIdRouteChildren {
   ApiXrayBagsBagIdRefreshRoute: typeof ApiXrayBagsBagIdRefreshRoute
@@ -1074,6 +1645,8 @@ const rootRouteChildren: RootRouteChildren = {
   TaggingRoute: TaggingRoute,
   TargetRoute: TargetRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  ApiAlarmsRoute: ApiAlarmsRouteWithChildren,
+  ApiReadersRoute: ApiReadersRouteWithChildren,
   AuditLogsRoute: AuditLogsRoute,
   DevApiRoute: DevApiRoute,
   DevConsoleRoute: DevConsoleRoute,
@@ -1092,17 +1665,27 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsUsersRoute: SettingsUsersRoute,
   SupervisorOverviewRoute: SupervisorOverviewRoute,
   ApiAdminUsersRoute: ApiAdminUsersRouteWithChildren,
+  ApiAuditEventsRoute: ApiAuditEventsRouteWithChildren,
   ApiBagsPendingTaggingRoute: ApiBagsPendingTaggingRoute,
   ApiBagsRfidTrackableRoute: ApiBagsRfidTrackableRoute,
+  ApiRecheckBagIdRoute: ApiRecheckBagIdRouteWithChildren,
+  ApiRecheckQueueRoute: ApiRecheckQueueRoute,
+  ApiReportsReportTypeRoute: ApiReportsReportTypeRouteWithChildren,
   ApiAdminRolesPermissionsRoute: ApiAdminRolesPermissionsRoute,
+  ApiBagsBagIdAssignTagRoute: ApiBagsBagIdAssignTagRoute,
   ApiBagsBagIdEncodeTagRoute: ApiBagsBagIdEncodeTagRoute,
   ApiDevSimulatorSuspectEventsRoute: ApiDevSimulatorSuspectEventsRoute,
+  ApiIntegrationsBhsMessagesRoute: ApiIntegrationsBhsMessagesRoute,
   ApiIntegrationsHbssHealthRoute: ApiIntegrationsHbssHealthRoute,
   ApiIntegrationsHbssScansRoute: ApiIntegrationsHbssScansRoute,
+  ApiIntegrationsRfidReadsRoute: ApiIntegrationsRfidReadsRoute,
   ApiIntegrationsScreeningSuspectEventsRoute:
     ApiIntegrationsScreeningSuspectEventsRoute,
+  ApiRecheckByTagTagBarcodeRoute: ApiRecheckByTagTagBarcodeRoute,
   ApiXrayBagsBagIdRoute: ApiXrayBagsBagIdRouteWithChildren,
   ApiAdminRolesRoleIdPermissionsRoute: ApiAdminRolesRoleIdPermissionsRoute,
+  ApiDevSimulatorBhsMessagesRoute: ApiDevSimulatorBhsMessagesRoute,
+  ApiDevSimulatorRfidReadsRoute: ApiDevSimulatorRfidReadsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

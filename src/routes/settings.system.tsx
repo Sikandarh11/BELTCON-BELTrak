@@ -4,7 +4,7 @@ import { RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/auth/SessionContext";
-import { RoleGate } from "@/components/RoleGate";
+import { PermissionGate } from "@/components/RoleGate";
 import { getHbssHealth, type HbssHealth } from "@/services/xray/xrayClient";
 
 export const Route = createFileRoute("/settings/system")({
@@ -45,11 +45,7 @@ function SystemSettings() {
   }, [loadHbssHealth]);
 
   return (
-    <RoleGate
-      userRole={session.role}
-      requiredRole="Airport Administrator"
-      pageName="System Settings"
-    >
+    <PermissionGate userPermissions={session.permissions} requiredPermission="settings.manage" pageName="System Settings">
       <div className="p-6 max-w-6xl">
         <PageHeader
           title="System Settings"
@@ -142,7 +138,7 @@ function SystemSettings() {
           </Panel>
         </div>
       </div>
-    </RoleGate>
+    </PermissionGate>
   );
 }
 

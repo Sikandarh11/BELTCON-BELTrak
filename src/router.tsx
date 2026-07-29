@@ -1,13 +1,14 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { BELTCON_QUERY_RETRY, BELTCON_QUERY_STALE_TIME } from "./lib/queryPolicy";
 import { routeTree } from "./routeTree.gen";
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000,
-        retry: 1,
+        staleTime: BELTCON_QUERY_STALE_TIME.readerConfiguration,
+        retry: BELTCON_QUERY_RETRY.read,
       },
     },
   });

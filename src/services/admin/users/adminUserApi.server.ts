@@ -2,11 +2,7 @@ import "@tanstack/react-start/server-only";
 
 import { randomUUID } from "node:crypto";
 
-import {
-  isCanonicalRole,
-  roleIsAtLeast,
-  type CanonicalRole,
-} from "@/auth/canonicalRoles";
+import { isCanonicalRole, roleIsAtLeast, type CanonicalRole } from "@/auth/canonicalRoles";
 import { getSessionFromRequest } from "@/services/authRepository.server";
 import {
   PermissionAuthorizationError,
@@ -24,6 +20,7 @@ import {
   inviteAdminUserSchema,
   repairAdminProfileSchema,
 } from "./adminUserSchemas";
+import type { AdminUserAction } from "./adminUserTypes";
 import { adminUserService, type AdminUserService } from "./adminUserService.server";
 
 const MAX_ADMIN_USER_BODY_BYTES = 16 * 1024;
@@ -129,15 +126,14 @@ function legacyPermissionEnforcer(requiredRole: CanonicalRole): typeof requirePe
   return async (session) => {
     const actorRole = session && "role" in session.user ? session.user.role : null;
     if (!isCanonicalRole(actorRole) || !roleIsAtLeast(actorRole, requiredRole)) {
-      throw new PermissionAuthorizationError(
-        "Permission denied",
-        "PERMISSION_DENIED",
-        403,
-      );
+      throw new PermissionAuthorizationError("Permission denied", "PERMISSION_DENIED", 403);
     }
     return {
+      userId: session?.user.id ?? "00000000-0000-4000-8000-000000000000",
+      profileId: session?.user.id ?? "00000000-0000-4000-8000-000000000000",
       canonicalRole: actorRole,
       permissions: [],
+      accountStatus: "ACTIVE",
       authorizationVersion: 0,
     };
   };
@@ -261,6 +257,23 @@ function passwordSetupRedirect(request: Request) {
   );
 }
 
+function permissionForAdminUserAction(action: AdminUserAction): PermissionCode {
+  switch (action) {
+    case "ACTIVATE":
+      return "user.activate";
+    case "SUSPEND":
+      return "user.suspend";
+    case "LOCK":
+    case "UNLOCK":
+      return "user.lock";
+    case "DEACTIVATE":
+      return "user.deactivate";
+    case "SEND_PASSWORD_RESET":
+    case "RESEND_INVITATION":
+      return "user.reset_password";
+  }
+}
+
 export async function handleInviteAdminUserRequest(
   request: Request,
   options: AdminUserApiOptions = {},
@@ -268,7 +281,7 @@ export async function handleInviteAdminUserRequest(
   const authorization = await authorize(
     request,
     options.getSession ?? getSessionFromRequest,
-    "user.manage",
+    "user.create",
     "System Administrator",
     permissionEnforcerFor(options, "System Administrator"),
     deniedAuditFor(options),
@@ -320,7 +333,7 @@ export async function handleEditAdminUserRequest(
   const authorization = await authorize(
     request,
     options.getSession ?? getSessionFromRequest,
-    "user.manage",
+    "user.update",
     "Airport Administrator",
     permissionEnforcerFor(options, "Airport Administrator"),
     deniedAuditFor(options),
@@ -415,6 +428,27 @@ export async function handleAdminUserActionRequest(
     );
   }
 
+  // user.manage remains a compatibility gate for the Phase 4 API. The atomic
+  // action permission is an additional current persisted requirement.
+  try {
+    await permissionEnforcerFor(options, "System Administrator")(
+      authorization.session,
+      permissionForAdminUserAction(parsed.data.action),
+    );
+  } catch (error) {
+    const status = error instanceof PermissionAuthorizationError ? error.status : 500;
+    return jsonResponse(
+      {
+        error:
+          status === 403
+            ? "You do not have permission to perform this action."
+            : "Permission check failed",
+        code: status === 403 ? "ADMIN_USER_FORBIDDEN" : "ADMIN_USER_PERSISTENCE_ERROR",
+      },
+      status,
+    );
+  }
+
   try {
     const result = await (options.service ?? adminUserService).performAction({
       userId: parsedUserId.data,
@@ -438,7 +472,7 @@ export async function handleCreateAdminUserRequest(
   const authorization = await authorize(
     request,
     options.getSession ?? getSessionFromRequest,
-    "user.manage",
+    "user.create",
     "System Administrator",
     permissionEnforcerFor(options, "System Administrator"),
     deniedAuditFor(options),

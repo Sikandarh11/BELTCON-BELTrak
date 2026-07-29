@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { getLastMode, setLastMode, type WorkspaceMode } from "@/auth/appRoles";
 import type { CanonicalRole } from "@/auth/canonicalRoles";
+import { authKeys } from "@/lib/queryKeys";
 import type { PermissionCode } from "@/services/admin/roles/roleSchemas";
 
 export const AUTH_COOKIE_NAME = "etb_auth_token";
-export const AUTH_SESSION_KEY = ["auth", "session"] as const;
+export const AUTH_SESSION_KEY = authKeys.session();
 // Make client-visible session duration very long (10 years) so sessions
 // appear effectively permanent in the UI. Real authentication lifetime is
 // controlled by Supabase refresh tokens server-side; we also extend the
@@ -25,6 +26,7 @@ export const PASSWORD_REQUIREMENTS =
 export const strongPasswordSchema = z
   .string()
   .min(12, "Password must be at least 12 characters long")
+  .max(1024, "Password is too long")
   .regex(/[A-Z]/, "Password must include an uppercase letter")
   .regex(/[a-z]/, "Password must include a lowercase letter")
   .regex(/\d/, "Password must include a number")
@@ -33,6 +35,16 @@ export const strongPasswordSchema = z
 export const loginSchema = z.object({
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
   password: z.string().min(1, "Password is required"),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required")
+    .max(254, "Email is too long")
+    .email("Enter a valid email address")
+    .transform((email) => email.toLowerCase()),
 });
 
 export const registerSchema = z
@@ -166,10 +178,10 @@ export async function logout() {
   });
 }
 
-export async function forgotPassword(email: string) {
+export async function forgotPassword(input: z.infer<typeof forgotPasswordSchema>) {
   return authJsonRequest<{ ok: true }>("/api/auth/forgot-password", {
     method: "POST",
-    body: JSON.stringify({ email }),
+    body: JSON.stringify(input),
   });
 }
 

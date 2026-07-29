@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, ShieldAlert } from "lucide-react";
 
 import { passwordChangeRedirect } from "@/auth/passwordChangePolicy";
+import { hasRoutePermission, permissionRuleForPath } from "@/auth/permissions";
+import { BELTCON_QUERY_RETRY, BELTCON_QUERY_STALE_TIME } from "@/lib/queryPolicy";
 import {
   AUTH_SESSION_KEY,
   fetchSession,
@@ -27,6 +29,22 @@ function AuthLoadingScreen() {
   );
 }
 
+function AccessDeniedScreen({ pathname }: { pathname: string }) {
+  const rule = permissionRuleForPath(pathname);
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-white px-6 text-slate-900">
+      <div className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center shadow-sm">
+        <ShieldAlert className="mx-auto size-9 text-amber-700" aria-hidden="true" />
+        <h1 className="mt-3 text-lg font-semibold">Access Denied</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-700">
+          You do not have permission to access this BELTCON SBTS page.
+        </p>
+        <p className="mt-2 font-mono text-xs text-slate-500">Required: {rule.anyOf.join(" or ")}</p>
+      </div>
+    </div>
+  );
+}
+
 export function ProtectedRoute({
   children,
 }: {
@@ -40,9 +58,9 @@ export function ProtectedRoute({
   const sessionQuery = useQuery({
     queryKey: [...AUTH_SESSION_KEY, pathname],
     queryFn: fetchSession,
-    retry: 1,
+    retry: BELTCON_QUERY_RETRY.read,
     refetchOnWindowFocus: true,
-    staleTime: 0,
+    staleTime: BELTCON_QUERY_STALE_TIME.session,
     gcTime: 10 * 60 * 1000,
   });
 
@@ -104,6 +122,16 @@ export function ProtectedRoute({
     Boolean(passwordChangeRedirect(pathname, sessionQuery.data.user))
   ) {
     return <AuthLoadingScreen />;
+  }
+
+  // Do not mount page queries until the current session's effective persisted
+  // permissions allow this route. The server middleware and APIs repeat this
+  // check as the authorization boundary.
+  if (
+    pathname !== "/access-denied" &&
+    !hasRoutePermission(sessionQuery.data.user.permissions, pathname)
+  ) {
+    return <AccessDeniedScreen pathname={pathname} />;
   }
 
   return <>{children(sessionQuery.data)}</>;

@@ -11,7 +11,7 @@ import {
   createMockScreeningAdapter,
   type MockScreeningAdapter,
 } from "@/services/integrations/screening/mockScreeningAdapter.server";
-import { SIMULATOR_SUBMIT_CANONICAL_ROLE, type ScreeningSuspectEvent } from "@/types/screening";
+import type { ScreeningSuspectEvent } from "@/types/screening";
 import { ScreeningConflictError, ScreeningServiceError } from "./screeningErrors";
 import type { ScreeningIngestionService } from "./screeningIngestionService.server";
 import { screeningIngestionService } from "./screeningIngestionService.server";
@@ -112,20 +112,21 @@ export async function handleScreeningSimulatorRequest(
 
   try {
     if (options.requirePermission) {
-      await options.requirePermission(session, "developer.access");
+      await options.requirePermission(session, "simulator.use");
     } else if (options.getSession) {
-      if (session.user.role !== SIMULATOR_SUBMIT_CANONICAL_ROLE) {
+      // Test seam only: production always resolves persisted permissions via
+      // requirePermission below, never a browser workspace or role label.
+      if (session.user.role !== "System Administrator") {
         throw new PermissionAuthorizationError("Permission denied", "PERMISSION_DENIED", 403);
       }
     } else {
-      await requirePermission(session, "developer.access");
+      await requirePermission(session, "simulator.use");
     }
   } catch (error) {
     const status = error instanceof PermissionAuthorizationError ? error.status : 500;
     return jsonResponse(
       {
-        error:
-          status === 403 ? "Permission developer.access is required" : "Permission check failed",
+        error: status === 403 ? "Permission simulator.use is required" : "Permission check failed",
         code: status === 403 ? "SCREENING_FORBIDDEN" : "SCREENING_SESSION_ERROR",
       },
       status,

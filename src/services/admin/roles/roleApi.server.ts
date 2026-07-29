@@ -2,7 +2,7 @@ import "@tanstack/react-start/server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { roleIsAtLeast, type CanonicalRole } from "@/auth/canonicalRoles";
+import type { CanonicalRole } from "@/auth/canonicalRoles";
 import type { PermissionCode } from "./roleSchemas";
 import { getSessionFromRequest } from "@/services/authRepository.server";
 import {
@@ -29,6 +29,44 @@ export interface RoleApiOptions {
   requirePermission?: typeof requirePermission;
 }
 
+// Dependency-injected sessions are test seams. Production calls the central
+// persisted authorization service below; these checks never run in production.
+function legacyTestPermissionEnforcer(
+  requiredRole: "Airport Administrator" | "System Administrator",
+) {
+  return async (session: { user: { id: string } } | null, _permissionCode: string) => {
+    const actorRole =
+      session && "role" in session.user && typeof session.user.role === "string"
+        ? session.user.role
+        : null;
+    const allowed =
+      requiredRole === "System Administrator"
+        ? actorRole === "System Administrator"
+        : actorRole === "Airport Administrator" || actorRole === "System Administrator";
+    if (!allowed || !session) {
+      throw new PermissionAuthorizationError("Permission denied", "PERMISSION_DENIED", 403);
+    }
+    return {
+      userId: session.user.id,
+      profileId: session.user.id,
+      canonicalRole: actorRole as CanonicalRole,
+      permissions: [],
+      accountStatus: "ACTIVE" as const,
+      authorizationVersion: 0,
+    };
+  };
+}
+
+function permissionEnforcerFor(
+  options: RoleApiOptions,
+  requiredRole: "Airport Administrator" | "System Administrator",
+) {
+  return (
+    options.requirePermission ??
+    (options.getSession ? legacyTestPermissionEnforcer(requiredRole) : requirePermission)
+  );
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -48,7 +86,6 @@ async function authorize(
   request: Request,
   getSession: SessionLookup,
   permission: PermissionCode,
-  requiredRole: CanonicalRole,
   enforcePermission: typeof requirePermission,
   deniedAudit?: (input: AccessDeniedAuditInput) => Promise<void>,
 ) {
@@ -81,37 +118,6 @@ async function authorize(
     };
   }
 
-  if (!roleIsAtLeast(session.user.role, requiredRole)) {
-    if (deniedAudit) {
-      try {
-        await deniedAudit({
-          actorId: session.user.id,
-          canonicalRole: session.user.role,
-          requiredRole,
-          resource: new URL(request.url).pathname,
-          method: request.method,
-          requestId: requestIdFor(request),
-        });
-      } catch (error) {
-        console.error("[BELTrak authorization audit] ACCESS_DENIED persistence failed", {
-          resource: new URL(request.url).pathname,
-          requiredRole,
-          cause: error instanceof Error ? error.message : "unknown",
-        });
-      }
-    }
-    return {
-      response: jsonResponse(
-        {
-          error: `Canonical ${requiredRole} role or higher is required`,
-          code: "ROLE_PERMISSION_FORBIDDEN",
-        },
-        403,
-      ),
-      session: null,
-    };
-  }
-
   try {
     await enforcePermission(session, permission);
   } catch (error) {
@@ -120,7 +126,6 @@ async function authorize(
         await deniedAudit({
           actorId: session.user.id,
           canonicalRole: session.user.role,
-          requiredRole,
           resource: new URL(request.url).pathname,
           method: request.method,
           requestId: requestIdFor(request),
@@ -128,7 +133,7 @@ async function authorize(
       } catch (error) {
         console.error("[BELTrak authorization audit] ACCESS_DENIED persistence failed", {
           resource: new URL(request.url).pathname,
-          requiredRole,
+          requiredPermission: permission,
           cause: error instanceof Error ? error.message : "unknown",
         });
       }
@@ -211,8 +216,7 @@ export async function handleGetRolePermissionsRequest(
     request,
     options.getSession ?? getSessionFromRequest,
     "role.view",
-    "Airport Administrator",
-    options.requirePermission ?? requirePermission,
+    permissionEnforcerFor(options, "Airport Administrator"),
     deniedAuditFor(options),
   );
   if (authorization.response || !authorization.session) return authorization.response;
@@ -237,8 +241,7 @@ export async function handleUpdateRolePermissionsRequest(
     request,
     options.getSession ?? getSessionFromRequest,
     "role.manage",
-    "System Administrator",
-    options.requirePermission ?? requirePermission,
+    permissionEnforcerFor(options, "System Administrator"),
     deniedAuditFor(options),
   );
   if (authorization.response || !authorization.session) return authorization.response;

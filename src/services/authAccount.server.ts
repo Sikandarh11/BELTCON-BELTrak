@@ -242,7 +242,10 @@ export function createAuthAccountService(
       : async (userId: string): Promise<EffectiveAuthorization> => ({
           canonicalRole:
             (await repository.findProfileByUserId(userId))?.role ?? "Operations Officer",
+          userId,
+          profileId: userId,
           permissions: [],
+          accountStatus: "ACTIVE",
           authorizationVersion: 0,
         }));
 

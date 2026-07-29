@@ -35,14 +35,25 @@ const permissionRowsSchema = z.array(
 );
 
 export interface EffectiveAuthorization {
+  userId: string;
+  profileId: string;
   canonicalRole: CanonicalRole;
   permissions: PermissionCode[];
+  accountStatus: "ACTIVE";
   authorizationVersion: number;
 }
 
+/** A safe, current actor resolved from the canonical BELTCON profile. */
+export type AuthorizedActor = EffectiveAuthorization;
+
 export class PermissionAuthorizationError extends Error {
   readonly code:
-    | "PERMISSION_ACCOUNT_INELIGIBLE"
+    | "ACCOUNT_PROFILE_MISSING"
+    | "ACCOUNT_INACTIVE"
+    | "ACCOUNT_SUSPENDED"
+    | "ACCOUNT_LOCKED"
+    | "ACCOUNT_DEACTIVATED"
+    | "ACCOUNT_STATUS_INVALID"
     | "PERMISSION_CONFIGURATION_ERROR"
     | "PERMISSION_DENIED"
     | "PERMISSION_UNKNOWN";
@@ -51,7 +62,12 @@ export class PermissionAuthorizationError extends Error {
   constructor(
     message: string,
     code:
-      | "PERMISSION_ACCOUNT_INELIGIBLE"
+      | "ACCOUNT_PROFILE_MISSING"
+      | "ACCOUNT_INACTIVE"
+      | "ACCOUNT_SUSPENDED"
+      | "ACCOUNT_LOCKED"
+      | "ACCOUNT_DEACTIVATED"
+      | "ACCOUNT_STATUS_INVALID"
       | "PERMISSION_CONFIGURATION_ERROR"
       | "PERMISSION_DENIED"
       | "PERMISSION_UNKNOWN",
@@ -63,6 +79,24 @@ export class PermissionAuthorizationError extends Error {
     this.code = code;
     this.status = status;
   }
+}
+
+function accountStateError(
+  status:
+    | "ACCOUNT_PROFILE_MISSING"
+    | "ACCOUNT_INACTIVE"
+    | "ACCOUNT_SUSPENDED"
+    | "ACCOUNT_LOCKED"
+    | "ACCOUNT_DEACTIVATED"
+    | "ACCOUNT_STATUS_INVALID",
+  cause?: unknown,
+) {
+  return new PermissionAuthorizationError(
+    "The authenticated account is not eligible for BELTCON SBTS access",
+    status,
+    403,
+    cause === undefined ? undefined : { cause },
+  );
 }
 
 function configurationError(message: string, cause: unknown) {
@@ -86,14 +120,29 @@ export async function loadEffectiveAuthorization(userId: string): Promise<Effect
     );
   }
 
+  if (!profileResult.data) {
+    throw accountStateError("ACCOUNT_PROFILE_MISSING");
+  }
+
   const profile = activeProfileSchema.safeParse(profileResult.data);
-  if (!profile.success || profile.data.status !== "ACTIVE" || !profile.data.is_active) {
-    throw new PermissionAuthorizationError(
-      "The authenticated account is not eligible for BELTrak access",
-      "PERMISSION_ACCOUNT_INELIGIBLE",
-      403,
-      profile.success ? undefined : { cause: profile.error },
-    );
+  if (!profile.success) {
+    throw accountStateError("ACCOUNT_STATUS_INVALID", profile.error);
+  }
+
+  if (!profile.data.is_active || profile.data.status === "PENDING") {
+    throw accountStateError("ACCOUNT_INACTIVE");
+  }
+  if (profile.data.status === "SUSPENDED") {
+    throw accountStateError("ACCOUNT_SUSPENDED");
+  }
+  if (profile.data.status === "LOCKED") {
+    throw accountStateError("ACCOUNT_LOCKED");
+  }
+  if (profile.data.status === "DEACTIVATED") {
+    throw accountStateError("ACCOUNT_DEACTIVATED");
+  }
+  if (profile.data.status !== "ACTIVE") {
+    throw accountStateError("ACCOUNT_STATUS_INVALID");
   }
 
   const roleResult = await client
@@ -108,12 +157,7 @@ export async function loadEffectiveAuthorization(userId: string): Promise<Effect
 
   const role = authorizationRoleSchema.safeParse(roleResult.data);
   if (!role.success || !role.data.is_active || role.data.name !== profile.data.role) {
-    throw new PermissionAuthorizationError(
-      "The account role is not available",
-      "PERMISSION_ACCOUNT_INELIGIBLE",
-      403,
-      role.success ? undefined : { cause: role.error },
-    );
+    throw accountStateError("ACCOUNT_STATUS_INVALID", role.success ? undefined : role.error);
   }
 
   const grantsResult = await client
@@ -133,8 +177,11 @@ export async function loadEffectiveAuthorization(userId: string): Promise<Effect
   const permissionIds = grants.data.map((grant) => grant.permission_id);
   if (permissionIds.length === 0) {
     return {
+      userId,
+      profileId: profile.data.id,
       canonicalRole: profile.data.role,
       permissions: [],
+      accountStatus: "ACTIVE",
       authorizationVersion: role.data.version,
     };
   }
@@ -156,8 +203,11 @@ export async function loadEffectiveAuthorization(userId: string): Promise<Effect
   }
 
   return {
+    userId,
+    profileId: profile.data.id,
     canonicalRole: profile.data.role,
     permissions: permissions.data.map((permission) => permission.code),
+    accountStatus: "ACTIVE",
     authorizationVersion: role.data.version,
   };
 }
@@ -184,6 +234,46 @@ export async function requirePermission(
   if (!authorization.permissions.includes(permission.data)) {
     throw new PermissionAuthorizationError(
       `Permission ${permission.data} is required`,
+      "PERMISSION_DENIED",
+      403,
+    );
+  }
+  return authorization;
+}
+
+/**
+ * Route-level helper for a small number of pages that can be entered through
+ * one of several persisted permissions. Endpoint mutations should normally
+ * keep using requirePermission with their exact atomic permission.
+ */
+export async function requireAnyPermission(
+  session: { user: { id: string } } | null,
+  permissionCodes: readonly string[],
+): Promise<EffectiveAuthorization> {
+  if (permissionCodes.length === 0) {
+    throw new PermissionAuthorizationError("Unknown permission code", "PERMISSION_UNKNOWN", 400);
+  }
+
+  const required: PermissionCode[] = [];
+  for (const permissionCode of permissionCodes) {
+    const parsed = permissionCodeSchema.safeParse(permissionCode);
+    if (!parsed.success) {
+      throw new PermissionAuthorizationError("Unknown permission code", "PERMISSION_UNKNOWN", 400);
+    }
+    required.push(parsed.data);
+  }
+  if (!session?.user.id) {
+    throw new PermissionAuthorizationError(
+      "An authenticated session is required",
+      "PERMISSION_DENIED",
+      401,
+    );
+  }
+
+  const authorization = await loadEffectiveAuthorization(session.user.id);
+  if (!required.some((permission) => authorization.permissions.includes(permission))) {
+    throw new PermissionAuthorizationError(
+      "A required permission is missing",
       "PERMISSION_DENIED",
       403,
     );

@@ -1,16 +1,15 @@
+import { useQuery } from "@tanstack/react-query";
+import { rfidKeys } from "@/lib/queryKeys";
+import { BELTCON_QUERY_REFETCH_INTERVAL, BELTCON_QUERY_STALE_TIME } from "@/lib/queryPolicy";
+import { AppApiError, readApiResponse } from "@/services/api/appApiError";
 import type { RfidTrackableBagsResponse, RfidTrackableBag } from "@/types/rfid";
 
-export const RFID_TRACKABLE_BAGS_QUERY_KEY = ["bags", "rfid-trackable"] as const;
+export const RFID_TRACKABLE_BAGS_QUERY_KEY = rfidKeys.trackableBags();
 
-export class RfidTrackableBagsApiError extends Error {
-  readonly status: number;
-  readonly code?: string;
-
+export class RfidTrackableBagsApiError extends AppApiError {
   constructor(message: string, status: number, code?: string) {
-    super(message);
+    super(message, status, { code });
     this.name = "RfidTrackableBagsApiError";
-    this.status = status;
-    this.code = code;
   }
 }
 
@@ -23,20 +22,17 @@ export async function fetchRfidTrackableBags(): Promise<RfidTrackableBag[]> {
     },
   });
 
-  let body: Record<string, unknown> = {};
-  try {
-    body = (await response.json()) as Record<string, unknown>;
-  } catch {
-    // The status code remains authoritative if a proxy returned no JSON body.
-  }
+  return (
+    await readApiResponse<RfidTrackableBagsResponse>(response, "Unable to load RFID-trackable bags")
+  ).bags;
+}
 
-  if (!response.ok) {
-    throw new RfidTrackableBagsApiError(
-      typeof body.error === "string" ? body.error : "Unable to load RFID-trackable bags",
-      response.status,
-      typeof body.code === "string" ? body.code : undefined,
-    );
-  }
-
-  return (body as unknown as RfidTrackableBagsResponse).bags;
+export function useRfidTrackableBags() {
+  return useQuery({
+    queryKey: RFID_TRACKABLE_BAGS_QUERY_KEY,
+    queryFn: fetchRfidTrackableBags,
+    staleTime: BELTCON_QUERY_STALE_TIME.activeOperationalQueue,
+    refetchInterval: BELTCON_QUERY_REFETCH_INTERVAL.activeOperationalQueue,
+    refetchOnWindowFocus: true,
+  });
 }

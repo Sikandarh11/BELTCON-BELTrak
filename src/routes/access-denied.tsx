@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ShieldAlert } from "lucide-react";
 
-import { minimumCanonicalRoleForPath } from "@/auth/canonicalRoles";
-import { useSession } from "@/auth/SessionContext";
+import { permissionRuleForPath } from "@/auth/permissions";
 
 export const Route = createFileRoute("/access-denied")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -13,9 +12,8 @@ export const Route = createFileRoute("/access-denied")({
 });
 
 function AccessDeniedPage() {
-  const session = useSession();
   const { from } = Route.useSearch();
-  const requiredRole = minimumCanonicalRoleForPath(from);
+  const rule = permissionRuleForPath(from);
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-6 py-16">
@@ -25,9 +23,8 @@ function AccessDeniedPage() {
         </div>
         <h1 className="mt-4 text-xl font-semibold">Access Denied</h1>
         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-          <span className="font-mono text-foreground">{from}</span> requires the canonical{" "}
-          <span className="font-medium text-foreground">{requiredRole}</span> role or higher. Your
-          current role is <span className="font-medium text-foreground">{session.role}</span>.
+          <span className="font-mono text-foreground">{from}</span> requires the persisted{" "}
+          <span className="font-medium text-foreground">{rule.anyOf.join(" or ")}</span> permission.
         </p>
         <p className="mt-3 text-[11px] text-muted-foreground">
           Workspace mode cannot grant access. Contact an Airport Administrator if your assignment is

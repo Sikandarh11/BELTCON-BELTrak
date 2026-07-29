@@ -1,187 +1,513 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { createFileRoute } from "@tanstack/react-router";
-import { Panel, PageHeader, StatusPill } from "@/components/AppLayout";
-import { useAppStore } from "@/store/appStore";
-import { useState } from "react";
-import { Radio, X, Wifi, Cpu, Activity } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, RefreshCw, Save } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+
 import { useSession } from "@/auth/SessionContext";
-import { RoleGate } from "@/components/RoleGate";
+import { PageHeader, Panel, StatusPill } from "@/components/AppLayout";
+import { AppApiError } from "@/services/api/appApiError";
+import {
+  useReader,
+  useReaders,
+  useUpdateAntenna,
+  useUpdateReader,
+} from "@/services/readers/readerClient";
+import {
+  READER_ZONES,
+  type ReaderListFilters,
+  type UpdateAntennaInput,
+  type UpdateReaderInput,
+  updateAntennaSchema,
+  updateReaderSchema,
+} from "@/services/readers/readerSchemas";
 
 export const Route = createFileRoute("/readers")({
-  head: () => ({ meta: [{ title: "RFID Readers · BELTrak" }] }),
+  head: () => ({ meta: [{ title: "BELTCON Reader Management · BELTCON SBTS" }] }),
   component: Readers,
 });
 
-function Readers() {
+function date(value: string | null) {
+  return value ? new Date(value).toLocaleString() : "Not available";
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Reader request failed";
+}
+
+function ReaderConfiguration({ readerId }: { readerId: string }) {
   const session = useSession();
-  const [sel, setSel] = useState<string | null>("RDR-019");
-  const readers = useAppStore((s) => s.readers);
-  const reader = readers.find(r => r.id === sel);
-  const allEvents = useAppStore((s) => s.events);
+  const detailQuery = useReader(readerId);
+  const updateReader = useUpdateReader();
+  const updateAntenna = useUpdateAntenna();
+  const canManage = session.permissions.includes("reader.manage");
+  const readerForm = useForm<UpdateReaderInput>({
+    resolver: zodResolver(updateReaderSchema),
+    defaultValues: { name: "", enabled: true, expectedVersion: 1, reason: "" },
+  });
 
-  const total = readers.length;
-  const online = readers.filter((r) => r.status === "ONLINE").length;
-  const degraded = readers.filter((r) => r.status === "DEGRADED").length;
-  const offline = readers.filter((r) => r.status === "OFFLINE").length;
+  useEffect(() => {
+    const reader = detailQuery.data;
+    if (reader) {
+      readerForm.reset({
+        name: reader.name,
+        enabled: reader.enabled,
+        model: reader.model ?? undefined,
+        vendor: reader.vendor ?? undefined,
+        firmwareVersion: reader.firmwareVersion ?? undefined,
+        expectedVersion: reader.version,
+        reason: "",
+      });
+    }
+  }, [detailQuery.data, readerForm]);
 
-  const readerLastEvent = reader
-    ? allEvents
-        .filter((e) => e.readerId === reader.id)
-        .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())[0]
-    : null;
+  if (detailQuery.isLoading)
+    return (
+      <div className="h-80 animate-pulse rounded bg-muted" aria-label="Loading reader detail" />
+    );
+  if (detailQuery.isError) {
+    return (
+      <p role="alert" className="py-8 text-sm text-danger">
+        {errorMessage(detailQuery.error)}
+      </p>
+    );
+  }
+  const reader = detailQuery.data;
+  if (!reader) return null;
 
-  const [configuring, setConfiguring] = useState(false);
-  const [configIp, setConfigIp] = useState("");
-  const [configZone, setConfigZone] = useState("");
+  const submitReader = readerForm.handleSubmit(async (input) => {
+    try {
+      await updateReader.mutateAsync({ readerId: reader.id, input });
+      toast.success("Reader configuration saved.");
+      readerForm.setValue("reason", "");
+    } catch (error) {
+      if (error instanceof AppApiError && error.status === 409) {
+        await detailQuery.refetch();
+        toast.error(
+          "This reader was changed by another user. The latest configuration has been loaded.",
+        );
+      } else toast.error(errorMessage(error));
+    }
+  });
 
   return (
-    <RoleGate userRole={session.role} requiredRole="Control Center Operator" pageName="RFID Reader Management">
-    <div className="p-6">
-      <PageHeader title="RFID Reader Management" subtitle={`${total} readers across reclaim, customs, and back-of-house zones.`} />
-
-      <div className="grid grid-cols-4 gap-3 mb-4 text-[12px]">
-        {[
-          { l: "Total readers", v: total, c: "text-foreground" },
-          { l: "Online", v: online, c: "text-success" },
-          { l: "Degraded", v: degraded, c: "text-warning" },
-          { l: "Offline", v: offline, c: "text-danger" },
-        ].map((s) => (
-          <div key={s.l} className="rounded-lg border border-border bg-panel/60 p-3">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.l}</div>
-            <div className={`text-2xl font-semibold ${s.c}`}>{s.v}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-12 gap-4">
-        <Panel className={`col-span-12 ${sel ? "lg:col-span-8" : "lg:col-span-12"} !p-0`}>
-          <table className="w-full text-[12.5px]">
-            <thead className="text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border bg-background/40">
-              <tr>{["Reader ID","Name","Type","Floor","IP Address","Read Rate","Status"].map(h => <th key={h} className="text-left px-3 py-2.5 font-medium">{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {readers.map((r) => (
-                <tr key={r.id} onClick={() => setSel(r.id)} className={`border-b border-border cursor-pointer hover:bg-accent/30 ${sel === r.id ? "bg-accent/40" : ""}`}>
-                  <td className="px-3 py-2.5 font-mono text-primary">{r.id}</td>
-                  <td className="px-3 py-2.5">{r.name}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{r.model}</td>
-                  <td className="px-3 py-2.5 font-mono">G</td>
-                  <td className="px-3 py-2.5 font-mono text-muted-foreground">{r.ip}</td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
-                        <div className={`h-full ${r.readRate > 90 ? "bg-success" : r.readRate > 60 ? "bg-warning" : "bg-danger"}`} style={{ width: `${r.readRate}%` }} />
-                      </div>
-                      <span className="font-mono text-[11px] text-muted-foreground">{r.readRate}%</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2.5"><StatusPill status={r.status === "ONLINE" ? "Online" : r.status === "DEGRADED" ? "Degraded" : "Offline"} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
-
-        {reader && (
-          <Panel title="Reader Detail" className="col-span-12 lg:col-span-4" action={<button onClick={() => setSel(null)}><X className="size-3.5 text-muted-foreground" /></button>}>
-            <div className="flex items-center gap-3 pb-3 border-b border-border mb-3">
-              <div className="size-12 rounded-md bg-info/15 border border-info/30 flex items-center justify-center">
-                <Radio className="size-6 text-info" />
-              </div>
-              <div>
-                <div className="font-mono font-semibold">{reader.id}</div>
-                <div className="text-[12px] text-muted-foreground">{reader.name}</div>
-                <div className="mt-1"><StatusPill status={reader.status === "ONLINE" ? "Online" : reader.status === "DEGRADED" ? "Degraded" : "Offline"} /></div>
+    <div className="space-y-4">
+      <Panel title="Reader summary">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+          <dt className="text-muted-foreground">Reader ID</dt>
+          <dd className="font-mono">{reader.readerCode}</dd>
+          <dt className="text-muted-foreground">Health</dt>
+          <dd>
+            <StatusPill status={reader.calculatedHealth} />
+          </dd>
+          <dt className="text-muted-foreground">Last seen</dt>
+          <dd>{date(reader.lastSeenAt)}</dd>
+          <dt className="text-muted-foreground">Last read</dt>
+          <dd>{date(reader.lastReadAt)}</dd>
+          <dt className="text-muted-foreground">Model</dt>
+          <dd>{reader.model ?? "Not configured"}</dd>
+          <dt className="text-muted-foreground">Vendor</dt>
+          <dd>{reader.vendor ?? "Not configured"}</dd>
+          <dt className="text-muted-foreground">Firmware</dt>
+          <dd>{reader.firmwareVersion ?? "Not configured"}</dd>
+        </dl>
+      </Panel>
+      <Panel title="Activity (server-derived)">
+        <div className="grid grid-cols-2 gap-3 text-center text-sm md:grid-cols-5">
+          {Object.entries(reader.activity).map(([label, value]) => (
+            <div key={label} className="rounded bg-muted/50 p-2">
+              <div className="font-semibold">{value}</div>
+              <div className="text-xs text-muted-foreground">
+                {label.replace(/([A-Z])/g, " $1")}
               </div>
             </div>
-            <dl className="space-y-2 text-[12.5px]">
-              <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Cpu className="size-3.5" />Model</dt><dd className="font-mono">{reader.model}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Wifi className="size-3.5" />IP Address</dt><dd className="font-mono">{reader.ip}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">Firmware</dt><dd className="font-mono">7.4.1.240</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">Antennas</dt><dd className="font-mono">4 / 4 active</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground flex items-center gap-1.5"><Activity className="size-3.5" />Last Event</dt><dd className="font-mono">{readerLastEvent ? new Date(readerLastEvent.firstSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "No events"}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">Uptime</dt><dd className="font-mono">37d 4h 22m</dd></div>
-            </dl>
-            <div className="mt-4">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Antennas</div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {["A1","A2","A3","A4"].map((a, i) => (
-                    <div key={a} className={`rounded-md border ${i === 2 && reader.status === "DEGRADED" ? "border-warning bg-warning/10" : "border-success/30 bg-success/5"} p-2 text-center`}>
-                    <div className="text-[10px] font-mono">{a}</div>
-                      <div className="text-[10px] text-muted-foreground">{i === 2 && reader.status === "DEGRADED" ? "-62 dBm" : "-41 dBm"}</div>
-                  </div>
+          ))}
+        </div>
+      </Panel>
+      <Panel title="Reader configuration">
+        {canManage ? (
+          <form
+            onSubmit={(event) => void submitReader(event)}
+            className="grid gap-3 md:grid-cols-2"
+          >
+            <label className="text-xs">
+              Name
+              <input
+                {...readerForm.register("name")}
+                className="mt-1 h-9 w-full rounded border border-border bg-background px-2 text-sm"
+              />
+            </label>
+            <label className="text-xs">
+              Model
+              <input
+                {...readerForm.register("model")}
+                className="mt-1 h-9 w-full rounded border border-border bg-background px-2 text-sm"
+              />
+            </label>
+            <label className="text-xs">
+              Vendor
+              <input
+                {...readerForm.register("vendor")}
+                className="mt-1 h-9 w-full rounded border border-border bg-background px-2 text-sm"
+              />
+            </label>
+            <label className="text-xs">
+              Firmware version
+              <input
+                {...readerForm.register("firmwareVersion")}
+                className="mt-1 h-9 w-full rounded border border-border bg-background px-2 text-sm"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" {...readerForm.register("enabled")} /> Enabled
+            </label>
+            <label className="text-xs">
+              Change reason
+              <input
+                {...readerForm.register("reason")}
+                className="mt-1 h-9 w-full rounded border border-border bg-background px-2 text-sm"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={updateReader.isPending}
+              className="inline-flex w-fit items-center gap-1 rounded bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
+            >
+              <Save className="size-4" />
+              {updateReader.isPending ? "Saving…" : "Save configuration"}
+            </button>
+          </form>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            You can view this configuration but need reader.manage to update it.
+          </p>
+        )}
+      </Panel>
+      <Panel title="Antenna mapping">
+        {reader.antennas.length === 0 ? (
+          <p className="py-4 text-sm text-muted-foreground">
+            No authoritative antenna mappings are configured.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {reader.antennas.map((antenna) => (
+              <AntennaConfiguration
+                key={antenna.id}
+                readerId={reader.id}
+                canManage={canManage}
+                antenna={antenna}
+                onSave={updateAntenna.mutateAsync}
+                saving={updateAntenna.isPending}
+              />
+            ))}
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+function AntennaConfiguration({
+  readerId,
+  antenna,
+  canManage,
+  onSave,
+  saving,
+}: {
+  readerId: string;
+  antenna: NonNullable<ReturnType<typeof useReader>["data"]>["antennas"][number];
+  canManage: boolean;
+  onSave: ReturnType<typeof useUpdateAntenna>["mutateAsync"];
+  saving: boolean;
+}) {
+  const form = useForm<UpdateAntennaInput>({
+    resolver: zodResolver(updateAntennaSchema),
+    defaultValues: {
+      name: antenna.name,
+      zoneCode: antenna.zoneCode,
+      direction: antenna.direction as UpdateAntennaInput["direction"],
+      enabled: antenna.enabled,
+      transmitPowerDbm: antenna.transmitPowerDbm,
+      expectedVersion: antenna.version,
+      reason: "",
+    },
+  });
+  useEffect(
+    () =>
+      form.reset({
+        name: antenna.name,
+        zoneCode: antenna.zoneCode,
+        direction: antenna.direction as UpdateAntennaInput["direction"],
+        enabled: antenna.enabled,
+        transmitPowerDbm: antenna.transmitPowerDbm,
+        expectedVersion: antenna.version,
+        reason: "",
+      }),
+    [antenna, form],
+  );
+  const submit = form.handleSubmit(async (input) => {
+    try {
+      await onSave({ readerId, antennaId: antenna.id, input });
+      toast.success("Antenna configuration saved.");
+      form.setValue("reason", "");
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  });
+  return (
+    <form
+      onSubmit={(event) => void submit(event)}
+      className="rounded border border-border p-3 text-sm"
+    >
+      <div className="mb-2 flex justify-between gap-2">
+        <span>
+          Port {antenna.port} ·{" "}
+          {antenna.lastReadAt ? `Last read ${date(antenna.lastReadAt)}` : "No read recorded"}
+        </span>
+        <StatusPill status={antenna.enabled ? "ENABLED" : "DISABLED"} />
+      </div>
+      {canManage ? (
+        <div className="grid gap-2 md:grid-cols-3">
+          <input
+            {...form.register("name")}
+            aria-label={`Antenna ${antenna.port} name`}
+            className="h-8 rounded border border-border bg-background px-2 text-xs"
+          />
+          <select
+            {...form.register("zoneCode")}
+            className="h-8 rounded border border-border bg-background px-2 text-xs"
+          >
+            {READER_ZONES.map((zone) => (
+              <option key={zone} value={zone}>
+                {zone}
+              </option>
+            ))}
+          </select>
+          <select
+            {...form.register("direction")}
+            className="h-8 rounded border border-border bg-background px-2 text-xs"
+          >
+            <option value="">Direction not configured</option>
+            <option value="INBOUND">Inbound</option>
+            <option value="OUTBOUND">Outbound</option>
+            <option value="BIDIRECTIONAL">Bidirectional</option>
+            <option value="UNKNOWN">Unknown</option>
+          </select>
+          <input
+            type="number"
+            min="0"
+            max="40"
+            step="0.1"
+            {...form.register("transmitPowerDbm", {
+              setValueAs: (value) => (value === "" ? null : Number(value)),
+            })}
+            placeholder="Power dBm"
+            className="h-8 rounded border border-border bg-background px-2 text-xs"
+          />
+          <input
+            {...form.register("reason")}
+            placeholder="Change reason"
+            className="h-8 rounded border border-border bg-background px-2 text-xs"
+          />
+          <label className="flex items-center gap-2 text-xs">
+            <input type="checkbox" {...form.register("enabled")} />
+            Enabled
+          </label>
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-fit rounded border border-border px-2 py-1 text-xs disabled:opacity-50"
+          >
+            Save antenna
+          </button>
+        </div>
+      ) : (
+        <div>
+          {antenna.name} · {antenna.zoneCode} · {antenna.direction ?? "Direction not configured"} ·{" "}
+          {antenna.transmitPowerDbm ?? "Power not configured"}
+        </div>
+      )}
+    </form>
+  );
+}
+
+function Readers() {
+  const session = useSession();
+  const [filters, setFilters] = useState<ReaderListFilters>({
+    page: 1,
+    pageSize: 25,
+    sort: "readerCode",
+    direction: "asc",
+  });
+  const [selectedReaderId, setSelectedReaderId] = useState<string | null>(null);
+  const query = useReaders(filters);
+  const canView = session.permissions.includes("reader.view");
+  const totalPages = Math.max(1, query.data?.totalPages ?? 1);
+  const limitations = useMemo(
+    () => query.data?.dataLimitations ?? [],
+    [query.data?.dataLimitations],
+  );
+  if (!canView)
+    return (
+      <div className="p-6">
+        <PageHeader title="BELTCON Reader Management" subtitle="RFID reader inventory" />
+        <p role="alert" className="rounded border border-danger/30 p-4 text-sm text-danger">
+          Permission reader.view is required.
+        </p>
+      </div>
+    );
+  return (
+    <div className="p-6">
+      <PageHeader
+        title="BELTCON Reader Management"
+        subtitle="Authoritative inventory, antenna mapping, and server-derived health."
+        actions={
+          <button
+            type="button"
+            onClick={() => void query.refetch()}
+            className="inline-flex items-center gap-1 rounded border border-border px-3 py-2 text-sm"
+          >
+            <RefreshCw className="size-4" />
+            Refresh
+          </button>
+        }
+      />
+      {limitations.map((limitation) => (
+        <p
+          key={limitation}
+          className="mb-3 rounded border border-warning/30 bg-warning/5 p-2 text-xs text-warning"
+        >
+          {limitation}
+        </p>
+      ))}
+      <div className="grid grid-cols-12 gap-4">
+        <Panel title="Reader inventory" className="col-span-12 lg:col-span-7 !p-0">
+          <div className="flex flex-wrap gap-2 border-b border-border p-3">
+            <input
+              value={filters.search ?? ""}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  page: 1,
+                  search: event.target.value || undefined,
+                }))
+              }
+              placeholder="Search reader ID or name"
+              className="h-9 flex-1 rounded border border-border bg-background px-2 text-sm"
+            />
+            <select
+              value={filters.status ?? ""}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  page: 1,
+                  status: (event.target.value || undefined) as ReaderListFilters["status"],
+                }))
+              }
+              className="h-9 rounded border border-border bg-background px-2 text-sm"
+            >
+              <option value="">All health states</option>
+              {["ONLINE", "DEGRADED", "OFFLINE", "DISABLED", "UNKNOWN"].map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </div>
+          {query.isLoading ? (
+            <div className="space-y-2 p-4">
+              {[1, 2, 3, 4].map((item) => (
+                <div key={item} className="h-14 animate-pulse rounded bg-muted" />
+              ))}
+            </div>
+          ) : query.isError ? (
+            <div className="p-8 text-center text-sm">
+              <p role="alert" className="text-danger">
+                {errorMessage(query.error)}
+              </p>
+              <button
+                type="button"
+                onClick={() => void query.refetch()}
+                className="mt-2 rounded border border-border px-3 py-1.5"
+              >
+                Retry
+              </button>
+            </div>
+          ) : query.data?.items.length === 0 ? (
+            <p className="p-12 text-center text-sm text-muted-foreground">
+              No authoritative readers match the selected filters.
+            </p>
+          ) : (
+            <>
+              <div className="max-h-[650px] overflow-auto">
+                {query.data?.items.map((reader) => (
+                  <button
+                    type="button"
+                    key={reader.id}
+                    onClick={() => setSelectedReaderId(reader.id)}
+                    className={`w-full border-b border-border p-3 text-left hover:bg-accent/40 ${selectedReaderId === reader.id ? "bg-primary/5" : ""}`}
+                  >
+                    <div className="flex justify-between gap-2">
+                      <span>
+                        <span className="font-mono text-xs text-primary">{reader.readerCode}</span>
+                        <span className="ml-2 text-sm font-medium">{reader.name}</span>
+                      </span>
+                      <StatusPill status={reader.calculatedHealth} />
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      <span>{reader.enabled ? "Enabled" : "Disabled"}</span>
+                      <span>{reader.antennaCount} antennas</span>
+                      <span>{reader.mappedZones.join(", ") || "No mapped zone"}</span>
+                      <span>{reader.model ?? "Model not configured"}</span>
+                    </div>
+                  </button>
                 ))}
               </div>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                onClick={() => {
-                  if (!reader) return;
-                  useAppStore.getState().updateReader(reader.id, { status: "OFFLINE", readRate: 0 });
-                  toast.info(`${reader.id} restarting...`);
-                  setTimeout(() => {
-                    useAppStore.getState().updateReader(reader.id, { status: "ONLINE", readRate: 99 });
-                    toast.success(`${reader.id} back online`);
-                  }, 2000);
-                }}
-                className="text-[12px] px-2.5 py-1.5 rounded-md border border-border hover:bg-accent"
-              >
-                Restart
-              </button>
-              <button
-                onClick={() => {
-                  if (!reader) return;
-                  setConfigIp(reader.ip);
-                  setConfigZone(reader.zone);
-                  setConfiguring(true);
-                }}
-                className="text-[12px] px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground font-medium"
-              >
-                Configure
-              </button>
-            </div>
-            {configuring && reader && (
-              <div className="mt-3 pt-3 border-t border-border space-y-2">
-                <div>
-                  <label className="text-[11px] text-muted-foreground">IP Address</label>
-                  <input
-                    value={configIp}
-                    onChange={(e) => setConfigIp(e.target.value)}
-                    className="w-full bg-background border border-border rounded px-2 py-1.5 font-mono text-[12px]"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground">Zone</label>
-                  <input
-                    value={configZone}
-                    onChange={(e) => setConfigZone(e.target.value)}
-                    className="w-full bg-background border border-border rounded px-2 py-1.5 font-mono text-[12px]"
-                  />
-                </div>
-                <div className="flex gap-2">
+              <div className="flex items-center justify-between p-3 text-xs text-muted-foreground">
+                <span>
+                  Page {filters.page} of {totalPages} · {query.data?.total ?? 0} readers
+                </span>
+                <span className="flex gap-1">
                   <button
-                    onClick={() => {
-                      useAppStore.getState().updateReader(reader.id, { ip: configIp, zone: configZone });
-                      setConfiguring(false);
-                      toast.success(`${reader.id} updated`);
-                    }}
-                    className="flex-1 text-[12px] px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground font-medium"
+                    type="button"
+                    disabled={filters.page <= 1}
+                    onClick={() =>
+                      setFilters((current) => ({ ...current, page: Math.max(1, current.page - 1) }))
+                    }
+                    className="rounded border border-border p-1 disabled:opacity-40"
                   >
-                    Save
+                    <ChevronLeft className="size-4" />
                   </button>
                   <button
-                    onClick={() => setConfiguring(false)}
-                    className="text-[12px] px-2.5 py-1.5 rounded-md border border-border hover:bg-accent"
+                    type="button"
+                    disabled={filters.page >= totalPages}
+                    onClick={() =>
+                      setFilters((current) => ({
+                        ...current,
+                        page: Math.min(totalPages, current.page + 1),
+                      }))
+                    }
+                    className="rounded border border-border p-1 disabled:opacity-40"
                   >
-                    Cancel
+                    <ChevronRight className="size-4" />
                   </button>
-                </div>
+                </span>
               </div>
-            )}
-          </Panel>
-        )}
+            </>
+          )}
+        </Panel>
+        <div className="col-span-12 lg:col-span-5">
+          {selectedReaderId ? (
+            <ReaderConfiguration readerId={selectedReaderId} />
+          ) : (
+            <Panel title="Reader detail">
+              <div className="py-16 text-center text-sm text-muted-foreground">
+                <Pencil className="mx-auto mb-2 size-5" />
+                Select a reader to inspect its authoritative configuration and antenna mapping.
+              </div>
+            </Panel>
+          )}
+        </div>
       </div>
     </div>
-    </RoleGate>
   );
 }

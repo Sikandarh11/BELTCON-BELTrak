@@ -17,11 +17,8 @@ import { AppLayout } from "../components/AppLayout";
 import { ProtectedRoute } from "@/auth/protectedRoute";
 import { logout } from "@/services/authService";
 import { Toaster } from "@/components/ui/sonner";
-import { useAppStore } from "@/store/appStore";
-import { startRealtime, stopRealtime } from "@/services/realtimeService";
 import { SessionProvider } from "@/auth/SessionContext";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
-import { PageSkeleton } from "@/components/PageSkeleton";
 import { PermissionPageGate } from "@/components/RoleGate";
 
 function NotFoundComponent() {
@@ -120,20 +117,12 @@ function RootComponent() {
     pathname === "/register" ||
     pathname === "/forgot-password" ||
     pathname === "/change-password";
-  const hydrated = useAppStore((s) => s.hydrated);
-
-  useEffect(() => {
-    if (!hydrated) {
-      useAppStore.getState().hydrate();
-    } else {
-      startRealtime();
-    }
-    return () => stopRealtime();
-  }, [hydrated]);
-
   async function handleLogout() {
     await logout().catch(() => undefined);
-    queryClient.removeQueries({ queryKey: ["auth", "session"] });
+    await queryClient.cancelQueries();
+    // Operational query data is scoped to the authenticated session and must
+    // never be handed to the next user of this browser.
+    queryClient.clear();
     navigate({ to: "/login", replace: true });
   }
 
@@ -148,7 +137,7 @@ function RootComponent() {
               <AppLayout session={session} onLogout={handleLogout}>
                 <PermissionPageGate pathname={pathname} userPermissions={session.user.permissions}>
                   <PageErrorBoundary pageName="current">
-                    {hydrated ? <Outlet /> : <PageSkeleton />}
+                    <Outlet />
                   </PageErrorBoundary>
                 </PermissionPageGate>
               </AppLayout>

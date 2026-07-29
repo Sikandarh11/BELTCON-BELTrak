@@ -6,7 +6,13 @@ export type TaggingErrorCode =
   | "TAGGING_ALREADY_ENCODED"
   | "TAGGING_DUPLICATE_EPC"
   | "TAGGING_PERSISTENCE_ERROR"
-  | "TAGGING_INTERNAL_ERROR";
+  | "TAGGING_INTERNAL_ERROR"
+  | "TAG_ASSIGNMENT_BAG_INELIGIBLE"
+  | "TAG_ASSIGNMENT_BHS_UID_REQUIRED"
+  | "TAG_ASSIGNMENT_EPC_CONFLICT"
+  | "TAG_ASSIGNMENT_BARCODE_CONFLICT"
+  | "TAG_ASSIGNMENT_VERSION_CONFLICT"
+  | "TAG_ASSIGNMENT_INVALID_LPC";
 
 export class TaggingServiceError extends Error {
   readonly code: TaggingErrorCode;
@@ -52,5 +58,20 @@ export class TaggingPersistenceError extends TaggingServiceError {
   constructor(message = "Unable to complete RFID encoding", options?: ErrorOptions) {
     super(message, "TAGGING_PERSISTENCE_ERROR", 500, options);
     this.name = "TaggingPersistenceError";
+  }
+}
+
+export class TagAssignmentConflictError extends TaggingServiceError {
+  constructor(
+    message: string,
+    code:
+      | "TAG_ASSIGNMENT_BAG_INELIGIBLE"
+      | "TAG_ASSIGNMENT_BHS_UID_REQUIRED"
+      | "TAG_ASSIGNMENT_EPC_CONFLICT"
+      | "TAG_ASSIGNMENT_BARCODE_CONFLICT"
+      | "TAG_ASSIGNMENT_VERSION_CONFLICT",
+  ) {
+    super(message, code, 409);
+    this.name = "TagAssignmentConflictError";
   }
 }

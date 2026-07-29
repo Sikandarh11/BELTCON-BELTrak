@@ -1,4 +1,4 @@
-export type { Bag, BagStatus } from "./bag";
+export type { Bag, BagStatus, BeltconSbtsBaselineBag } from "./bag";
 export type {
   HbssIngestionPayload,
   HbssScanResult,

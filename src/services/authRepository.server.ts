@@ -13,6 +13,7 @@ import {
   AUTH_COOKIE_NAME,
   AUTH_SESSION_DURATION_MS,
   changePasswordSchema,
+  forgotPasswordSchema,
   loginSchema,
   registerSchema,
   type SessionUser,
@@ -29,14 +30,6 @@ const REFRESH_COOKIE_NAME = `${AUTH_COOKIE_NAME}_refresh`;
 // controlled by Supabase; this only sets the cookie lifetime.
 const LONG_REFRESH_AGE_SECONDS = 60 * 60 * 24 * 3650; // ~10 years
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
-
-const forgotPasswordSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .email()
-    .transform((email) => email.toLowerCase()),
-});
 
 const recoverySessionSchema = z
   .object({

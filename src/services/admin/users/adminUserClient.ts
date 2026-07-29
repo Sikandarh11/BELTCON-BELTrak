@@ -11,40 +11,23 @@ import type {
   InvitedAdminUser,
   RepairAdminProfileRequest,
 } from "./adminUserTypes";
+import { userKeys } from "@/lib/queryKeys";
+import { AppApiError, readApiResponse } from "@/services/api/appApiError";
 
-export const ADMIN_USERS_QUERY_KEY = ["admin", "users"] as const;
+export const ADMIN_USERS_QUERY_KEY = userKeys.all;
 
-export class AdminUserApiError extends Error {
+export class AdminUserApiError extends AppApiError {
   readonly code: string;
-  readonly status: number;
 
   constructor(message: string, code: string, status: number) {
-    super(message);
+    super(message, status, { code });
     this.name = "AdminUserApiError";
     this.code = code;
-    this.status = status;
-  }
-}
-
-async function parseError(response: Response) {
-  try {
-    const body = (await response.json()) as { error?: string; code?: string };
-    return new AdminUserApiError(
-      body.error ?? "User administration request failed",
-      body.code ?? "ADMIN_USER_REQUEST_FAILED",
-      response.status,
-    );
-  } catch {
-    return new AdminUserApiError(
-      "User administration request failed",
-      "ADMIN_USER_REQUEST_FAILED",
-      response.status,
-    );
   }
 }
 
 export function adminUsersQueryKey(filters: AdminUserListFilters) {
-  return [...ADMIN_USERS_QUERY_KEY, filters] as const;
+  return userKeys.list(filters);
 }
 
 export async function listAdminUsers(filters: AdminUserListFilters): Promise<AdminUserPage> {
@@ -62,8 +45,7 @@ export async function listAdminUsers(filters: AdminUserListFilters): Promise<Adm
     credentials: "include",
     headers: { accept: "application/json" },
   });
-  if (!response.ok) throw await parseError(response);
-  return (await response.json()) as AdminUserPage;
+  return readApiResponse<AdminUserPage>(response, "User administration request failed");
 }
 
 export async function repairAdminUserProfile(
@@ -76,8 +58,10 @@ export async function repairAdminUserProfile(
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (!response.ok) throw await parseError(response);
-  const body = (await response.json()) as { user: AdminUser };
+  const body = await readApiResponse<{ user: AdminUser }>(
+    response,
+    "User administration request failed",
+  );
   return body.user;
 }
 
@@ -88,8 +72,10 @@ export async function createAdminUser(input: CreateAdminUserRequest): Promise<Cr
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (!response.ok) throw await parseError(response);
-  const body = (await response.json()) as { user: CreatedAdminUser };
+  const body = await readApiResponse<{ user: CreatedAdminUser }>(
+    response,
+    "User administration request failed",
+  );
   return body.user;
 }
 
@@ -100,8 +86,10 @@ export async function inviteAdminUser(input: InviteAdminUserRequest): Promise<In
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (!response.ok) throw await parseError(response);
-  const body = (await response.json()) as { invitation: InvitedAdminUser };
+  const body = await readApiResponse<{ invitation: InvitedAdminUser }>(
+    response,
+    "User administration request failed",
+  );
   return body.invitation;
 }
 
@@ -115,8 +103,10 @@ export async function editAdminUser(
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (!response.ok) throw await parseError(response);
-  const body = (await response.json()) as { user: AdminUser };
+  const body = await readApiResponse<{ user: AdminUser }>(
+    response,
+    "User administration request failed",
+  );
   return body.user;
 }
 
@@ -130,6 +120,5 @@ export async function performAdminUserAction(
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (!response.ok) throw await parseError(response);
-  return (await response.json()) as AdminUserActionResult;
+  return readApiResponse<AdminUserActionResult>(response, "User administration request failed");
 }

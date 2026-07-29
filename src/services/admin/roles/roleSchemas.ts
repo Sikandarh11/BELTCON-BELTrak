@@ -4,22 +4,36 @@ import type { CanonicalRole } from "@/auth/canonicalRoles";
 
 export const PERMISSION_CODES = [
   "dashboard.view",
+  "bag.read",
   "alarm.acknowledge",
   "alarm.escalate",
   "alarm.close",
+  "alarm.read",
   "bag.manage",
   "bag.tag",
   "bag.recheck",
+  "bag.resolve",
+  "rfid.read",
   "reader.view",
   "reader.manage",
   "report.view",
   "user.view",
   "user.manage",
+  "user.create",
+  "user.update",
+  "user.activate",
+  "user.suspend",
+  "user.lock",
+  "user.deactivate",
+  "user.reset_password",
   "role.view",
   "role.manage",
+  "permission.manage",
+  "settings.read",
   "settings.manage",
   "audit.view",
   "developer.access",
+  "simulator.use",
   "xray.view",
   "xray.refresh",
 ] as const;
@@ -35,6 +49,217 @@ export const CRITICAL_SYSTEM_ADMIN_PERMISSIONS = [
 ] as const satisfies readonly PermissionCode[];
 
 export const permissionCodeSchema = z.enum(PERMISSION_CODES);
+
+/**
+ * Canonical application-side metadata for the persisted permission catalog.
+ * The database remains the grant authority; this map only supplies stable UI
+ * names and categories for codes that are validated on the server as well.
+ */
+export const PERMISSION_CATALOG: Readonly<
+  Record<
+    PermissionCode,
+    { name: string; description: string; category: string; riskLevel: PermissionRiskLevel }
+  >
+> = {
+  "dashboard.view": {
+    name: "View dashboard",
+    description: "View operational dashboards.",
+    category: "Dashboard",
+    riskLevel: "LOW",
+  },
+  "bag.read": {
+    name: "View bags",
+    description: "View operational bag records.",
+    category: "Bags",
+    riskLevel: "LOW",
+  },
+  "bag.manage": {
+    name: "Manage bags",
+    description: "Legacy broad bag-management capability.",
+    category: "Bags",
+    riskLevel: "MEDIUM",
+  },
+  "bag.tag": {
+    name: "Assign RFID tags",
+    description: "Associate RFID tags with identified bags.",
+    category: "Bags",
+    riskLevel: "HIGH",
+  },
+  "bag.recheck": {
+    name: "Run bag recheck",
+    description: "Open recheck cases and request HBSS recall.",
+    category: "Bags",
+    riskLevel: "HIGH",
+  },
+  "bag.resolve": {
+    name: "Resolve bags",
+    description: "Complete an authorized bag resolution.",
+    category: "Bags",
+    riskLevel: "HIGH",
+  },
+  "alarm.read": {
+    name: "View alarms",
+    description: "View alarm information.",
+    category: "Alarms",
+    riskLevel: "LOW",
+  },
+  "alarm.acknowledge": {
+    name: "Acknowledge alarms",
+    description: "Acknowledge active alarms.",
+    category: "Alarms",
+    riskLevel: "MEDIUM",
+  },
+  "alarm.escalate": {
+    name: "Escalate alarms",
+    description: "Escalate an alarm for supervisory response.",
+    category: "Alarms",
+    riskLevel: "HIGH",
+  },
+  "alarm.close": {
+    name: "Close alarms",
+    description: "Close alarms after an authorized resolution.",
+    category: "Alarms",
+    riskLevel: "HIGH",
+  },
+  "rfid.read": {
+    name: "View RFID activity",
+    description: "View RFID journey and event data.",
+    category: "RFID",
+    riskLevel: "LOW",
+  },
+  "reader.view": {
+    name: "View RFID readers",
+    description: "View reader configuration and health.",
+    category: "RFID Readers",
+    riskLevel: "LOW",
+  },
+  "reader.manage": {
+    name: "Manage RFID readers",
+    description: "Change authorized reader configuration.",
+    category: "RFID Readers",
+    riskLevel: "HIGH",
+  },
+  "report.view": {
+    name: "View reports",
+    description: "View and export authorized operational reports.",
+    category: "Reports",
+    riskLevel: "LOW",
+  },
+  "audit.view": {
+    name: "View audit log",
+    description: "View and export authorized audit events.",
+    category: "Audit",
+    riskLevel: "HIGH",
+  },
+  "user.view": {
+    name: "View users",
+    description: "View BELTCON user identities and profile health.",
+    category: "Administration",
+    riskLevel: "MEDIUM",
+  },
+  "user.manage": {
+    name: "Manage users (legacy)",
+    description: "Legacy broad user-management capability.",
+    category: "Administration",
+    riskLevel: "CRITICAL",
+  },
+  "user.create": {
+    name: "Create users",
+    description: "Create user identities and matching profiles.",
+    category: "Administration",
+    riskLevel: "CRITICAL",
+  },
+  "user.update": {
+    name: "Update users",
+    description: "Update non-secret user profile attributes.",
+    category: "Administration",
+    riskLevel: "HIGH",
+  },
+  "user.activate": {
+    name: "Activate users",
+    description: "Activate eligible user accounts.",
+    category: "Administration",
+    riskLevel: "HIGH",
+  },
+  "user.suspend": {
+    name: "Suspend users",
+    description: "Suspend user accounts.",
+    category: "Administration",
+    riskLevel: "HIGH",
+  },
+  "user.lock": {
+    name: "Lock users",
+    description: "Lock or unlock user accounts.",
+    category: "Administration",
+    riskLevel: "HIGH",
+  },
+  "user.deactivate": {
+    name: "Deactivate users",
+    description: "Deactivate user accounts.",
+    category: "Administration",
+    riskLevel: "CRITICAL",
+  },
+  "user.reset_password": {
+    name: "Reset user passwords",
+    description: "Initiate administrative password reset or invitation delivery.",
+    category: "Administration",
+    riskLevel: "CRITICAL",
+  },
+  "role.view": {
+    name: "View roles",
+    description: "View the canonical role-permission matrix.",
+    category: "Administration",
+    riskLevel: "MEDIUM",
+  },
+  "role.manage": {
+    name: "Manage roles",
+    description: "Change role permission assignments.",
+    category: "Administration",
+    riskLevel: "CRITICAL",
+  },
+  "permission.manage": {
+    name: "Manage permissions",
+    description: "Change persisted permission assignments.",
+    category: "Administration",
+    riskLevel: "CRITICAL",
+  },
+  "settings.read": {
+    name: "View settings",
+    description: "View safe system settings.",
+    category: "Administration",
+    riskLevel: "LOW",
+  },
+  "settings.manage": {
+    name: "Manage settings",
+    description: "Change authorized system settings.",
+    category: "Administration",
+    riskLevel: "CRITICAL",
+  },
+  "developer.access": {
+    name: "Access developer tools",
+    description: "Access developer diagnostics.",
+    category: "Development",
+    riskLevel: "CRITICAL",
+  },
+  "simulator.use": {
+    name: "Use simulators",
+    description: "Use enabled non-production simulators.",
+    category: "Development",
+    riskLevel: "CRITICAL",
+  },
+  "xray.view": {
+    name: "View X-ray scans",
+    description: "View authorized X-ray references.",
+    category: "X-ray",
+    riskLevel: "MEDIUM",
+  },
+  "xray.refresh": {
+    name: "Refresh X-ray scans",
+    description: "Request scan refresh from the configured adapter.",
+    category: "X-ray",
+    riskLevel: "HIGH",
+  },
+};
 export const rolePermissionIdSchema = z.string().uuid("A valid role ID is required");
 
 const changeReasonSchema = z

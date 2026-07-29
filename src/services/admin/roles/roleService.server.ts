@@ -1,6 +1,5 @@
 import "@tanstack/react-start/server-only";
 
-import { roleIsAtLeast } from "@/auth/canonicalRoles";
 import { RolePermissionError } from "./roleErrors";
 import { roleRepository, type RoleRepository } from "./roleRepository.server";
 import {
@@ -23,7 +22,7 @@ function errorCode(error: unknown) {
   return error instanceof RolePermissionError ? error.code : "ROLE_PERMISSION_PERSISTENCE_ERROR";
 }
 
-function normalizedPermissionCodes(permissionCodes: string[]) {
+function normalizedPermissionCodes(permissionCodes: string[]): PermissionCode[] {
   const order = new Map(PERMISSION_CODES.map((code, index) => [code, index]));
   return permissionCodes
     .map((code) => code.trim())
@@ -31,19 +30,15 @@ function normalizedPermissionCodes(permissionCodes: string[]) {
       (left, right) =>
         (order.get(left as PermissionCode) ?? Number.MAX_SAFE_INTEGER) -
         (order.get(right as PermissionCode) ?? Number.MAX_SAFE_INTEGER),
-    );
+    ) as PermissionCode[];
 }
 
 export function createRoleService(repository: RoleRepository = roleRepository): RoleService {
   return {
-    async getRolesWithPermissions(canonicalRole) {
-      if (!roleIsAtLeast(canonicalRole, "Airport Administrator")) {
-        throw new RolePermissionError(
-          "Canonical Airport Administrator role or higher is required",
-          "ROLE_PERMISSION_FORBIDDEN",
-          403,
-        );
-      }
+    async getRolesWithPermissions(_canonicalRole) {
+      // API authorization resolves the active profile and role.view before
+      // this service is reached. Keep this service focused on business rules,
+      // not duplicated rank checks.
       return repository.getRolesWithPermissions();
     },
 
@@ -105,6 +100,17 @@ export function createRoleService(repository: RoleRepository = roleRepository): 
             "System Administrator must retain role.view, role.manage, user.view, user.manage, and settings.manage.",
             "ROLE_PERMISSION_LOCKOUT_RISK",
             409,
+          );
+        }
+
+        if (
+          role.name === input.canonicalRole &&
+          afterPermissionCodes.some((permission) => !beforePermissionCodes.includes(permission))
+        ) {
+          throw new RolePermissionError(
+            "Administrators cannot add permissions to their own canonical role.",
+            "ROLE_PERMISSION_FORBIDDEN",
+            403,
           );
         }
 

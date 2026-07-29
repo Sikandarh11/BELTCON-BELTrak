@@ -1,9 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { KeyRound, LoaderCircle, LogOut, ShieldCheck } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { z } from "zod";
 
 import { getWorkspaceLanding } from "@/auth/appRoles";
+import { BELTCON_QUERY_STALE_TIME } from "@/lib/queryPolicy";
 import {
   AUTH_SESSION_KEY,
   changePassword,
@@ -27,9 +31,16 @@ function ChangePasswordPage() {
   const queryClient = useQueryClient();
   const [recoveryReady, setRecoveryReady] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
-  const [form, setForm] = useState({ newPassword: "", confirmPassword: "" });
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<z.infer<typeof changePasswordSchema>>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: { newPassword: "", confirmPassword: "" },
+  });
 
   useEffect(() => {
     let active = true;
@@ -54,12 +65,14 @@ function ChangePasswordPage() {
     };
   }, []);
 
+  useEffect(() => () => reset(), [reset]);
+
   const sessionQuery = useQuery({
     queryKey: AUTH_SESSION_KEY,
     queryFn: fetchSession,
     enabled: recoveryReady && !recoveryError,
     retry: false,
-    staleTime: 0,
+    staleTime: BELTCON_QUERY_STALE_TIME.session,
   });
 
   useEffect(() => {
@@ -68,18 +81,11 @@ function ChangePasswordPage() {
     }
   }, [navigate, recoveryError, recoveryReady, sessionQuery.isError]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const parsed = changePasswordSchema.safeParse(form);
-    if (!parsed.success) {
-      setValidationError(parsed.error.issues[0]?.message ?? "Check the new password");
-      return;
-    }
-
+  async function submit(input: z.infer<typeof changePasswordSchema>) {
     setValidationError(null);
-    setSubmitting(true);
     try {
-      await changePassword(parsed.data);
+      await changePassword(input);
+      reset();
       const session = await fetchSession();
       queryClient.setQueryData(AUTH_SESSION_KEY, session);
       await navigate({
@@ -88,8 +94,6 @@ function ChangePasswordPage() {
       });
     } catch {
       setValidationError("Unable to change password. Try again or contact your administrator.");
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -156,36 +160,33 @@ function ChangePasswordPage() {
           </button>
         </div>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit(submit)} noValidate>
           <label className="block space-y-2">
             <span className="text-sm font-medium">New password</span>
             <input
               type="password"
-              required
               autoComplete="new-password"
-              value={form.newPassword}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, newPassword: event.target.value }))
-              }
+              {...register("newPassword")}
+              aria-invalid={Boolean(errors.newPassword)}
               className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
             />
+            {errors.newPassword ? (
+              <span className="text-xs text-red-700">{errors.newPassword.message}</span>
+            ) : null}
           </label>
 
           <label className="block space-y-2">
             <span className="text-sm font-medium">Confirm new password</span>
             <input
               type="password"
-              required
               autoComplete="new-password"
-              value={form.confirmPassword}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  confirmPassword: event.target.value,
-                }))
-              }
+              {...register("confirmPassword")}
+              aria-invalid={Boolean(errors.confirmPassword)}
               className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
             />
+            {errors.confirmPassword ? (
+              <span className="text-xs text-red-700">{errors.confirmPassword.message}</span>
+            ) : null}
           </label>
 
           <p className="text-xs leading-5 text-slate-500">{PASSWORD_REQUIREMENTS}</p>
@@ -201,15 +202,15 @@ function ChangePasswordPage() {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={isSubmitting}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-60"
           >
-            {submitting ? (
+            {isSubmitting ? (
               <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
             ) : (
               <KeyRound className="size-4" aria-hidden="true" />
             )}
-            {submitting ? "Changing password…" : "Change password"}
+            {isSubmitting ? "Changing password…" : "Change password"}
           </button>
         </form>
       </div>

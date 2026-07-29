@@ -1,68 +1,28 @@
-import { supabase } from "@/lib/supabaseClient";
-import { useAppStore } from "@/store/appStore";
-
-let channel: ReturnType<typeof supabase.channel> | null = null;
+/**
+ * @deprecated Phase 8 intentionally defers Supabase Realtime until RLS and
+ * publication settings can be verified. Operational hooks use targeted query
+ * refetch intervals and mutation invalidation meanwhile. This module must not
+ * hydrate or mutate Zustand records.
+ */
 export type RealtimeSnapshot = {
   status: "disconnected" | "connecting" | "connected" | "error";
   eventsReceived: number;
 };
 
-let snapshot: RealtimeSnapshot = {
-  status: "disconnected",
-  eventsReceived: 0,
-};
-const listeners = new Set<() => void>();
-
-function updateSnapshot(patch: Partial<RealtimeSnapshot>) {
-  snapshot = { ...snapshot, ...patch };
-  listeners.forEach((listener) => listener());
-}
-
-function recordRealtimeEvent() {
-  updateSnapshot({ eventsReceived: snapshot.eventsReceived + 1 });
-}
+const snapshot: RealtimeSnapshot = { status: "disconnected", eventsReceived: 0 };
 
 export function getRealtimeSnapshot() {
   return snapshot;
 }
 
-export function subscribeToRealtimeStatus(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+export function subscribeToRealtimeStatus(_listener: () => void) {
+  return () => undefined;
 }
 
 export function startRealtime() {
-  if (channel) return; // already subscribed
-
-  updateSnapshot({ status: "connecting" });
-  channel = supabase
-    .channel("beltrak-changes")
-    .on("postgres_changes", { event: "*", schema: "public", table: "alarms" }, () => {
-      recordRealtimeEvent();
-      // Simple approach: re-hydrate the full store on any alarm change
-      // This catches changes from other tabs/users
-      useAppStore.getState().hydrate();
-    })
-    .on("postgres_changes", { event: "*", schema: "public", table: "bags" }, () => {
-      recordRealtimeEvent();
-      useAppStore.getState().hydrate();
-    })
-    .subscribe((status) => {
-      if (status === "SUBSCRIBED") {
-        updateSnapshot({ status: "connected" });
-        console.log("[realtime] Connected");
-      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-        updateSnapshot({ status: "error" });
-      } else if (status === "CLOSED") {
-        updateSnapshot({ status: "disconnected" });
-      }
-    });
+  // Deliberately no subscription: do not risk unauthorized browser channels.
 }
 
 export function stopRealtime() {
-  if (channel) {
-    supabase.removeChannel(channel);
-    channel = null;
-    updateSnapshot({ status: "disconnected" });
-  }
+  // No active channel exists while Realtime invalidation is deferred.
 }

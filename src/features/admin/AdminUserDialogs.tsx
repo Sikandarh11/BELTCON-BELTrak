@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertTriangle,
   Check,
@@ -212,10 +214,6 @@ function ReasonField({
   );
 }
 
-function validationError(result: { success: boolean; error?: { issues: { message: string }[] } }) {
-  return result.success ? null : (result.error?.issues[0]?.message ?? "Check the entered values");
-}
-
 export function CreateUserDialog({
   pending,
   onClose,
@@ -225,15 +223,26 @@ export function CreateUserDialog({
   onClose: () => void;
   onSubmit: (input: CreateAdminUserRequest) => void;
 }) {
-  const [form, setForm] = useState<CreateAdminUserRequest>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    temporaryPassword: "",
-    confirmPassword: "",
-    role: "Operations Officer",
-    isActive: true,
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<CreateAdminUserRequest>({
+    resolver: zodResolver(createAdminUserSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      temporaryPassword: "",
+      confirmPassword: "",
+      role: "Operations Officer",
+      isActive: true,
+    },
   });
+  const form = watch();
   const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -251,7 +260,7 @@ export function CreateUserDialog({
   ] as const;
 
   function clearSensitiveState() {
-    setForm((current) => ({ ...current, temporaryPassword: "", confirmPassword: "" }));
+    reset();
     setShowTemporaryPassword(false);
     setShowConfirmPassword(false);
   }
@@ -261,16 +270,13 @@ export function CreateUserDialog({
     onClose();
   }
 
-  function submit() {
-    const parsed = createAdminUserSchema.safeParse(form);
-    const error = validationError(parsed);
-    if (error || !parsed.success) {
-      setMessage(error);
-      return;
-    }
-    setMessage(null);
-    onSubmit(parsed.data);
-  }
+  const submit = handleSubmit(
+    (input) => {
+      setMessage(null);
+      onSubmit(input);
+    },
+    () => setMessage("Check the entered values"),
+  );
 
   return (
     <Modal
@@ -284,7 +290,7 @@ export function CreateUserDialog({
           <CancelButton pending={pending} onClick={close} />
           <button
             type="button"
-            onClick={submit}
+            onClick={() => void submit()}
             disabled={pending}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[12px] font-medium text-primary-foreground disabled:opacity-50"
           >
@@ -298,8 +304,8 @@ export function CreateUserDialog({
         prefix="create"
         firstName={form.firstName}
         lastName={form.lastName}
-        onFirstName={(firstName) => setForm({ ...form, firstName })}
-        onLastName={(lastName) => setForm({ ...form, lastName })}
+        onFirstName={(firstName) => setValue("firstName", firstName)}
+        onLastName={(lastName) => setValue("lastName", lastName)}
       />
 
       <div>
@@ -309,11 +315,13 @@ export function CreateUserDialog({
         <input
           id="create-email"
           type="email"
-          value={form.email}
+          {...register("email")}
           autoComplete="email"
-          onChange={(event) => setForm({ ...form, email: event.target.value })}
           className={`${fieldClass} font-mono`}
         />
+        {errors.email ? (
+          <p className="mt-1 text-[10px] text-danger">{errors.email.message}</p>
+        ) : null}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -325,9 +333,8 @@ export function CreateUserDialog({
             <input
               id="create-temporary-password"
               type={showTemporaryPassword ? "text" : "password"}
-              value={form.temporaryPassword}
+              {...register("temporaryPassword")}
               autoComplete="new-password"
-              onChange={(event) => setForm({ ...form, temporaryPassword: event.target.value })}
               className={`${fieldClass} pr-10`}
             />
             <button
@@ -354,9 +361,8 @@ export function CreateUserDialog({
             <input
               id="create-confirm-password"
               type={showConfirmPassword ? "text" : "password"}
-              value={form.confirmPassword}
+              {...register("confirmPassword")}
               autoComplete="new-password"
-              onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })}
               className={`${fieldClass} pr-10`}
             />
             <button
@@ -397,17 +403,13 @@ export function CreateUserDialog({
         ))}
       </div>
 
-      <RoleSelect
-        id="create-role"
-        value={form.role}
-        onChange={(role) => setForm({ ...form, role })}
-      />
+      <RoleSelect id="create-role" value={form.role} onChange={(role) => setValue("role", role)} />
 
       <label className="flex items-start gap-2 rounded-md border border-border px-3 py-2.5">
         <input
           type="checkbox"
           checked={form.isActive}
-          onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
+          onChange={(event) => setValue("isActive", event.target.checked)}
           className="mt-0.5 size-4"
         />
         <span>
@@ -440,24 +442,37 @@ export function InviteUserDialog({
   onClose: () => void;
   onSubmit: (input: InviteAdminUserRequest) => void;
 }) {
-  const [form, setForm] = useState<InviteAdminUserRequest>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    role: "Operations Officer",
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<InviteAdminUserRequest>({
+    resolver: zodResolver(inviteAdminUserSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      role: "Operations Officer",
+    },
   });
+  const form = watch();
   const [message, setMessage] = useState<string | null>(null);
 
-  function submit() {
-    const parsed = inviteAdminUserSchema.safeParse(form);
-    const error = validationError(parsed);
-    if (error || !parsed.success) {
-      setMessage(error);
-      return;
-    }
-    setMessage(null);
-    onSubmit(parsed.data);
+  function close() {
+    reset();
+    onClose();
   }
+
+  const submit = handleSubmit(
+    (input) => {
+      setMessage(null);
+      onSubmit(input);
+    },
+    () => setMessage("Check the entered values"),
+  );
 
   return (
     <Modal
@@ -465,13 +480,13 @@ export function InviteUserDialog({
       description="Create a PENDING Auth identity and matching profile, then email a password-setup link."
       labelledBy="invite-user-title"
       pending={pending}
-      onClose={onClose}
+      onClose={close}
       footer={
         <>
-          <CancelButton pending={pending} onClick={onClose} />
+          <CancelButton pending={pending} onClick={close} />
           <button
             type="button"
-            onClick={submit}
+            onClick={() => void submit()}
             disabled={pending}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[12px] font-medium text-primary-foreground disabled:opacity-50"
           >
@@ -485,8 +500,8 @@ export function InviteUserDialog({
         prefix="invite"
         firstName={form.firstName}
         lastName={form.lastName}
-        onFirstName={(firstName) => setForm({ ...form, firstName })}
-        onLastName={(lastName) => setForm({ ...form, lastName })}
+        onFirstName={(firstName) => setValue("firstName", firstName)}
+        onLastName={(lastName) => setValue("lastName", lastName)}
       />
       <div>
         <label htmlFor="invite-email" className={labelClass}>
@@ -495,17 +510,15 @@ export function InviteUserDialog({
         <input
           id="invite-email"
           type="email"
-          value={form.email}
+          {...register("email")}
           autoComplete="email"
-          onChange={(event) => setForm({ ...form, email: event.target.value })}
           className={`${fieldClass} font-mono`}
         />
+        {errors.email ? (
+          <p className="mt-1 text-[10px] text-danger">{errors.email.message}</p>
+        ) : null}
       </div>
-      <RoleSelect
-        id="invite-role"
-        value={form.role}
-        onChange={(role) => setForm({ ...form, role })}
-      />
+      <RoleSelect id="invite-role" value={form.role} onChange={(role) => setValue("role", role)} />
       <div className="rounded-md border border-info/30 bg-info/5 px-3 py-2 text-[11px] text-muted-foreground">
         The administrator does not set a password. Supabase sends a password-setup invitation to the
         user. The account remains PENDING until activated.
@@ -537,26 +550,32 @@ export function EditUserDialog({
   onClose: () => void;
   onSubmit: (input: EditAdminUserRequest) => void;
 }) {
-  const [form, setForm] = useState<EditAdminUserRequest>({
-    firstName: user.firstName,
-    lastName: user.lastName,
-    role: (user.role as CanonicalRole | null) ?? "Operations Officer",
-    isActive: user.isActive ?? false,
-    expectedVersion: user.version ?? 0,
-    reason: "",
+  const {
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<EditAdminUserRequest>({
+    resolver: zodResolver(editAdminUserSchema),
+    defaultValues: {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: (user.role as CanonicalRole | null) ?? "Operations Officer",
+      isActive: user.isActive ?? false,
+      expectedVersion: user.version ?? 0,
+      reason: "",
+    },
   });
+  const form = watch();
   const [message, setMessage] = useState<string | null>(null);
 
-  function submit() {
-    const parsed = editAdminUserSchema.safeParse(form);
-    const error = validationError(parsed);
-    if (error || !parsed.success) {
-      setMessage(error);
-      return;
-    }
-    setMessage(null);
-    onSubmit(parsed.data);
-  }
+  const submit = handleSubmit(
+    (input) => {
+      setMessage(null);
+      onSubmit(input);
+    },
+    () => setMessage("Check the entered values"),
+  );
 
   return (
     <Modal
@@ -570,7 +589,7 @@ export function EditUserDialog({
           <CancelButton pending={pending} onClick={onClose} />
           <button
             type="button"
-            onClick={submit}
+            onClick={() => void submit()}
             disabled={pending}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[12px] font-medium text-primary-foreground disabled:opacity-50"
           >
@@ -589,21 +608,21 @@ export function EditUserDialog({
         prefix="edit"
         firstName={form.firstName}
         lastName={form.lastName}
-        onFirstName={(firstName) => setForm({ ...form, firstName })}
-        onLastName={(lastName) => setForm({ ...form, lastName })}
+        onFirstName={(firstName) => setValue("firstName", firstName)}
+        onLastName={(lastName) => setValue("lastName", lastName)}
       />
       <RoleSelect
         id="edit-role"
         value={form.role}
         roles={assignableRoles}
-        onChange={(role) => setForm({ ...form, role })}
+        onChange={(role) => setValue("role", role)}
       />
       <label className="flex items-start gap-2 rounded-md border border-border px-3 py-2.5">
         <input
           type="checkbox"
           checked={form.isActive}
           disabled={!canEditActive}
-          onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
+          onChange={(event) => setValue("isActive", event.target.checked)}
           className="mt-0.5 size-4"
         />
         <span>
@@ -618,7 +637,7 @@ export function EditUserDialog({
       <ReasonField
         id="edit-reason"
         value={form.reason}
-        onChange={(reason) => setForm({ ...form, reason })}
+        onChange={(reason) => setValue("reason", reason)}
       />
       <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-[11px] text-muted-foreground">
         Confirm that the canonical role and active state are correct. Concurrent changes are
@@ -632,6 +651,7 @@ export function EditUserDialog({
           {message}
         </div>
       )}
+      {errors.reason ? <p className="text-[10px] text-danger">{errors.reason.message}</p> : null}
     </Modal>
   );
 }
@@ -649,24 +669,26 @@ export function UserActionDialog({
   onClose: () => void;
   onSubmit: (input: AdminUserActionRequest) => void;
 }) {
-  const [reason, setReason] = useState("");
+  const {
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<AdminUserActionRequest>({
+    resolver: zodResolver(adminUserActionSchema),
+    defaultValues: { action, expectedVersion: user.version ?? 0, reason: "" },
+  });
+  const reason = watch("reason");
   const [message, setMessage] = useState<string | null>(null);
   const title = USER_ACTION_LABELS[action];
 
-  function submit() {
-    const parsed = adminUserActionSchema.safeParse({
-      action,
-      expectedVersion: user.version ?? 0,
-      reason,
-    });
-    const error = validationError(parsed);
-    if (error || !parsed.success) {
-      setMessage(error);
-      return;
-    }
-    setMessage(null);
-    onSubmit(parsed.data);
-  }
+  const submit = handleSubmit(
+    (input) => {
+      setMessage(null);
+      onSubmit(input);
+    },
+    () => setMessage("Check the entered values"),
+  );
 
   return (
     <Modal
@@ -681,7 +703,7 @@ export function UserActionDialog({
           <CancelButton pending={pending} onClick={onClose} />
           <button
             type="button"
-            onClick={submit}
+            onClick={() => void submit()}
             disabled={pending}
             className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-[12px] font-medium disabled:opacity-50 ${
               action === "DEACTIVATE" || action === "SUSPEND" || action === "LOCK"
@@ -708,7 +730,11 @@ export function UserActionDialog({
           </p>
         </div>
       </div>
-      <ReasonField id="action-reason" value={reason} onChange={setReason} />
+      <ReasonField
+        id="action-reason"
+        value={reason}
+        onChange={(nextReason) => setValue("reason", nextReason)}
+      />
       {message && (
         <div
           role="alert"
@@ -717,6 +743,7 @@ export function UserActionDialog({
           {message}
         </div>
       )}
+      {errors.reason ? <p className="text-[10px] text-danger">{errors.reason.message}</p> : null}
     </Modal>
   );
 }
@@ -732,24 +759,30 @@ export function RepairProfileDialog({
   onClose: () => void;
   onSubmit: (input: RepairAdminProfileRequest) => void;
 }) {
-  const [form, setForm] = useState<RepairAdminProfileRequest>({
-    firstName: user.firstName,
-    lastName: user.lastName,
-    role: (user.role as CanonicalRole | null) ?? "Operations Officer",
-    reason: "",
+  const {
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<RepairAdminProfileRequest>({
+    resolver: zodResolver(repairAdminProfileSchema),
+    defaultValues: {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: (user.role as CanonicalRole | null) ?? "Operations Officer",
+      reason: "",
+    },
   });
+  const form = watch();
   const [message, setMessage] = useState<string | null>(null);
 
-  function submit() {
-    const parsed = repairAdminProfileSchema.safeParse(form);
-    const error = validationError(parsed);
-    if (error || !parsed.success) {
-      setMessage(error);
-      return;
-    }
-    setMessage(null);
-    onSubmit(parsed.data);
-  }
+  const submit = handleSubmit(
+    (input) => {
+      setMessage(null);
+      onSubmit(input);
+    },
+    () => setMessage("Check the entered values"),
+  );
 
   return (
     <Modal
@@ -764,7 +797,7 @@ export function RepairProfileDialog({
           <CancelButton pending={pending} onClick={onClose} />
           <button
             type="button"
-            onClick={submit}
+            onClick={() => void submit()}
             disabled={pending}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[12px] font-medium text-primary-foreground disabled:opacity-50"
           >
@@ -782,18 +815,14 @@ export function RepairProfileDialog({
         prefix="repair"
         firstName={form.firstName}
         lastName={form.lastName}
-        onFirstName={(firstName) => setForm({ ...form, firstName })}
-        onLastName={(lastName) => setForm({ ...form, lastName })}
+        onFirstName={(firstName) => setValue("firstName", firstName)}
+        onLastName={(lastName) => setValue("lastName", lastName)}
       />
-      <RoleSelect
-        id="repair-role"
-        value={form.role}
-        onChange={(role) => setForm({ ...form, role })}
-      />
+      <RoleSelect id="repair-role" value={form.role} onChange={(role) => setValue("role", role)} />
       <ReasonField
         id="repair-reason"
         value={form.reason}
-        onChange={(reason) => setForm({ ...form, reason })}
+        onChange={(reason) => setValue("reason", reason)}
       />
       {message && (
         <div
@@ -803,6 +832,7 @@ export function RepairProfileDialog({
           {message}
         </div>
       )}
+      {errors.reason ? <p className="text-[10px] text-danger">{errors.reason.message}</p> : null}
     </Modal>
   );
 }

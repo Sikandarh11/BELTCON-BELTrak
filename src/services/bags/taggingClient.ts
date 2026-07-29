@@ -1,36 +1,36 @@
-import type { EncodeTagResponse, PendingTaggingResponse, TaggingBag } from "@/types/tagging";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { auditKeys, bagKeys, rfidKeys, taggingKeys } from "@/lib/queryKeys";
+import {
+  BELTCON_QUERY_REFETCH_INTERVAL,
+  BELTCON_QUERY_RETRY,
+  BELTCON_QUERY_STALE_TIME,
+} from "@/lib/queryPolicy";
+import { AppApiError, readApiResponse } from "@/services/api/appApiError";
 
-export const PENDING_TAGGING_QUERY_KEY = ["bags", "pending-tagging"] as const;
+import type {
+  AssignRfidTagRequest,
+  AssignRfidTagResponse,
+  EncodeTagResponse,
+  PendingTaggingResponse,
+  TaggingBag,
+} from "@/types/tagging";
 
-export class TaggingApiError extends Error {
-  readonly status: number;
-  readonly code?: string;
+export const PENDING_TAGGING_QUERY_KEY = taggingKeys.queue();
+export const TAGGING_DOMAIN_QUERY_KEYS = {
+  pending: PENDING_TAGGING_QUERY_KEY,
+  bag: taggingKeys.bag,
+  audit: auditKeys.all,
+} as const;
 
+export class TaggingApiError extends AppApiError {
   constructor(message: string, status: number, code?: string) {
-    super(message);
+    super(message, status, { code });
     this.name = "TaggingApiError";
-    this.status = status;
-    this.code = code;
   }
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
-  let body: Record<string, unknown> = {};
-  try {
-    body = (await response.json()) as Record<string, unknown>;
-  } catch {
-    // The status code remains authoritative if a proxy returned no JSON body.
-  }
-
-  if (!response.ok) {
-    throw new TaggingApiError(
-      typeof body.error === "string" ? body.error : "Tagging request failed",
-      response.status,
-      typeof body.code === "string" ? body.code : undefined,
-    );
-  }
-
-  return body as T;
+  return readApiResponse<T>(response, "Tagging request failed");
 }
 
 export async function fetchPendingTagging(): Promise<TaggingBag[]> {
@@ -56,4 +56,46 @@ export async function encodeBagTag(bagId: string, epc: string): Promise<TaggingB
   });
   const body = await parseResponse<EncodeTagResponse>(response);
   return body.bag;
+}
+
+export async function assignRfidTag(
+  bagId: string,
+  input: AssignRfidTagRequest,
+): Promise<TaggingBag> {
+  const response = await fetch(`/api/bags/${encodeURIComponent(bagId)}/assign-tag`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body = await parseResponse<AssignRfidTagResponse>(response);
+  return body.bag;
+}
+
+export function useTaggingQueue() {
+  return useQuery({
+    queryKey: TAGGING_DOMAIN_QUERY_KEYS.pending,
+    queryFn: fetchPendingTagging,
+    staleTime: BELTCON_QUERY_STALE_TIME.activeOperationalQueue,
+    retry: BELTCON_QUERY_RETRY.read,
+    refetchInterval: BELTCON_QUERY_REFETCH_INTERVAL.activeOperationalQueue,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useAssignRfidTag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ bagId, input }: { bagId: string; input: AssignRfidTagRequest }) =>
+      assignRfidTag(bagId, input),
+    onSuccess: async (_bag, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: TAGGING_DOMAIN_QUERY_KEYS.pending }),
+        queryClient.invalidateQueries({ queryKey: TAGGING_DOMAIN_QUERY_KEYS.bag(variables.bagId) }),
+        queryClient.invalidateQueries({ queryKey: bagKeys.all }),
+        queryClient.invalidateQueries({ queryKey: TAGGING_DOMAIN_QUERY_KEYS.audit }),
+        queryClient.invalidateQueries({ queryKey: rfidKeys.trackableBags() }),
+      ]);
+    },
+  });
 }

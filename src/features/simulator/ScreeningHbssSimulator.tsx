@@ -13,6 +13,7 @@ import {
 import { useMemo, useState, type FormEvent } from "react";
 
 import { useSession } from "@/auth/SessionContext";
+import { hasPermission } from "@/auth/permissions";
 import { PageHeader, Panel } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +22,7 @@ import {
   screeningSimulatorInputSchema,
   type ScreeningSimulatorInput,
 } from "@/services/integrations/screening/screeningSchemas";
-import { PENDING_TAGGING_QUERY_KEY } from "@/services/bags/taggingClient";
-import { useAppStore } from "@/store/appStore";
-import { SIMULATOR_SUBMIT_CANONICAL_ROLE } from "@/types/screening";
+import { auditKeys, bagKeys, rfidKeys, taggingKeys } from "@/lib/queryKeys";
 import { getMockXraySet, MOCK_XRAY_SETS } from "./mockXraySets";
 
 type ScanState = ScreeningSimulatorInput["scanStatus"];
@@ -66,6 +65,7 @@ interface SimulatorResponse {
 }
 
 const SCAN_STATES: readonly ScanState[] = ["AVAILABLE", "PENDING", "NOT_FOUND", "FAILED"];
+const SIMULATOR_THREAT_TYPES = ["Suspect Bag", "Explosive", "Weapon", "Restricted Item"] as const;
 
 const RESULT_DETAILS: Record<
   Exclude<ResultState, "IDLE" | "SENDING">,
@@ -148,9 +148,8 @@ function resultStateFor(response: SimulatorResponse): ResultState {
 export function ScreeningHbssSimulator() {
   const session = useSession();
   const queryClient = useQueryClient();
-  const threatTypes = useAppStore((state) => state.threatTypes);
   const [form, setForm] = useState<SimulatorFormState>(() =>
-    createInitialForm(threatTypes[0] ?? "Suspect Bag"),
+    createInitialForm(SIMULATOR_THREAT_TYPES[0]),
   );
   const [resultState, setResultState] = useState<ResultState>("IDLE");
   const [response, setResponse] = useState<SimulatorResponse | null>(null);
@@ -160,7 +159,7 @@ export function ScreeningHbssSimulator() {
   );
 
   const selectedImageSet = useMemo(() => getMockXraySet(form.imageSetId), [form.imageSetId]);
-  const canonicalAdmin = session.role === SIMULATOR_SUBMIT_CANONICAL_ROLE;
+  const canUseSimulator = hasPermission(session.permissions, "simulator.use");
   const availableWithoutImages = form.scanStatus === "AVAILABLE" && !selectedImageSet;
   const sending = resultState === "SENDING";
 
@@ -225,8 +224,10 @@ export function ScreeningHbssSimulator() {
 
       setResultState(resultStateFor(body));
       await Promise.allSettled([
-        queryClient.invalidateQueries({ queryKey: PENDING_TAGGING_QUERY_KEY }),
-        useAppStore.getState().hydrate(),
+        queryClient.invalidateQueries({ queryKey: taggingKeys.all }),
+        queryClient.invalidateQueries({ queryKey: bagKeys.all }),
+        queryClient.invalidateQueries({ queryKey: rfidKeys.trackableBags() }),
+        queryClient.invalidateQueries({ queryKey: auditKeys.all }),
       ]);
     } catch (error) {
       setResponse({
@@ -257,13 +258,12 @@ export function ScreeningHbssSimulator() {
         subtitle="Send normalized suspect events through the server-side screening ingestion pipeline"
       />
 
-      {!canonicalAdmin ? (
+      {!canUseSimulator ? (
         <div className="mb-4 flex gap-3 rounded-md border border-warning/30 bg-warning/10 p-3 text-[12px] text-warning">
           <ShieldAlert className="mt-0.5 size-4 shrink-0" />
           <div>
-            The simulator page is visible in Developer workspace, but submission requires the
-            canonical <strong>System Administrator</strong> profile role. Your canonical role is{" "}
-            <strong>{session.role}</strong>.
+            Submission requires the persisted <strong>simulator.use</strong> permission and an
+            enabled non-production simulator. Workspace selection does not grant it.
           </div>
         </div>
       ) : null}
@@ -351,7 +351,7 @@ export function ScreeningHbssSimulator() {
                     onChange={(event) => updateForm("threatType", event.target.value)}
                     className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
                   >
-                    {(threatTypes.length > 0 ? threatTypes : ["Suspect Bag"]).map((threatType) => (
+                    {SIMULATOR_THREAT_TYPES.map((threatType) => (
                       <option key={threatType}>{threatType}</option>
                     ))}
                   </select>
@@ -490,7 +490,7 @@ export function ScreeningHbssSimulator() {
             <Button
               type="submit"
               className="w-full"
-              disabled={sending || availableWithoutImages || !canonicalAdmin}
+              disabled={sending || availableWithoutImages || !canUseSimulator}
             >
               {sending ? <RotateCw className="animate-spin" /> : <Send />}
               {sending ? "Sending" : "Mark Suspect and Send to SBTS"}

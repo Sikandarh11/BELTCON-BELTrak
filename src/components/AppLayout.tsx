@@ -40,7 +40,7 @@ import { useAuthSession, useWorkspaceMode } from "@/auth/SessionContext";
 import { useDebugFlag } from "@/hooks/useDebugFlag";
 import type { PermissionCode } from "@/services/admin/roles/roleSchemas";
 import type { AuthSessionResponse } from "@/services/authService";
-import { useAppStore } from "@/store/appStore";
+import { useAlarms } from "@/services/alarms/alarmClient";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -315,7 +315,8 @@ export function AppLayout({
   onLogout?: () => void | Promise<void>;
 }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const openAlarms = useAppStore((s) => s.alarms.filter((a) => a.outcome === "OPEN").length);
+  const activeAlarms = useAlarms({ page: 1, pageSize: 1, statuses: ["OPEN"] });
+  const openAlarms = activeAlarms.data?.total ?? 0;
   const currentUser = session.user;
   const userInitials = currentUser
     ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.trim() || "U"

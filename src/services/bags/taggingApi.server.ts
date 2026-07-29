@@ -24,6 +24,14 @@ const encodeTagBodySchema = z
     epc: z.string(),
   })
   .strict();
+const assignTagBodySchema = z
+  .object({
+    rfidTagBarcode: z.string(),
+    epc: z.string(),
+    iataLpc: z.string().optional(),
+    expectedVersion: z.number().int().min(1),
+  })
+  .strict();
 
 type SessionLookup = typeof getSessionFromRequest;
 
@@ -198,6 +206,46 @@ export async function handleEncodeTagRequest(
     const bag = await (options.service ?? taggingService).encodeTag({
       bagId,
       epc: input.epc,
+      actorId: authorization.session.user.id,
+      canonicalRole: authorization.session.user.role,
+      requestId: requestIdFor(request),
+    });
+    return jsonResponse({ bag });
+  } catch (error) {
+    return safeErrorResponse(error);
+  }
+}
+
+/** Baseline V1 naming. The legacy encode endpoint remains a compatibility wrapper. */
+export async function handleAssignRfidTagRequest(
+  request: Request,
+  bagId: string,
+  options: TaggingApiOptions = {},
+) {
+  const authorization = await authorize(request, options);
+  if (authorization.response || !authorization.session) return authorization.response;
+
+  let input: z.infer<typeof assignTagBodySchema>;
+  try {
+    input = assignTagBodySchema.parse(await readLimitedJson(request));
+  } catch (error) {
+    if (error instanceof TaggingServiceError) return safeErrorResponse(error);
+    return jsonResponse(
+      {
+        error: "Request body contains an invalid RFID tag assignment",
+        code: "TAGGING_VALIDATION_ERROR",
+      },
+      400,
+    );
+  }
+
+  try {
+    const bag = await (options.service ?? taggingService).assignRfidTag({
+      bagId,
+      rfidTagBarcode: input.rfidTagBarcode,
+      epc: input.epc,
+      iataLpc: input.iataLpc,
+      expectedVersion: input.expectedVersion,
       actorId: authorization.session.user.id,
       canonicalRole: authorization.session.user.role,
       requestId: requestIdFor(request),
