@@ -46,16 +46,17 @@ if (!availability.available) {
     `'00000000-0000-4000-8000-${String(suffix).padStart(12, "0")}'::uuid,'p2-station-${suffix}',` +
     `'${stationId}','${siteId}')::text`;
 
-  test("P2-DB-002 migration chain preserves 001-026 and appends Phase 3 migration 027", async () => {
+  test("P2-DB-002 migration chain preserves 001-027 and appends reader registry migration 028", async () => {
     const migrations = await discoverPostgresMigrations();
-    assert.equal(migrations.length, 27);
+    assert.equal(migrations.length, 28);
     assert.deepEqual(
       migrations.map((file) => Number.parseInt(file.slice(0, 3), 10)),
-      Array.from({ length: 27 }, (_, index) => index + 1),
+      Array.from({ length: 28 }, (_, index) => index + 1),
     );
-    assert.equal(migrations.at(-3), "025_bhs_hbss_integrity_hardening.sql");
-    assert.equal(migrations.at(-2), "026_station_delivery_metadata.sql");
-    assert.equal(migrations.at(-1), "027_complete_tagging_station_workflow.sql");
+    assert.equal(migrations.at(-4), "025_bhs_hbss_integrity_hardening.sql");
+    assert.equal(migrations.at(-3), "026_station_delivery_metadata.sql");
+    assert.equal(migrations.at(-2), "027_complete_tagging_station_workflow.sql");
+    assert.equal(migrations.at(-1), "028_create_beltcon_authoritative_reader_registry.sql");
     assert.equal(database.execute("SELECT to_regclass('public.bags') IS NOT NULL"), "t");
   });
 

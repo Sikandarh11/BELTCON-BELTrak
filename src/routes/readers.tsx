@@ -18,9 +18,9 @@ import {
   READER_ZONES,
   readerAdapterTypeSchema,
   readerConfigurationInputSchema,
+  type CreateReaderConfigurationInput,
   type ReaderListFilters,
   type ReaderSummary,
-  type UpdateReaderInput,
 } from "@/services/readers/readerSchemas";
 
 export const Route = createFileRoute("/readers")({
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/readers")({
   component: Readers,
 });
 
-type ReaderFormInput = UpdateReaderInput;
+type ReaderFormInput = CreateReaderConfigurationInput;
 
 const EMPTY_READER_FORM: ReaderFormInput = {
   readerCode: "",
@@ -39,7 +39,6 @@ const EMPTY_READER_FORM: ReaderFormInput = {
   adapterType: "UNAVAILABLE_PHYSICAL",
   host: undefined,
   enabled: true,
-  expectedVersion: 1,
 };
 
 const HEALTH_FILTERS = [
@@ -72,7 +71,6 @@ function normalizeReaderForm(reader?: ReaderSummary | null): ReaderFormInput {
     adapterType: reader.adapterType,
     host: reader.host ?? undefined,
     enabled: reader.enabled,
-    expectedVersion: reader.configurationVersion,
   };
 }
 
@@ -454,7 +452,9 @@ function Readers() {
                       <td className="px-3 py-3 align-top text-xs">{reader.zone}</td>
                       <td className="px-3 py-3 align-top text-xs">
                         <div>{reader.vendor ?? "Not configured"}</div>
-                        <div className="text-muted-foreground">{reader.model ?? "Not configured"}</div>
+                        <div className="text-muted-foreground">
+                          {reader.model ?? "Not configured"}
+                        </div>
                       </td>
                       <td className="px-3 py-3 align-top text-xs">
                         <div>{reader.adapterType}</div>
@@ -464,16 +464,24 @@ function Readers() {
                           </span>
                         ) : null}
                       </td>
-                      <td className="px-3 py-3 align-top text-xs">{reader.host ?? "Not configured"}</td>
+                      <td className="px-3 py-3 align-top text-xs">
+                        {reader.host ?? "Not configured"}
+                      </td>
                       <td className="px-3 py-3 align-top">
                         <StatusPill status={reader.healthStatus} />
                       </td>
                       <td className="px-3 py-3 align-top">
                         <StatusPill status={reader.enabled ? "Active" : "Inactive"} />
                       </td>
-                      <td className="px-3 py-3 align-top text-xs">{formatDate(reader.lastHeartbeatAt)}</td>
-                      <td className="px-3 py-3 align-top text-xs">{formatDate(reader.lastEventAt)}</td>
-                      <td className="px-3 py-3 align-top text-xs font-medium">{reader.configurationVersion}</td>
+                      <td className="px-3 py-3 align-top text-xs">
+                        {formatDate(reader.lastHeartbeatAt)}
+                      </td>
+                      <td className="px-3 py-3 align-top text-xs">
+                        {formatDate(reader.lastEventAt)}
+                      </td>
+                      <td className="px-3 py-3 align-top text-xs font-medium">
+                        {reader.configurationVersion}
+                      </td>
                       {canManage ? (
                         <td className="px-3 py-3 align-top">
                           <div className="flex items-center gap-2">

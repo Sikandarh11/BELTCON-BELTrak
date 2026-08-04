@@ -55,7 +55,8 @@ function latest(left: string | null, right: string | null) {
 }
 
 function normalizeHealth(value: string | null | undefined): ReaderHealth | null {
-  return value && readerHealthSchema.safeParse(value).success ? value : null;
+  const parsed = readerHealthSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 function resolveReaderHealth(row: Row): ReaderHealth {
@@ -65,7 +66,8 @@ function resolveReaderHealth(row: Row): ReaderHealth {
   const storedHealth = normalizeHealth(text(row.health_status) ?? text(row.status));
   const lastHeartbeatAt = text(row.last_heartbeat_at);
   const host = text(row.ip) ?? text(row.host);
-  if (storedHealth === "ONLINE") return lastHeartbeatAt ? "ONLINE" : host ? "UNKNOWN" : "MISCONFIGURED";
+  if (storedHealth === "ONLINE")
+    return lastHeartbeatAt ? "ONLINE" : host ? "UNKNOWN" : "MISCONFIGURED";
   if (storedHealth === "STARTING" || storedHealth === "DEGRADED" || storedHealth === "OFFLINE") {
     return storedHealth;
   }
@@ -153,7 +155,8 @@ function readerSummary(
   const lastHeartbeatAt = text(row.last_heartbeat_at);
   const lastEventAt = text(row.last_event_at) ?? lastReadAt;
   const healthStatus = resolveReaderHealth(row);
-  const configurationVersion = numberValue(row.configuration_version) ?? numberValue(row.version) ?? 1;
+  const configurationVersion =
+    numberValue(row.configuration_version) ?? numberValue(row.version) ?? 1;
   const adapterType = text(row.adapter_type);
   return {
     id,
@@ -163,7 +166,7 @@ function readerSummary(
     zone: zone as ReaderSummary["zone"],
     model: text(row.model),
     vendor: text(row.vendor),
-    adapterType: adapterTypeSchema.safeParse(adapterType).success
+    adapterType: readerAdapterTypeSchema.safeParse(adapterType).success
       ? (adapterType as ReaderAdapterType)
       : "UNAVAILABLE_PHYSICAL",
     host: text(row.ip) ?? text(row.host),
@@ -236,18 +239,22 @@ function filterAndSort(summaries: ReaderSummary[], filters: ReaderListFilters) {
     const value =
       filters.sort === "name"
         ? left.name.localeCompare(right.name)
-        : filters.sort === "health"
+        : filters.sort === "healthStatus"
           ? left.calculatedHealth.localeCompare(right.calculatedHealth)
-          : filters.sort === "lastSeenAt"
-            ? (left.lastSeenAt ?? "").localeCompare(right.lastSeenAt ?? "")
+          : filters.sort === "lastHeartbeatAt"
+            ? (left.lastHeartbeatAt ?? "").localeCompare(right.lastHeartbeatAt ?? "")
             : left.readerCode.localeCompare(right.readerCode);
     return value === 0 ? left.readerCode.localeCompare(right.readerCode) : value * direction;
   });
 }
 
 export interface ReaderRepository {
-  listReadersForSite(input: { siteId: string; filters: ReaderListFilters }): Promise<ReaderListResponse>;
+  listReadersForSite(input: {
+    siteId: string;
+    filters: ReaderListFilters;
+  }): Promise<ReaderListResponse>;
   getReaderById(input: { siteId: string; readerId: string }): Promise<ReaderSummary | null>;
+  getReaderByIdAcrossSites(readerId: string): Promise<ReaderSummary | null>;
   getReaderByCode(input: { siteId: string; readerCode: string }): Promise<ReaderSummary | null>;
   createReaderConfiguration(
     input: CreateReaderConfigurationInput & {
@@ -280,6 +287,7 @@ export interface ReaderRepository {
   updateReader(
     input: UpdateReaderInput & {
       readerId: string;
+      siteId: string;
       actorId: string;
       canonicalRole: CanonicalRole;
       requestId: string;
@@ -337,6 +345,18 @@ export const readerRepository: ReaderRepository = {
         "id,reader_code,site_id,name,zone,model,vendor,adapter_type,ip,enabled,status,last_heartbeat_at,last_event_at,configuration_version,created_at,updated_at,created_by,updated_by,version,firmware_version",
       )
       .eq("site_id", siteId)
+      .eq("id", readerId)
+      .maybeSingle();
+    if (error) throw new Error("Unable to load reader", { cause: error });
+    return data ? readerSummary(data) : null;
+  },
+
+  async getReaderByIdAcrossSites(readerId) {
+    const { data, error } = await getSupabaseAdminClient()
+      .from("readers")
+      .select(
+        "id,reader_code,site_id,name,zone,model,vendor,adapter_type,ip,enabled,status,last_heartbeat_at,last_event_at,configuration_version,created_at,updated_at,created_by,updated_by,version,firmware_version",
+      )
       .eq("id", readerId)
       .maybeSingle();
     if (error) throw new Error("Unable to load reader", { cause: error });
@@ -423,7 +443,10 @@ export const readerRepository: ReaderRepository = {
   },
 
   async list(filters) {
-    return this.listReadersForSite({ siteId: process.env.SBTS_SITE_ID?.trim() ?? "ALWAJH", filters });
+    return this.listReadersForSite({
+      siteId: process.env.SBTS_SITE_ID?.trim() ?? "ALWAJH",
+      filters,
+    });
   },
 
   async get(readerId) {
@@ -477,14 +500,14 @@ export const readerRepository: ReaderRepository = {
   async updateReader(input) {
     return this.updateReaderConfiguration({
       readerId: input.readerId,
-      siteId: process.env.SBTS_SITE_ID?.trim() ?? "ALWAJH",
-      readerCode: input.readerId,
+      siteId: input.siteId,
+      readerCode: input.readerCode,
       name: input.name,
-      zone: "OTHER",
-      vendor: input.vendor ?? null,
-      model: input.model ?? null,
-      adapterType: "UNAVAILABLE_PHYSICAL",
-      host: null,
+      zone: input.zone,
+      vendor: input.vendor ?? undefined,
+      model: input.model ?? undefined,
+      adapterType: input.adapterType,
+      host: input.host ?? undefined,
       enabled: input.enabled,
       expectedVersion: input.expectedVersion,
       actorId: input.actorId,

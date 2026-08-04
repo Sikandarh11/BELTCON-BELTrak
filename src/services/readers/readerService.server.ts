@@ -13,9 +13,16 @@ import type {
 } from "./readerSchemas";
 
 export interface ReaderService {
-  listReadersForSite(siteId: string, filters: ReaderListFilters): ReturnType<ReaderRepository["listReadersForSite"]>;
+  listReadersForSite(
+    siteId: string,
+    filters: ReaderListFilters,
+  ): ReturnType<ReaderRepository["listReadersForSite"]>;
   getReaderById(siteId: string, readerId: string): ReturnType<ReaderRepository["getReaderById"]>;
-  getReaderByCode(siteId: string, readerCode: string): ReturnType<ReaderRepository["getReaderByCode"]>;
+  getReaderByIdAcrossSites(readerId: string): ReturnType<ReaderRepository["getReaderByIdAcrossSites"]>;
+  getReaderByCode(
+    siteId: string,
+    readerCode: string,
+  ): ReturnType<ReaderRepository["getReaderByCode"]>;
   createReaderConfiguration(
     input: CreateReaderConfigurationInput & {
       actorId: string;
@@ -77,6 +84,7 @@ export function createReaderService(
   return {
     listReadersForSite: (siteId, filters) => repository.listReadersForSite({ siteId, filters }),
     getReaderById: (siteId, readerId) => repository.getReaderById({ siteId, readerId }),
+    getReaderByIdAcrossSites: (readerId) => repository.getReaderByIdAcrossSites(readerId),
     getReaderByCode: (siteId, readerCode) => repository.getReaderByCode({ siteId, readerCode }),
     createReaderConfiguration: (input) =>
       repository.createReaderConfiguration({ ...input, siteId: getSiteId() }),
@@ -84,10 +92,11 @@ export function createReaderService(
       repository.updateReaderConfiguration({ ...input, siteId: getSiteId() }),
     setReaderEnabled: (input) => repository.setReaderEnabled({ ...input, siteId: getSiteId() }),
     list: (filters) => repository.listReadersForSite({ siteId: getSiteId(), filters }),
-    get: (readerId) => repository.getReaderById({ siteId: getSiteId(), readerId }) as ReturnType<
-      ReaderRepository["get"]
-    >,
-    updateReader: (input) => repository.updateReader(input),
+    get: (readerId) =>
+      repository.getReaderById({ siteId: getSiteId(), readerId }) as ReturnType<
+        ReaderRepository["get"]
+      >,
+    updateReader: (input) => repository.updateReader({ ...input, siteId: getSiteId() }),
     updateAntenna: (input) => repository.updateAntenna(input),
     recordRejected: (input) => repository.recordRejected(input),
   };

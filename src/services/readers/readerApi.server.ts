@@ -145,7 +145,10 @@ function safeError(error: unknown) {
   if (error instanceof ReaderApiError)
     return respond({ error: error.message, code: error.code }, error.status);
   const message = error instanceof Error ? error.message : "";
-  if ((error as { code?: string } | null)?.code === "23505" || /already exists|duplicate/i.test(message))
+  if (
+    (error as { code?: string } | null)?.code === "23505" ||
+    /already exists|duplicate/i.test(message)
+  )
     return respond(
       { error: "Reader code already exists for this site", code: "READER_CONFLICT" },
       409,
@@ -166,12 +169,17 @@ export async function handleListReadersRequest(request: Request, options: Reader
   const filters = queryFilters(request);
   if (!filters.success) {
     return respond(
-      { error: filters.error.issues[0]?.message ?? "Invalid reader filters", code: "READER_INVALID_CONFIGURATION" },
-      400
+      {
+        error: filters.error.issues[0]?.message ?? "Invalid reader filters",
+        code: "READER_INVALID_CONFIGURATION",
+      },
+      400,
     );
   }
   try {
-    return respond(await (options.service ?? readerService).listReadersForSite(getSiteId(), filters.data));
+    return respond(
+      await (options.service ?? readerService).listReadersForSite(getSiteId(), filters.data),
+    );
   } catch (error) {
     return safeError(error);
   }
@@ -202,7 +210,13 @@ export async function handleCreateReaderRequest(request: Request, options: Reade
   try {
     const parsed = createReaderConfigurationSchema.safeParse(await readJson(request));
     if (!parsed.success) {
-      await recordRejected(options, authorization.session, "NEW", request, "READER_INVALID_CONFIGURATION");
+      await recordRejected(
+        options,
+        authorization.session,
+        "NEW",
+        request,
+        "READER_INVALID_CONFIGURATION",
+      );
       return respond(
         {
           error: parsed.error.issues[0]?.message ?? "Invalid reader configuration",
@@ -219,7 +233,13 @@ export async function handleCreateReaderRequest(request: Request, options: Reade
     });
     return respond({ reader }, 201);
   } catch (error) {
-    await recordRejected(options, authorization.session, "NEW", request, "READER_QUERY_FAILED");
+    await recordRejected(
+      options,
+      authorization.session,
+      "NEW",
+      request,
+      error instanceof ReaderApiError ? error.code : "READER_QUERY_FAILED",
+    );
     return safeError(error);
   }
 }

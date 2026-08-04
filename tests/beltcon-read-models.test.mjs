@@ -16,13 +16,15 @@ const vite = await createServer({
 });
 test.after(async () => vite.close());
 
-const [readerApi, reportApi, auditApi, queryKeys, authorization] = await Promise.all([
-  vite.ssrLoadModule("/src/services/readers/readerApi.server.ts"),
-  vite.ssrLoadModule("/src/services/reports/operationalReportApi.server.ts"),
-  vite.ssrLoadModule("/src/services/audit/auditApi.server.ts"),
-  vite.ssrLoadModule("/src/lib/queryKeys.ts"),
-  vite.ssrLoadModule("/src/services/authorization/permissionAuthorization.server.ts"),
-]);
+const [readerApi, readerServiceModule, reportApi, auditApi, queryKeys, authorization] =
+  await Promise.all([
+    vite.ssrLoadModule("/src/services/readers/readerApi.server.ts"),
+    vite.ssrLoadModule("/src/services/readers/readerService.server.ts"),
+    vite.ssrLoadModule("/src/services/reports/operationalReportApi.server.ts"),
+    vite.ssrLoadModule("/src/services/audit/auditApi.server.ts"),
+    vite.ssrLoadModule("/src/lib/queryKeys.ts"),
+    vite.ssrLoadModule("/src/services/authorization/permissionAuthorization.server.ts"),
+  ]);
 
 const NOW = "2026-07-28T12:00:00.000Z";
 const session = {
@@ -243,6 +245,52 @@ test("reader configuration mutation requires reader.manage and server actor iden
   assert.equal(invalidPayload.status, 400);
 });
 
+test("reader update service preserves registry fields and site scope", async () => {
+  let capturedInput;
+  const service = readerServiceModule.createReaderService(
+    {
+      updateReader: async (input) => {
+        capturedInput = input;
+        return { ...reader, ...input, siteId: input.siteId, version: 2 };
+      },
+    },
+    { getSiteId: () => "SITE-A" },
+  );
+
+  await service.updateReader({
+    readerId: "reader-uuid-1",
+    readerCode: "RDR-009",
+    name: "Reader 9",
+    zone: "TAGGING",
+    vendor: "ThingMagic",
+    model: "IZAR",
+    adapterType: "THINGMAGIC_IZAR",
+    host: "10.42.7.99",
+    enabled: true,
+    expectedVersion: 1,
+    actorId: session.user.id,
+    canonicalRole: session.user.role,
+    requestId: "reader-update-1",
+  });
+
+  assert.deepEqual(capturedInput, {
+    readerId: "reader-uuid-1",
+    readerCode: "RDR-009",
+    siteId: "SITE-A",
+    name: "Reader 9",
+    zone: "TAGGING",
+    vendor: "ThingMagic",
+    model: "IZAR",
+    adapterType: "THINGMAGIC_IZAR",
+    host: "10.42.7.99",
+    enabled: true,
+    expectedVersion: 1,
+    actorId: session.user.id,
+    canonicalRole: session.user.role,
+    requestId: "reader-update-1",
+  });
+});
+
 test("reader registry create and enable mutations stay server-backed and reject duplicate codes", async () => {
   const created = await readerApi.handleCreateReaderRequest(
     new Request("http://localhost/api/readers", {
@@ -376,6 +424,20 @@ test("central query keys cover reader, report, and audit read models determinist
     queryKeys.reportKeys.rfid({ dateFrom: "2026-07-01" }),
   );
   assert.deepEqual(queryKeys.auditKeys.detail("audit-1"), ["audit-events", "detail", "audit-1"]);
+});
+
+test("reader registry static contracts keep form payloads and list sorting aligned", async () => {
+  const [readerRoute, readerRepository] = await Promise.all([
+    readFile(path.join(root, "src/routes/readers.tsx"), "utf8"),
+    readFile(path.join(root, "src/services/readers/readerRepository.server.ts"), "utf8"),
+  ]);
+
+  assert.match(readerRoute, /type ReaderFormInput = CreateReaderConfigurationInput/);
+  assert.doesNotMatch(readerRoute, /expectedVersion:\s*1/);
+  assert.match(readerRepository, /filters\.sort === "healthStatus"/);
+  assert.match(readerRepository, /filters\.sort === "lastHeartbeatAt"/);
+  assert.doesNotMatch(readerRepository, /filters\.sort === "health"/);
+  assert.doesNotMatch(readerRepository, /filters\.sort === "lastSeenAt"/);
 });
 
 test("migration 022 is additive, guarded, audited, and does not implement device control or a warehouse", async () => {
