@@ -4,6 +4,14 @@ export type RecheckAlarmStatus =
   | "ESCALATED"
   | "SENT_TO_RECHECK"
   | "CLOSED";
+export type HbssRecallStatus =
+  | "PENDING"
+  | "REQUEST_SENT"
+  | "SIMULATED"
+  | "UNAVAILABLE"
+  | "FAILED"
+  | "TIMED_OUT"
+  | "CANCELLED";
 export interface RecheckCase {
   bag: {
     id: string;
@@ -23,7 +31,7 @@ export interface RecheckCase {
     sentToRecheckAt: string | null;
   };
   lookup: { method: "RFID_TAG_BARCODE" | "EPC" | "BAG_ID" };
-  recall: { latestStatus: string | null; latestRequestedAt: string | null };
+  recall: { latestStatus: HbssRecallStatus | null; latestRequestedAt: string | null };
   actions: RecheckAction[];
 }
 export interface RecheckAction {
@@ -34,7 +42,7 @@ export interface RecheckAction {
 }
 export interface HbssRecallRecord {
   id: string;
-  status: string;
+  status: HbssRecallStatus;
   adapterType: string;
   requestedAt: string;
   completedAt: string | null;

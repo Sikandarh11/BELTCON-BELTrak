@@ -20,6 +20,17 @@ const bagRowSchema = z.object({
     .optional()
     .default(null),
   bhs_confirmed_at: z.string().nullable().optional().default(null),
+  tagging_readiness_status: z
+    .enum([
+      "NOT_READY",
+      "AWAITING_BHS",
+      "AWAITING_SCREENING",
+      "AWAITING_XRAY",
+      "READY_FOR_TAGGING",
+      "BLOCKED_CONFLICT",
+    ])
+    .optional()
+    .default("NOT_READY"),
   iata_code: z.string().nullable(),
   iata_origin: z.string().nullable(),
   epc: z.string().nullable(),
@@ -59,6 +70,7 @@ const atomicResultSchema = z.discriminatedUnion("status", [
       "BAG_NOT_FOUND",
       "ALREADY_TAGGED",
       "DUPLICATE_EPC",
+      "TAG_ASSIGNMENT_NOT_READY",
     ]),
     errorMessage: z.string().optional(),
   }),
@@ -76,6 +88,7 @@ const assignmentResultSchema = z.discriminatedUnion("status", [
       "BAG_NOT_FOUND",
       "BHS_UID_REQUIRED",
       "TAG_ASSIGNMENT_BHS_CONFIRMATION_REQUIRED",
+      "TAG_ASSIGNMENT_NOT_READY",
       "BAG_INELIGIBLE",
       "DUPLICATE_EPC",
       "DUPLICATE_BARCODE",
@@ -95,7 +108,8 @@ export type EncodeTagAtomicResult =
         | "INVALID_EPC"
         | "BAG_NOT_FOUND"
         | "ALREADY_TAGGED"
-        | "DUPLICATE_EPC";
+        | "DUPLICATE_EPC"
+        | "TAG_ASSIGNMENT_NOT_READY";
       errorMessage?: string;
     };
 
@@ -140,6 +154,7 @@ const BAG_SELECT = [
   "screening_received_at",
   "bhs_confirmation_status",
   "bhs_confirmed_at",
+  "tagging_readiness_status",
   "iata_code",
   "iata_origin",
   "epc",
@@ -214,13 +229,10 @@ export function mapTaggingBag(rowInput: unknown, xray: XraySummary = NO_XRAY): T
     screeningReceivedAt: row.screening_received_at,
     bhsConfirmationStatus: row.bhs_confirmation_status,
     bhsConfirmedAt: row.bhs_confirmed_at,
-    taggingReadiness:
-      row.bhs_confirmation_status === "CONFIRMED"
-        ? "READY_FOR_TAGGING"
-        : "AWAITING_BHS_CONFIRMATION",
+    taggingReadiness: row.tagging_readiness_status,
     canAssignTag:
       row.status === "IDENTIFIED" &&
-      row.bhs_confirmation_status === "CONFIRMED" &&
+      row.tagging_readiness_status === "READY_FOR_TAGGING" &&
       row.screening_evaluation !== "ACCEPT" &&
       !row.epc &&
       !row.rfid_tag_barcode,

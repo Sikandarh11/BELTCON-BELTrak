@@ -3,6 +3,7 @@ import type {
   BhsBagMessageV1,
   ScreeningEvaluation,
 } from "@/domain/beltcon-sbts-baseline/beltconSbtsBaseline.types";
+import type { TaggingReadiness } from "@/types/tagging";
 
 export interface NormalizedBhsMessage {
   messageType: 2001;
@@ -13,6 +14,8 @@ export interface NormalizedBhsMessage {
   evaluationNormalized: ScreeningEvaluation;
   taggingEligible: boolean;
   sourceSystem: string;
+  stationId: string | null;
+  siteId: string | null;
   sourceEventId: string;
   messageFingerprint: string;
   payloadHash: string;
@@ -30,6 +33,8 @@ export interface BhsAtomicResult {
   lineId: string;
   evaluation: ScreeningEvaluation | null;
   taggingEligible: boolean;
+  canAssignTag: boolean;
+  taggingReadinessStatus: TaggingReadiness | null;
   processingAttemptCount: number;
   errorCode: string | null;
   errorMessage: string | null;
@@ -43,6 +48,8 @@ export interface BhsIngestionResult {
   lineId: string;
   evaluation: ScreeningEvaluation | null;
   taggingEligible: boolean;
+  canAssignTag: boolean;
+  taggingReadinessStatus: TaggingReadiness | null;
   duplicate: boolean;
   processingAttemptCount: number;
   errorCode: string | null;

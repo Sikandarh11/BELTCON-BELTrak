@@ -42,10 +42,28 @@ test("BHS BagID accepts exactly 10 printable ASCII characters and preserves it",
   );
 });
 
-test("BHS BagID rejects invalid length, Unicode, control characters, and invalid ETB fallback", () => {
-  for (const value of ["123456789", "12345678901", "AB12-\u00c7D3E4", "AB12\nCD3E4", "ETB-24007"]) {
+test("BHS BagID rejects length, padding, Unicode, control characters, and ETB identities", () => {
+  for (const value of [
+    "",
+    "123456789",
+    "12345678901",
+    "          ",
+    " 123456789",
+    "123456789 ",
+    "AB12-\u00c7D3E4",
+    "AB12\nCD3E4",
+    "ETB-123456",
+    "ETB-BASELINE-02",
+  ]) {
     assert.throws(() => mappers.validateBhsUid(value));
   }
+});
+
+test("BHS BagID preserves leading zeros and case and permits printable special characters", () => {
+  for (const value of ["0012345678", "abcdefghij", "ABCDEFGHIJ", "AB12-CD3E4"]) {
+    assert.equal(mappers.validateBhsUid(value), value);
+  }
+  assert.notEqual(mappers.validateBhsUid("abcdefghij"), "ABCDEFGHIJ");
 });
 
 test("BHS Line ID requires exactly two printable ASCII characters", () => {

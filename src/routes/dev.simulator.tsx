@@ -4,6 +4,7 @@ import { RequireWorkspaceMode } from "@/auth/RequireWorkspaceMode";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeveloperSubnav } from "@/features/developer/DeveloperPanels";
 import { ScreeningHbssSimulator } from "@/features/simulator/ScreeningHbssSimulator";
+import { StationIntegrationFaultConsole } from "@/features/simulator/StationIntegrationFaultConsole";
 import { SimulatorPanel } from "@/features/simulator/SimulatorPanel";
 import { BeltconBhsSimulator } from "@/features/simulator/BeltconBhsSimulator";
 
@@ -22,6 +23,7 @@ function DeveloperSimulator() {
             <TabsTrigger value="bhs">BELTCON BHS Simulator</TabsTrigger>
             <TabsTrigger value="screening">BELTCON HBSS Simulator</TabsTrigger>
             <TabsTrigger value="rfid">RFID Journey Simulator</TabsTrigger>
+            <TabsTrigger value="station-fat">Station Software FAT</TabsTrigger>
           </TabsList>
           <TabsContent value="bhs" className="-mx-6">
             <BeltconBhsSimulator />
@@ -31,6 +33,9 @@ function DeveloperSimulator() {
           </TabsContent>
           <TabsContent value="rfid" className="-mx-6">
             <SimulatorPanel />
+          </TabsContent>
+          <TabsContent value="station-fat" className="-mx-6">
+            <StationIntegrationFaultConsole />
           </TabsContent>
         </Tabs>
       </div>

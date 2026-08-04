@@ -29,9 +29,12 @@ const expectedMigrations = [
   "022_create_beltcon_reader_report_audit_read_models.sql",
   "023_create_beltcon_security_hardening.sql",
   "024_beltcon_hbss_bhs_correlation_and_tagging_readiness.sql",
+  "025_bhs_hbss_integrity_hardening.sql",
+  "026_station_delivery_metadata.sql",
+  "027_complete_tagging_station_workflow.sql",
 ];
 
-test("the migration chain is complete and ordered from 001 through 024", async () => {
+test("the migration chain is complete and ordered from 001 through 027", async () => {
   const actual = (await readdir(migrationsDirectory))
     .filter((name) => name.endsWith(".sql"))
     .sort();

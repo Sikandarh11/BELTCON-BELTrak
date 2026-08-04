@@ -1,0 +1,75 @@
+name: Phase 2 software gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  software-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: sbts_test
+          POSTGRES_USER: sbts_test
+          POSTGRES_PASSWORD: sbts_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U sbts_test -d sbts_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      SBTS_TEST_DATABASE_URL: postgresql://sbts_test:sbts_test@127.0.0.1:55432/sbts_test
+      SBTS_REQUIRE_POSTGRES_TESTS: "true"
+      CI: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Application tests
+        run: npm test
+      - name: BHS tests
+        run: npm run test:bhs
+      - name: HBSS tests
+        run: npm run test:hbss
+      - name: Station tests
+        run: npm run test:station
+      - name: Serial tests
+        run: npm run test:serial
+      - name: Station-host smoke
+        run: npm run test:station-host
+      - name: PostgreSQL gate
+        run: npm run test:postgres
+      - name: Migration drift gate
+        run: npm run test:migration-drift
+      - name: Software FAT
+        run: npm run fat:software
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint:ci
+      - name: Formatting
+        run: npm run format:check
+      - name: Upload sanitized software reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2-software-reports
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30

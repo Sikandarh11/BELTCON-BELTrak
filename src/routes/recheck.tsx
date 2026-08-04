@@ -11,8 +11,9 @@ import { PageHeader, Panel, StatusPill } from "@/components/AppLayout";
 import { useEscalateAlarm } from "@/services/alarms/alarmClient";
 import { XrayEmptyState } from "@/components/xray/XrayEmptyState";
 import { XrayViewer } from "@/components/xray/XrayViewer";
+import { RecheckStationAgentPanel } from "@/features/stations/RecheckStationAgentPanel";
 import { scanForDisplay } from "@/services/xray/xrayScanSelection";
-import { useRefreshXrayForBag, useXrayForBag } from "@/services/xray/xrayClient";
+import { useRefreshXrayForBag, useXrayForBag, XrayApiError } from "@/services/xray/xrayClient";
 import type { XrayScanSelection } from "@/types/xray";
 import {
   useHbssRecall,
@@ -20,6 +21,7 @@ import {
   useRecheckQueue,
   useResolveRecheckCase,
 } from "@/services/recheck/recheckClient";
+import { getHbssRecallPresentation, isHbssRecallStatus } from "@/services/recheck/hbssRecallStatus";
 
 export const Route = createFileRoute("/recheck")({
   head: () => ({ meta: [{ title: "BELTCON Recheck Station" }] }),
@@ -60,16 +62,23 @@ type Workflow =
   | "CASE_FOUND"
   | "CASE_NOT_FOUND"
   | "RECALLING_HBSS"
+  | "RECALL_PENDING"
+  | "RECALL_REQUEST_SENT"
   | "RECALL_SIMULATED"
+  | "RECALL_UNAVAILABLE"
+  | "RECALL_TIMED_OUT"
+  | "RECALL_CANCELLED"
   | "RECALL_FAILED"
   | "RESOLVING"
   | "RESOLVED"
   | "ERROR";
-type State = { stage: Workflow; message: string | null };
-type Event = { type: Workflow; message?: string };
+type MessageTone = "info" | "success" | "warning" | "danger";
+type State = { stage: Workflow; message: string | null; tone: MessageTone };
+type Event = { type: Workflow; message?: string; tone?: MessageTone };
 const reducer = (state: State, event: Event): State => ({
   stage: event.type,
   message: event.message ?? null,
+  tone: event.tone ?? "info",
 });
 const key = () => crypto.randomUUID();
 const EMPTY_XRAY_SELECTION: XrayScanSelection = { displayScan: null, latestAttempt: null };
@@ -77,7 +86,11 @@ function Recheck() {
   const user = useSession();
   const [selectedBag, setSelectedBag] = useState<string | null>(null);
   const [scanTag, setScanTag] = useState<string | null>(null);
-  const [state, dispatch] = useReducer(reducer, { stage: "IDLE", message: null });
+  const [state, dispatch] = useReducer(reducer, {
+    stage: "IDLE",
+    message: null,
+    tone: "info",
+  });
   const queue = useRecheckQueue({ page: 1, pageSize: 30 });
   const byBag = useRecheckCase(selectedBag);
   const byTag = useRecheckCase(scanTag);
@@ -135,17 +148,18 @@ function Recheck() {
           idempotencyKey: key(),
         },
       })) as { recall?: { status?: string } };
-      const status = result.recall?.status ?? "FAILED";
+      const returnedStatus = result.recall?.status;
+      const status = isHbssRecallStatus(returnedStatus) ? returnedStatus : "FAILED";
+      const presentation = getHbssRecallPresentation(status);
       dispatch({
-        type: status === "SIMULATED" ? "RECALL_SIMULATED" : "RECALL_FAILED",
-        message:
-          status === "SIMULATED"
-            ? "Simulated HBSS recall request accepted. Simulation mode — no physical HBSS workstation communication occurred."
-            : "HBSS image recall is unavailable. Continue using the approved manual-inspection procedure.",
+        type: presentation.stage,
+        message: presentation.message,
+        tone: presentation.tone,
       });
     } catch (error) {
       dispatch({
         type: "RECALL_FAILED",
+        tone: "danger",
         message:
           error instanceof Error
             ? error.message
@@ -297,7 +311,15 @@ function Recheck() {
           {state.message ? (
             <div
               role="status"
-              className={`rounded border p-3 text-sm ${state.stage === "RECALL_FAILED" || state.stage === "ERROR" ? "border-warning/30 bg-warning/10 text-warning" : "border-info/30 bg-info/10 text-info"}`}
+              className={`rounded border p-3 text-sm ${
+                state.tone === "danger"
+                  ? "border-danger/30 bg-danger/10 text-danger"
+                  : state.tone === "warning"
+                    ? "border-warning/30 bg-warning/10 text-warning"
+                    : state.tone === "success"
+                      ? "border-success/30 bg-success/10 text-success"
+                      : "border-info/30 bg-info/10 text-info"
+              }`}
             >
               {state.message}
             </div>
@@ -337,6 +359,7 @@ function Recheck() {
                   Recall X-ray from HBSS
                 </button>
               </Panel>
+              <RecheckStationAgentPanel barcode={scanTag ?? caseData.bag.rfidTagBarcode} />
               <Panel
                 title="X-ray scan"
                 action={
@@ -353,7 +376,10 @@ function Recheck() {
                 {xrayQuery.isError || refreshXray.isError ? (
                   <div className="space-y-3">
                     <div className="rounded border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
-                      Latest HBSS refresh failed.{" "}
+                      {refreshXray.error instanceof XrayApiError &&
+                      refreshXray.error.code === "HBSS_REQUEST_TIMED_OUT"
+                        ? "HBSS X-ray refresh timed out. No new image was accepted. "
+                        : "Latest HBSS refresh failed. "}
                       {xraySelection.displayScan
                         ? "Displaying the last available scan."
                         : "Manual inspection remains available."}
@@ -381,7 +407,9 @@ function Recheck() {
                             ? "missing"
                             : xrayScan?.status === "FAILED"
                               ? "failed"
-                              : "not-requested"
+                              : xrayScan?.status === "ARCHIVED"
+                                ? "archived"
+                                : "not-requested"
                     }
                     showManualInspectionWarning
                   />

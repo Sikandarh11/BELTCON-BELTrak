@@ -168,7 +168,10 @@ test("simulator and Tagging wire authoritative server queries and refresh trigge
     path.join(repositoryRoot, "src/features/simulator/SimulatorPanel.tsx"),
     "utf8",
   );
-  const taggingSource = readFileSync(path.join(repositoryRoot, "src/routes/tagging.tsx"), "utf8");
+  const taggingSource = readFileSync(
+    path.join(repositoryRoot, "src/features/stations/TaggingStationAgentPanel.tsx"),
+    "utf8",
+  );
 
   assert.match(simulatorSource, /useRfidTrackableBags\(\)/);
   assert.match(simulatorSource, /useReaderAntennaMap\(\)/);

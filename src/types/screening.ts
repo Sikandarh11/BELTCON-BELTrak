@@ -1,19 +1,9 @@
 import { z } from "zod";
 
-import { RawScreeningEvaluationSchema } from "@/domain/beltcon-sbts-baseline/beltconSbtsBaseline.schemas";
-
-// Compatibility integrations retain their existing input contract here. The
-// normal HBSS simulator and the V1 database ingestion transaction enforce the
-// exact ten-character BHS BagID before they create a canonical bag.
-const bhsUidSchema = z
-  .string()
-  .trim()
-  .min(1, "BHS UID is required")
-  .max(128, "BHS UID is too long")
-  .regex(
-    /^[A-Za-z0-9._:-]+$/,
-    "BHS UID may only contain letters, numbers, dots, underscores, colons, and hyphens",
-  );
+import {
+  BhsUidSchema,
+  RawScreeningEvaluationSchema,
+} from "@/domain/beltcon-sbts-baseline/beltconSbtsBaseline.schemas";
 
 const localDemoImageRefSchema = z
   .string()
@@ -54,7 +44,7 @@ export const screeningEventV1Schema = z.object({
   occurredAt: z.string().datetime({ offset: true }),
   sourceSystem: z.string().trim().min(1),
   bag: z.object({
-    bhsUid: bhsUidSchema,
+    bhsUid: BhsUidSchema,
     iataCode: z
       .string()
       .trim()

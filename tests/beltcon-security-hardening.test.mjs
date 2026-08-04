@@ -33,7 +33,9 @@ test("Phase 10 permission catalog retains legacy grants and adds atomic authoriz
 });
 
 test("central authorization fails closed for every account-state failure", async () => {
-  const authorization = await source("src/services/authorization/permissionAuthorization.server.ts");
+  const authorization = await source(
+    "src/services/authorization/permissionAuthorization.server.ts",
+  );
   for (const code of [
     "ACCOUNT_PROFILE_MISSING",
     "ACCOUNT_INACTIVE",
@@ -96,4 +98,34 @@ test("route and mutation protection retain server-side authorization boundaries"
   assert.match(routeMap, /\/dev\/simulator/);
   assert.match(users, /permissionForAdminUserAction/);
   assert.match(roles, /requirePermission/);
+});
+
+test("P2.1 removes direct authenticated writes and keeps UI mutations behind server APIs", async () => {
+  const [migration, taggingRoute, recheckRoute] = await Promise.all([
+    source("supabase/migrations/025_bhs_hbss_integrity_hardening.sql"),
+    source("src/routes/tagging.tsx"),
+    source("src/routes/recheck.tsx"),
+  ]);
+  for (const table of [
+    "bags",
+    "alarms",
+    "rfid_events",
+    "resolutions",
+    "readers",
+    "xray_scans",
+    "screening_integration_events",
+    "hbss_recall_requests",
+    "audit_events",
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(`REVOKE INSERT, UPDATE, DELETE ON public\\.${table} FROM anon, authenticated`),
+    );
+  }
+  assert.match(migration, /DROP POLICY IF EXISTS "auth_write_bags"/);
+  assert.match(migration, /DROP POLICY IF EXISTS "auth_update_bags"/);
+  assert.doesNotMatch(
+    taggingRoute + recheckRoute,
+    /getSupabase|supabase\.from|\.from\(["']bags["']\)/,
+  );
 });

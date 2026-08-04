@@ -16,6 +16,7 @@ const statusClasses: Record<XrayDisplayStatus, string> = {
   Pending: "border-warning/30 bg-warning/10 text-warning",
   Missing: "border-muted-foreground/30 bg-muted text-muted-foreground",
   Failed: "border-danger/30 bg-danger/10 text-danger",
+  Archived: "border-muted-foreground/30 bg-muted text-muted-foreground",
   "Not requested": "border-border bg-background text-muted-foreground",
 };
 

@@ -1,0 +1,57 @@
+name: Phase 3 tagging software gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  tagging-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: sbts_test
+          POSTGRES_USER: sbts_test
+          POSTGRES_PASSWORD: sbts_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U sbts_test -d sbts_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      SBTS_TEST_DATABASE_URL: postgresql://sbts_test:sbts_test@127.0.0.1:55432/sbts_test
+      SBTS_REQUIRE_POSTGRES_TESTS: "true"
+      CI: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tagging application tests
+        run: npm run test:tagging
+      - name: Station tests
+        run: npm run test:station
+      - name: PostgreSQL tagging gate
+        run: npm run test:postgres:tagging
+      - name: Tagging software FAT
+        run: npm run fat:tagging
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint:ci
+      - name: Formatting
+        run: npm run format:check

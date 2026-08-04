@@ -13,6 +13,7 @@ import {
   PermissionAuthorizationError,
   requirePermission,
 } from "@/services/authorization/permissionAuthorization.server";
+import { readLimitedBhsJson } from "./bhsMessageApi.server";
 import { BhsMessageError } from "./bhsMessageErrors";
 import { bhsMessageService, type BhsMessageService } from "./bhsMessageService.server";
 import {
@@ -59,8 +60,8 @@ function simulatorEnabled(options: BhsSimulatorApiOptions) {
       : process.env.NODE_ENV === "test"
         ? "test"
         : "development");
+  if (environment === "production") return false;
   if (options.featureEnabled !== undefined) return options.featureEnabled;
-  if (environment === "production") return process.env.FEATURE_BHS_SIMULATOR === "true";
   return isBeltconSbtsBaselineFeatureEnabled("FEATURE_BHS_SIMULATOR", environment);
 }
 
@@ -131,8 +132,11 @@ export async function handleBhsSimulatorRequest(
   if (authorization.response) return authorization.response;
   let payload: unknown;
   try {
-    payload = await request.json();
-  } catch {
+    payload = await readLimitedBhsJson(request);
+  } catch (error) {
+    if (error instanceof BhsMessageError) {
+      return respond({ error: error.message, code: error.code }, error.status);
+    }
     return respond(
       { error: "Request body must contain valid JSON", code: "BHS_INVALID_MESSAGE" },
       400,

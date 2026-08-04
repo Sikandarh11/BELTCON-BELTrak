@@ -44,11 +44,13 @@ export const BHS_MESSAGE_PROCESSING_OUTCOMES = [
 ] as const;
 
 export const HBSS_RECALL_STATUSES = [
-  "SENT",
-  "ACKNOWLEDGED",
+  "PENDING",
+  "REQUEST_SENT",
   "FAILED",
   "UNAVAILABLE",
   "SIMULATED",
+  "TIMED_OUT",
+  "CANCELLED",
 ] as const;
 
 export const BELTCON_SBTS_BASELINE_FEATURES = [

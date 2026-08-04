@@ -43,7 +43,7 @@ const acceptedEvent = {
   sourceSystem: "SIMULATED_HBSS",
   occurredAt: "2026-07-24T10:30:00Z",
   bag: {
-    bhsUid: "BHS-2026-000501",
+    bhsUid: "0000000501",
     iataCode: "0123456789",
     iataOrigin: "RUH",
     flightNo: "SV123",

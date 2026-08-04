@@ -6,7 +6,11 @@ import {
   HbssConfigurationError,
   HbssPayloadValidationError,
 } from "@/services/integrations/hbss/hbssErrors";
-import { parseHbssIngestionPayload } from "@/services/integrations/hbss/hbssSchemas";
+import {
+  parseBhsUid,
+  parseHbssIngestionPayload,
+  parseHbssScanResult,
+} from "@/services/integrations/hbss/hbssSchemas";
 import type { HbssIngestionPayload, XrayScan, XrayScanSelection } from "@/types/xray";
 import { recordXrayAudit, type XrayAuditEvent } from "./xrayAudit.server";
 import {
@@ -15,11 +19,16 @@ import {
   type XrayBagRepository,
 } from "./xrayBagRepository.server";
 import {
+  BhsUidRequiredError,
+  HbssBhsUidMismatchError,
+  HbssRequestTimedOutError,
   XrayAdapterError,
+  XrayConflictError,
   XrayNotFoundError,
   XrayPersistenceError,
   XrayServiceError,
   XrayValidationError,
+  XrayRequestCancelledError,
 } from "./xrayErrors";
 import { xrayRepository, type XrayRepository } from "./xrayRepository.server";
 import { scanForDisplay } from "./xrayScanSelection";
@@ -27,7 +36,7 @@ import { scanForDisplay } from "./xrayScanSelection";
 export interface XrayService {
   getScanSelectionForBag(bagId: string): Promise<XrayScanSelection>;
   getScanForBag(bagId: string): Promise<XrayScan | null>;
-  refreshScanForBag(bagId: string): Promise<XrayScan>;
+  refreshScanForBag(bagId: string, options?: { signal?: AbortSignal }): Promise<XrayScan>;
   ingestScan(payload: HbssIngestionPayload): Promise<XrayScan>;
   getAdapterHealth(): Promise<{
     adapter: string;
@@ -42,7 +51,8 @@ export interface XrayServiceDependencies {
   repository: XrayRepository;
   bagRepository: XrayBagRepository;
   adapterFactory: () => HbssAdapter;
-  audit: (event: XrayAuditEvent) => void;
+  audit: (event: XrayAuditEvent) => void | Promise<void>;
+  requestTimeoutMs: () => number;
 }
 
 const defaultDependencies: XrayServiceDependencies = {
@@ -50,7 +60,74 @@ const defaultDependencies: XrayServiceDependencies = {
   bagRepository: xrayBagRepository,
   adapterFactory: createHbssAdapter,
   audit: recordXrayAudit,
+  requestTimeoutMs: resolveHbssRequestTimeoutMs,
 };
+
+const DEFAULT_HBSS_REQUEST_TIMEOUT_MS = 10_000;
+const MIN_HBSS_REQUEST_TIMEOUT_MS = 100;
+const MAX_HBSS_REQUEST_TIMEOUT_MS = 120_000;
+
+export function resolveHbssRequestTimeoutMs(
+  configured = process.env.HBSS_REQUEST_TIMEOUT_MS,
+): number {
+  if (configured === undefined || configured.trim() === "") {
+    return DEFAULT_HBSS_REQUEST_TIMEOUT_MS;
+  }
+  if (!/^\d+$/.test(configured.trim())) {
+    throw new HbssConfigurationError("HBSS request timeout is invalid");
+  }
+  const timeoutMs = Number(configured);
+  if (
+    !Number.isSafeInteger(timeoutMs) ||
+    timeoutMs < MIN_HBSS_REQUEST_TIMEOUT_MS ||
+    timeoutMs > MAX_HBSS_REQUEST_TIMEOUT_MS
+  ) {
+    throw new HbssConfigurationError("HBSS request timeout is outside the supported range");
+  }
+  return timeoutMs;
+}
+
+async function getScanWithTimeout(
+  adapter: HbssAdapter,
+  bhsUid: string,
+  timeoutMs: number,
+  requestSignal?: AbortSignal,
+) {
+  if (requestSignal?.aborted) {
+    throw new XrayRequestCancelledError();
+  }
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let removeCancellationListener: (() => void) | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      const error = new HbssRequestTimedOutError();
+      controller.abort(error);
+      reject(error);
+    }, timeoutMs);
+  });
+  const cancellation = new Promise<never>((_resolve, reject) => {
+    if (!requestSignal) return;
+    const cancel = () => {
+      const error = new XrayRequestCancelledError();
+      controller.abort(error);
+      reject(error);
+    };
+    requestSignal.addEventListener("abort", cancel, { once: true });
+    removeCancellationListener = () => requestSignal.removeEventListener("abort", cancel);
+  });
+
+  try {
+    return await Promise.race([
+      adapter.getScanByBhsUid(bhsUid, { signal: controller.signal }),
+      timeout,
+      cancellation,
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    removeCancellationListener?.();
+  }
+}
 
 function normalizeBagId(bagId: string) {
   const normalized = bagId.trim();
@@ -107,10 +184,18 @@ async function persistFailureWhenPractical(
   bhsUid: string,
   error: unknown,
 ) {
+  if (
+    error instanceof HbssBhsUidMismatchError ||
+    error instanceof HbssRequestTimedOutError ||
+    error instanceof XrayRequestCancelledError ||
+    error instanceof XrayConflictError
+  ) {
+    return;
+  }
   try {
     await repository.saveFailure(bag.id, bhsUid, error);
   } catch {
-    audit({
+    await audit({
       action: "XRAY_SCAN_RETRIEVAL_FAILED",
       bagId: bag.id,
       bhsUid,
@@ -136,20 +221,22 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
       return scanForDisplay(await dependencies.repository.findSelectionByBagId(bag.id));
     },
 
-    async refreshScanForBag(bagId) {
+    async refreshScanForBag(bagId, options) {
       const bag = await requireBagById(bagId, dependencies.bagRepository);
-      const bhsUid = bag.bhsUid?.trim();
+      let bhsUid: string;
 
-      if (!bhsUid) {
-        dependencies.audit({
+      try {
+        bhsUid = parseBhsUid(bag.bhsUid);
+      } catch {
+        await dependencies.audit({
           action: "XRAY_SCAN_RETRIEVAL_FAILED",
           bagId: bag.id,
           errorCode: "BAG_BHS_UID_MISSING",
         });
-        throw new XrayValidationError("Bag has no BHS UID");
+        throw new BhsUidRequiredError();
       }
 
-      dependencies.audit({
+      await dependencies.audit({
         action: "XRAY_REFRESH_REQUESTED",
         bagId: bag.id,
         bhsUid,
@@ -167,7 +254,7 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
           bhsUid,
           safeError,
         );
-        dependencies.audit({
+        await dependencies.audit({
           action: "XRAY_SCAN_RETRIEVAL_FAILED",
           bagId: bag.id,
           bhsUid,
@@ -178,7 +265,22 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
 
       let result;
       try {
-        result = await adapter.getScanByBhsUid(bhsUid);
+        const timeoutMs = dependencies.requestTimeoutMs();
+        const untrustedResult = await getScanWithTimeout(
+          adapter,
+          bhsUid,
+          timeoutMs,
+          options?.signal,
+        );
+        if (
+          untrustedResult !== null &&
+          (typeof untrustedResult !== "object" ||
+            !("bhsUid" in untrustedResult) ||
+            untrustedResult.bhsUid !== bhsUid)
+        ) {
+          throw new HbssBhsUidMismatchError();
+        }
+        result = untrustedResult === null ? null : parseHbssScanResult(untrustedResult);
       } catch (error) {
         const safeError = adapterFailure(error);
         await persistFailureWhenPractical(
@@ -188,7 +290,7 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
           bhsUid,
           safeError,
         );
-        dependencies.audit({
+        await dependencies.audit({
           action: "XRAY_SCAN_RETRIEVAL_FAILED",
           bagId: bag.id,
           bhsUid,
@@ -206,7 +308,7 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
           bhsUid,
           safeError,
         );
-        dependencies.audit({
+        await dependencies.audit({
           action: "XRAY_SCAN_RETRIEVAL_FAILED",
           bagId: bag.id,
           bhsUid,
@@ -216,8 +318,15 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
       }
 
       let scan: XrayScan;
+      let duplicate = false;
       try {
-        scan = await dependencies.repository.upsertFromAdapterResult(bag.id, result);
+        const persisted = await dependencies.repository.upsertFromAdapterResult(
+          bag.id,
+          bhsUid,
+          result,
+        );
+        scan = persisted.scan;
+        duplicate = persisted.disposition === "DUPLICATE";
       } catch (error) {
         const safeError =
           error instanceof XrayServiceError
@@ -232,7 +341,7 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
           bhsUid,
           safeError,
         );
-        dependencies.audit({
+        await dependencies.audit({
           action: "XRAY_SCAN_RETRIEVAL_FAILED",
           bagId: bag.id,
           bhsUid,
@@ -241,17 +350,19 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
         throw safeError;
       }
 
-      dependencies.audit({
-        action: "XRAY_SCAN_RECEIVED",
-        bagId: bag.id,
-        bhsUid,
-        sourceSystem: scan.sourceSystem,
-        status: scan.status,
-      });
+      if (!duplicate) {
+        await dependencies.audit({
+          action: "XRAY_SCAN_RECEIVED",
+          bagId: bag.id,
+          bhsUid,
+          sourceSystem: scan.sourceSystem,
+          status: scan.status,
+        });
+      }
 
       if (scan.status === "NOT_FOUND") {
         const error = new XrayNotFoundError("No X-ray scan was found for this bag");
-        dependencies.audit({
+        await dependencies.audit({
           action: "XRAY_SCAN_RETRIEVAL_FAILED",
           bagId: bag.id,
           bhsUid,
@@ -262,7 +373,7 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
 
       if (scan.status === "FAILED") {
         const error = new XrayAdapterError("HBSS reported a scan retrieval failure");
-        dependencies.audit({
+        await dependencies.audit({
           action: "XRAY_SCAN_RETRIEVAL_FAILED",
           bagId: bag.id,
           bhsUid,
@@ -289,8 +400,31 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
         throw new XrayNotFoundError("No bag matches the supplied BHS UID");
       }
 
-      const scan = await dependencies.repository.upsertFromAdapterResult(bag.id, validated);
-      dependencies.audit({
+      let persisted;
+      try {
+        persisted = await dependencies.repository.upsertFromAdapterResult(
+          bag.id,
+          validated.bhsUid,
+          validated,
+        );
+      } catch (error) {
+        const safeError =
+          error instanceof XrayServiceError
+            ? error
+            : new XrayPersistenceError("Unable to store the X-ray scan", { cause: error });
+        await dependencies.audit({
+          action: "XRAY_SCAN_RETRIEVAL_FAILED",
+          bagId: bag.id,
+          bhsUid: validated.bhsUid,
+          errorCode: safeError.code,
+        });
+        throw safeError;
+      }
+      const scan = persisted.scan;
+      if (persisted.disposition === "DUPLICATE") {
+        return scan;
+      }
+      await dependencies.audit({
         action: "XRAY_SCAN_RECEIVED",
         bagId: bag.id,
         bhsUid: validated.bhsUid,
@@ -304,6 +438,18 @@ export function createXrayService(overrides: Partial<XrayServiceDependencies> = 
       const fallbackAdapter = configuredAdapterLabel();
       const lastChecked = new Date().toISOString();
       let adapter: HbssAdapter;
+
+      try {
+        dependencies.requestTimeoutMs();
+      } catch {
+        return {
+          adapter: fallbackAdapter,
+          healthy: false,
+          status: "UNAVAILABLE",
+          lastChecked,
+          message: "HBSS request timeout configuration is invalid",
+        };
+      }
 
       try {
         adapter = dependencies.adapterFactory();

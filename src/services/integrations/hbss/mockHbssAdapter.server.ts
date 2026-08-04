@@ -45,7 +45,7 @@ function mockImages(externalScanId: string, hash: number): XrayImageView[] {
 }
 
 function mockResultFor(bhsUidInput: string): HbssScanResult {
-  const bhsUid = parseBhsUid(bhsUidInput).toUpperCase();
+  const bhsUid = parseBhsUid(bhsUidInput);
   const hash = deterministicHash(bhsUid);
   const externalScanId = externalScanIdFor(bhsUid, hash);
   const sharedMetadata = {
@@ -120,7 +120,10 @@ function mockResultFor(bhsUidInput: string): HbssScanResult {
 export const mockHbssAdapter: HbssAdapter = {
   name: MOCK_SOURCE_SYSTEM,
 
-  async getScanByBhsUid(bhsUid: string) {
+  async getScanByBhsUid(bhsUid: string, options) {
+    if (options?.signal?.aborted) {
+      throw options.signal.reason ?? new DOMException("The HBSS request was aborted", "AbortError");
+    }
     return mockResultFor(bhsUid);
   },
 

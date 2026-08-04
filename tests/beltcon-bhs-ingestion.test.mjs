@@ -47,6 +47,9 @@ function atomicResult(status, overrides = {}) {
     lineId: message.lineId,
     evaluation: "REJECT",
     taggingEligible: true,
+    canAssignTag: false,
+    taggingReadinessStatus:
+      status === "ACCEPTED" || status === "DUPLICATE" ? "AWAITING_SCREENING" : null,
     processingAttemptCount: 1,
     errorCode: null,
     errorMessage: null,
@@ -133,6 +136,14 @@ function request(body, headers = {}) {
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }
+
+const ingressOptions = {
+  integrationKey: "secret",
+  sourceSystem: "BHS_TEST",
+  siteId: "RUH",
+  requestSiteId: "RUH",
+  enabled: true,
+};
 
 test("A through question-mark evaluations map to the frozen values", async () => {
   const repository = createMemoryRepository();
@@ -240,8 +251,7 @@ test("BHS API requires a configured server credential and validates strict JSON"
 
   const missing = await handleBhsMessageRequest(request(message), {
     service,
-    integrationKey: "secret",
-    sourceSystem: "BHS_TEST",
+    ...ingressOptions,
   });
   assert.equal(missing.status, 401);
 
@@ -252,7 +262,7 @@ test("BHS API requires a configured server credential and validates strict JSON"
         "x-bhs-integration-key": "secret",
       },
     ),
-    { service, integrationKey: "secret", sourceSystem: "BHS_TEST" },
+    { service, ...ingressOptions },
   );
   assert.equal(invalid.status, 400);
 
@@ -260,14 +270,14 @@ test("BHS API requires a configured server credential and validates strict JSON"
     request(message, {
       "x-bhs-integration-key": "secret",
     }),
-    { service, integrationKey: "secret", sourceSystem: "BHS_TEST" },
+    { service, ...ingressOptions },
   );
   assert.equal(accepted.status, 200);
   assert.equal((await accepted.json()).acknowledgement.outcome, "ACCEPTED");
 });
 
 test("BHS API rejects malformed JSON, oversized bodies, browser-only authority, and invalid credentials", async () => {
-  const options = { integrationKey: "secret", sourceSystem: "BHS_TEST" };
+  const options = ingressOptions;
   const malformed = await handleBhsMessageRequest(
     request("{", { "x-bhs-integration-key": "secret" }),
     options,

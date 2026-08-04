@@ -44,6 +44,8 @@ import { Route as AuditLogsRouteImport } from './routes/audit.logs'
 import { Route as ApiReadersRouteImport } from './routes/api.readers'
 import { Route as ApiAlarmsRouteImport } from './routes/api.alarms'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as ApiStationsTaggingRouteImport } from './routes/api.stations.tagging'
+import { Route as ApiStationsRecheckRouteImport } from './routes/api.stations.recheck'
 import { Route as ApiReportsReportTypeRouteImport } from './routes/api.reports.$reportType'
 import { Route as ApiRecheckQueueRouteImport } from './routes/api.recheck.queue'
 import { Route as ApiRecheckBagIdRouteImport } from './routes/api.recheck.$bagId'
@@ -64,6 +66,7 @@ import { Route as ApiIntegrationsHbssScansRouteImport } from './routes/api.integ
 import { Route as ApiIntegrationsHbssHealthRouteImport } from './routes/api.integrations.hbss.health'
 import { Route as ApiIntegrationsBhsMessagesRouteImport } from './routes/api.integrations.bhs.messages'
 import { Route as ApiDevSimulatorSuspectEventsRouteImport } from './routes/api.dev.simulator.suspect-events'
+import { Route as ApiDevSimulatorStationHarnessRouteImport } from './routes/api.dev.simulator.station-harness'
 import { Route as ApiBagsBagIdEncodeTagRouteImport } from './routes/api.bags.$bagId.encode-tag'
 import { Route as ApiBagsBagIdAssignTagRouteImport } from './routes/api.bags.$bagId.assign-tag'
 import { Route as ApiAuditEventsAuditIdRouteImport } from './routes/api.audit.events.$auditId'
@@ -260,6 +263,16 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/admin/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStationsTaggingRoute = ApiStationsTaggingRouteImport.update({
+  id: '/api/stations/tagging',
+  path: '/api/stations/tagging',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStationsRecheckRoute = ApiStationsRecheckRouteImport.update({
+  id: '/api/stations/recheck',
+  path: '/api/stations/recheck',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiReportsReportTypeRoute = ApiReportsReportTypeRouteImport.update({
   id: '/api/reports/$reportType',
   path: '/api/reports/$reportType',
@@ -366,6 +379,12 @@ const ApiDevSimulatorSuspectEventsRoute =
   ApiDevSimulatorSuspectEventsRouteImport.update({
     id: '/api/dev/simulator/suspect-events',
     path: '/api/dev/simulator/suspect-events',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiDevSimulatorStationHarnessRoute =
+  ApiDevSimulatorStationHarnessRouteImport.update({
+    id: '/api/dev/simulator/station-harness',
+    path: '/api/dev/simulator/station-harness',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiBagsBagIdEncodeTagRoute = ApiBagsBagIdEncodeTagRouteImport.update({
@@ -529,6 +548,8 @@ export interface FileRoutesByFullPath {
   '/api/recheck/$bagId': typeof ApiRecheckBagIdRouteWithChildren
   '/api/recheck/queue': typeof ApiRecheckQueueRoute
   '/api/reports/$reportType': typeof ApiReportsReportTypeRouteWithChildren
+  '/api/stations/recheck': typeof ApiStationsRecheckRoute
+  '/api/stations/tagging': typeof ApiStationsTaggingRoute
   '/api/admin/roles/permissions': typeof ApiAdminRolesPermissionsRoute
   '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
   '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
@@ -538,6 +559,7 @@ export interface FileRoutesByFullPath {
   '/api/audit/events/$auditId': typeof ApiAuditEventsAuditIdRoute
   '/api/bags/$bagId/assign-tag': typeof ApiBagsBagIdAssignTagRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
+  '/api/dev/simulator/station-harness': typeof ApiDevSimulatorStationHarnessRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
   '/api/integrations/bhs/messages': typeof ApiIntegrationsBhsMessagesRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
@@ -606,6 +628,8 @@ export interface FileRoutesByTo {
   '/api/recheck/$bagId': typeof ApiRecheckBagIdRouteWithChildren
   '/api/recheck/queue': typeof ApiRecheckQueueRoute
   '/api/reports/$reportType': typeof ApiReportsReportTypeRouteWithChildren
+  '/api/stations/recheck': typeof ApiStationsRecheckRoute
+  '/api/stations/tagging': typeof ApiStationsTaggingRoute
   '/api/admin/roles/permissions': typeof ApiAdminRolesPermissionsRoute
   '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
   '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
@@ -615,6 +639,7 @@ export interface FileRoutesByTo {
   '/api/audit/events/$auditId': typeof ApiAuditEventsAuditIdRoute
   '/api/bags/$bagId/assign-tag': typeof ApiBagsBagIdAssignTagRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
+  '/api/dev/simulator/station-harness': typeof ApiDevSimulatorStationHarnessRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
   '/api/integrations/bhs/messages': typeof ApiIntegrationsBhsMessagesRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
@@ -684,6 +709,8 @@ export interface FileRoutesById {
   '/api/recheck/$bagId': typeof ApiRecheckBagIdRouteWithChildren
   '/api/recheck/queue': typeof ApiRecheckQueueRoute
   '/api/reports/$reportType': typeof ApiReportsReportTypeRouteWithChildren
+  '/api/stations/recheck': typeof ApiStationsRecheckRoute
+  '/api/stations/tagging': typeof ApiStationsTaggingRoute
   '/api/admin/roles/permissions': typeof ApiAdminRolesPermissionsRoute
   '/api/admin/users/$userId': typeof ApiAdminUsersUserIdRouteWithChildren
   '/api/admin/users/invitations': typeof ApiAdminUsersInvitationsRoute
@@ -693,6 +720,7 @@ export interface FileRoutesById {
   '/api/audit/events/$auditId': typeof ApiAuditEventsAuditIdRoute
   '/api/bags/$bagId/assign-tag': typeof ApiBagsBagIdAssignTagRoute
   '/api/bags/$bagId/encode-tag': typeof ApiBagsBagIdEncodeTagRoute
+  '/api/dev/simulator/station-harness': typeof ApiDevSimulatorStationHarnessRoute
   '/api/dev/simulator/suspect-events': typeof ApiDevSimulatorSuspectEventsRoute
   '/api/integrations/bhs/messages': typeof ApiIntegrationsBhsMessagesRoute
   '/api/integrations/hbss/health': typeof ApiIntegrationsHbssHealthRoute
@@ -763,6 +791,8 @@ export interface FileRouteTypes {
     | '/api/recheck/$bagId'
     | '/api/recheck/queue'
     | '/api/reports/$reportType'
+    | '/api/stations/recheck'
+    | '/api/stations/tagging'
     | '/api/admin/roles/permissions'
     | '/api/admin/users/$userId'
     | '/api/admin/users/invitations'
@@ -772,6 +802,7 @@ export interface FileRouteTypes {
     | '/api/audit/events/$auditId'
     | '/api/bags/$bagId/assign-tag'
     | '/api/bags/$bagId/encode-tag'
+    | '/api/dev/simulator/station-harness'
     | '/api/dev/simulator/suspect-events'
     | '/api/integrations/bhs/messages'
     | '/api/integrations/hbss/health'
@@ -840,6 +871,8 @@ export interface FileRouteTypes {
     | '/api/recheck/$bagId'
     | '/api/recheck/queue'
     | '/api/reports/$reportType'
+    | '/api/stations/recheck'
+    | '/api/stations/tagging'
     | '/api/admin/roles/permissions'
     | '/api/admin/users/$userId'
     | '/api/admin/users/invitations'
@@ -849,6 +882,7 @@ export interface FileRouteTypes {
     | '/api/audit/events/$auditId'
     | '/api/bags/$bagId/assign-tag'
     | '/api/bags/$bagId/encode-tag'
+    | '/api/dev/simulator/station-harness'
     | '/api/dev/simulator/suspect-events'
     | '/api/integrations/bhs/messages'
     | '/api/integrations/hbss/health'
@@ -917,6 +951,8 @@ export interface FileRouteTypes {
     | '/api/recheck/$bagId'
     | '/api/recheck/queue'
     | '/api/reports/$reportType'
+    | '/api/stations/recheck'
+    | '/api/stations/tagging'
     | '/api/admin/roles/permissions'
     | '/api/admin/users/$userId'
     | '/api/admin/users/invitations'
@@ -926,6 +962,7 @@ export interface FileRouteTypes {
     | '/api/audit/events/$auditId'
     | '/api/bags/$bagId/assign-tag'
     | '/api/bags/$bagId/encode-tag'
+    | '/api/dev/simulator/station-harness'
     | '/api/dev/simulator/suspect-events'
     | '/api/integrations/bhs/messages'
     | '/api/integrations/hbss/health'
@@ -992,9 +1029,12 @@ export interface RootRouteChildren {
   ApiRecheckBagIdRoute: typeof ApiRecheckBagIdRouteWithChildren
   ApiRecheckQueueRoute: typeof ApiRecheckQueueRoute
   ApiReportsReportTypeRoute: typeof ApiReportsReportTypeRouteWithChildren
+  ApiStationsRecheckRoute: typeof ApiStationsRecheckRoute
+  ApiStationsTaggingRoute: typeof ApiStationsTaggingRoute
   ApiAdminRolesPermissionsRoute: typeof ApiAdminRolesPermissionsRoute
   ApiBagsBagIdAssignTagRoute: typeof ApiBagsBagIdAssignTagRoute
   ApiBagsBagIdEncodeTagRoute: typeof ApiBagsBagIdEncodeTagRoute
+  ApiDevSimulatorStationHarnessRoute: typeof ApiDevSimulatorStationHarnessRoute
   ApiDevSimulatorSuspectEventsRoute: typeof ApiDevSimulatorSuspectEventsRoute
   ApiIntegrationsBhsMessagesRoute: typeof ApiIntegrationsBhsMessagesRoute
   ApiIntegrationsHbssHealthRoute: typeof ApiIntegrationsHbssHealthRoute
@@ -1256,6 +1296,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/stations/tagging': {
+      id: '/api/stations/tagging'
+      path: '/api/stations/tagging'
+      fullPath: '/api/stations/tagging'
+      preLoaderRoute: typeof ApiStationsTaggingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stations/recheck': {
+      id: '/api/stations/recheck'
+      path: '/api/stations/recheck'
+      fullPath: '/api/stations/recheck'
+      preLoaderRoute: typeof ApiStationsRecheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/reports/$reportType': {
       id: '/api/reports/$reportType'
       path: '/api/reports/$reportType'
@@ -1394,6 +1448,13 @@ declare module '@tanstack/react-router' {
       path: '/api/dev/simulator/suspect-events'
       fullPath: '/api/dev/simulator/suspect-events'
       preLoaderRoute: typeof ApiDevSimulatorSuspectEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/dev/simulator/station-harness': {
+      id: '/api/dev/simulator/station-harness'
+      path: '/api/dev/simulator/station-harness'
+      fullPath: '/api/dev/simulator/station-harness'
+      preLoaderRoute: typeof ApiDevSimulatorStationHarnessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/bags/$bagId/encode-tag': {
@@ -1727,9 +1788,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRecheckBagIdRoute: ApiRecheckBagIdRouteWithChildren,
   ApiRecheckQueueRoute: ApiRecheckQueueRoute,
   ApiReportsReportTypeRoute: ApiReportsReportTypeRouteWithChildren,
+  ApiStationsRecheckRoute: ApiStationsRecheckRoute,
+  ApiStationsTaggingRoute: ApiStationsTaggingRoute,
   ApiAdminRolesPermissionsRoute: ApiAdminRolesPermissionsRoute,
   ApiBagsBagIdAssignTagRoute: ApiBagsBagIdAssignTagRoute,
   ApiBagsBagIdEncodeTagRoute: ApiBagsBagIdEncodeTagRoute,
+  ApiDevSimulatorStationHarnessRoute: ApiDevSimulatorStationHarnessRoute,
   ApiDevSimulatorSuspectEventsRoute: ApiDevSimulatorSuspectEventsRoute,
   ApiIntegrationsBhsMessagesRoute: ApiIntegrationsBhsMessagesRoute,
   ApiIntegrationsHbssHealthRoute: ApiIntegrationsHbssHealthRoute,

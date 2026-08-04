@@ -1,6 +1,12 @@
 import type { XrayScan } from "@/types/xray";
 
-export type XrayDisplayStatus = "Available" | "Pending" | "Missing" | "Failed" | "Not requested";
+export type XrayDisplayStatus =
+  | "Available"
+  | "Pending"
+  | "Missing"
+  | "Failed"
+  | "Archived"
+  | "Not requested";
 
 export function getXrayDisplayStatus(scan: XrayScan | null): XrayDisplayStatus {
   switch (scan?.status) {
@@ -13,6 +19,7 @@ export function getXrayDisplayStatus(scan: XrayScan | null): XrayDisplayStatus {
     case "FAILED":
       return "Failed";
     case "ARCHIVED":
+      return "Archived";
     case undefined:
       return "Not requested";
   }

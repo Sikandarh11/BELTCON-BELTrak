@@ -32,10 +32,14 @@ test("new server routes share authoritative service paths without browser creden
 });
 
 test("Tagging UI uses the authoritative queue and has no Zustand fallback", async () => {
-  const source = await read("src/routes/tagging.tsx");
-  assert.match(source, /useTaggingQueue\(\)/);
-  assert.match(source, /useAssignRfidTag\(\)/);
-  assert.match(source, /useForm/);
-  assert.doesNotMatch(source, /useAppStore/);
-  assert.match(source, /Assign RFID Tag/);
+  const [route, panel] = await Promise.all([
+    read("src/routes/tagging.tsx"),
+    read("src/features/stations/TaggingStationAgentPanel.tsx"),
+  ]);
+  assert.match(route, /TaggingStationAgentPanel/);
+  assert.match(panel, /fetch\("\/api\/stations\/tagging"/);
+  assert.match(panel, /view\?\.queue\.position1/);
+  assert.match(panel, /assignmentBlocked/);
+  assert.match(panel, /Commit assignment/);
+  assert.doesNotMatch(`${route}\n${panel}`, /useAppStore|persistenceService/);
 });

@@ -5,16 +5,22 @@ import test from "node:test";
 const source = (relativePath) => new URL(`../${relativePath}`, import.meta.url);
 
 test("operational browser authority is limited to Query clients and UI-only Zustand preferences", async () => {
-  const [store, tagging, alarms, recheck] = await Promise.all([
+  const [store, taggingRoute, taggingPanel, alarms, recheck] = await Promise.all([
     readFile(source("src/store/appStore.ts"), "utf8"),
     readFile(source("src/routes/tagging.tsx"), "utf8"),
+    readFile(source("src/features/stations/TaggingStationAgentPanel.tsx"), "utf8"),
     readFile(source("src/routes/alarms.tsx"), "utf8"),
     readFile(source("src/routes/recheck.tsx"), "utf8"),
   ]);
 
   assert.doesNotMatch(store, /\b(bags|alarms|rfidEvents|readers|resolutions|auditEvents)\s*:/);
-  assert.doesNotMatch(`${tagging}\n${alarms}\n${recheck}`, /useAppStore|persistenceService/);
-  assert.match(tagging, /useTaggingQueue/);
+  assert.doesNotMatch(
+    `${taggingRoute}\n${taggingPanel}\n${alarms}\n${recheck}`,
+    /useAppStore|persistenceService/,
+  );
+  assert.match(taggingRoute, /TaggingStationAgentPanel/);
+  assert.match(taggingPanel, /fetch\("\/api\/stations\/tagging"/);
+  assert.match(taggingPanel, /queue\.position1/);
   assert.match(alarms, /useAlarms/);
   assert.match(recheck, /useRecheckQueue/);
 });

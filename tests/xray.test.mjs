@@ -59,6 +59,7 @@ const [
 
 const { mapXrayScanRow } = repositoryModule;
 const { createXrayService } = serviceModule;
+const { resolveHbssRequestTimeoutMs } = serviceModule;
 const {
   handleGetBagXrayRequest,
   handleRefreshBagXrayRequest,
@@ -85,7 +86,7 @@ const {
 } = viewerNavigationModule;
 
 const availablePayload = {
-  bhsUid: "BHS-2026-000123",
+  bhsUid: "0000000123",
   externalScanId: "SCAN-88721",
   sourceSystem: "MOCK_HBSS",
   status: "AVAILABLE",
@@ -110,7 +111,7 @@ const screeningEvent = {
   sourceSystem: "SIMULATED_HBSS",
   occurredAt: "2026-07-24T10:30:00Z",
   bag: {
-    bhsUid: "BHS-2026-000123",
+    bhsUid: "0000000123",
     iataCode: "0123456789",
     iataOrigin: "RUH",
     flightNo: "SV123",
@@ -176,6 +177,13 @@ function ingestionRequest(payload, key = "test-integration-key") {
   });
 }
 
+const configuredHbssIngestion = {
+  integrationKey: "test-integration-key",
+  sourceSystem: "MOCK_HBSS",
+  siteId: "RUH",
+  enabled: true,
+};
+
 function sessionForRole(role = "Operations Officer") {
   return {
     token: "session-token",
@@ -201,7 +209,7 @@ function bagXrayRequest(viewSessionId = "recheck-session-001") {
 }
 
 test("mock adapter returns an available response with image views", async () => {
-  const result = await mockHbssAdapter.getScanByBhsUid("BHS-NORMAL-001");
+  const result = await mockHbssAdapter.getScanByBhsUid("NORMAL0001");
   assert.equal(result.status, "AVAILABLE");
   assert.equal(result.images.length, 3);
   assert.deepEqual(
@@ -216,26 +224,26 @@ test("mock adapter returns an available response with image views", async () => 
 });
 
 test("mock adapter returns PENDING", async () => {
-  const result = await mockHbssAdapter.getScanByBhsUid("BHS-PENDING-001");
+  const result = await mockHbssAdapter.getScanByBhsUid("PENDING001");
   assert.equal(result.status, "PENDING");
   assert.deepEqual(result.images, []);
 });
 
 test("mock adapter returns NOT_FOUND", async () => {
-  const result = await mockHbssAdapter.getScanByBhsUid("BHS-MISSING-001");
+  const result = await mockHbssAdapter.getScanByBhsUid("MISSING001");
   assert.equal(result.status, "NOT_FOUND");
   assert.deepEqual(result.images, []);
 });
 
 test("mock adapter returns FAILED", async () => {
-  const result = await mockHbssAdapter.getScanByBhsUid("BHS-FAIL-001");
+  const result = await mockHbssAdapter.getScanByBhsUid("FAIL000001");
   assert.equal(result.status, "FAILED");
   assert.deepEqual(result.images, []);
 });
 
 test("mock adapter is deterministic for the same BHS UID", async () => {
-  const first = await mockHbssAdapter.getScanByBhsUid("BHS-NORMAL-001");
-  const second = await mockHbssAdapter.getScanByBhsUid("BHS-NORMAL-001");
+  const first = await mockHbssAdapter.getScanByBhsUid("NORMAL0001");
+  const second = await mockHbssAdapter.getScanByBhsUid("NORMAL0001");
   assert.deepEqual(second, first);
 });
 
@@ -243,7 +251,7 @@ test("bag row mapping round-trips screening and identity fields", () => {
   const bag = {
     id: "ETB-000123",
     sourceSystem: "SIMULATED_HBSS",
-    bhsUid: "BHS-2026-000123",
+    bhsUid: "0000000123",
     iataCode: "0123456789",
     iataOrigin: "RUH",
     epc: "E28068940000501A2B3C4D5E",
@@ -279,7 +287,7 @@ test("bag row mapping never falls back to the bag ID", () => {
 test("bag row mapping writes the baggage licence plate to iata_code", () => {
   const row = bagToRow({
     id: "ETB-000125",
-    bhsUid: "BHS-2026-000125",
+    bhsUid: "0000000125",
     iataCode: "9876543210",
     flightNo: "SV125",
     status: "IDENTIFIED",
@@ -352,7 +360,7 @@ test("X-ray display statuses cover every operational scan state", () => {
   assert.equal(getXrayDisplayStatus(sampleScan({ status: "PENDING" })), "Pending");
   assert.equal(getXrayDisplayStatus(sampleScan({ status: "NOT_FOUND" })), "Missing");
   assert.equal(getXrayDisplayStatus(sampleScan({ status: "FAILED" })), "Failed");
-  assert.equal(getXrayDisplayStatus(sampleScan({ status: "ARCHIVED" })), "Not requested");
+  assert.equal(getXrayDisplayStatus(sampleScan({ status: "ARCHIVED" })), "Archived");
   assert.equal(getXrayDisplayStatus(null), "Not requested");
 });
 
@@ -571,7 +579,7 @@ test("repository maps snake_case rows to the X-ray domain model", () => {
   const mapped = mapXrayScanRow({
     id: "00000000-0000-4000-8000-000000000001",
     bag_id: "ETB-000123",
-    bhs_uid: "BHS-2026-000123",
+    bhs_uid: "0000000123",
     external_scan_id: "SCAN-88721",
     source_system: "MOCK_HBSS",
     status: "AVAILABLE",
@@ -708,6 +716,7 @@ test("Recheck retains the viewer during refresh and prevents duplicate submissio
 
   assert.match(recheckSource, /const xrayScan = scanForDisplay\(xraySelection\)/);
   assert.match(recheckSource, /Latest HBSS refresh failed\./);
+  assert.match(recheckSource, /HBSS X-ray refresh timed out\. No new image was accepted\./);
   assert.match(recheckSource, /Displaying the last available scan\./);
   assert.match(recheckSource, /Refresh from HBSS/);
   assert.match(recheckSource, /xrayRefreshInFlightRef\.current/);
@@ -729,7 +738,7 @@ test("refresh loads a bag BHS UID, calls the adapter, and persists the result", 
   const service = createXrayService({
     bagRepository: {
       async findById() {
-        return { id: "ETB-000123", bhsUid: "BHS-2026-000123" };
+        return { id: "ETB-000123", bhsUid: "0000000123" };
       },
       async findByBhsUid() {
         return null;
@@ -742,10 +751,11 @@ test("refresh loads a bag BHS UID, calls the adapter, and persists the result", 
       async findLatestByBhsUid() {
         return null;
       },
-      async upsertFromAdapterResult(bagId, result) {
+      async upsertFromAdapterResult(bagId, expectedBhsUid, result) {
         persistedBagId = bagId;
+        assert.equal(expectedBhsUid, "0000000123");
         persistedResult = result;
-        return storedScan;
+        return { scan: storedScan, disposition: "CREATED" };
       },
       async saveFailure() {
         throw new Error("saveFailure should not be called");
@@ -758,11 +768,245 @@ test("refresh loads a bag BHS UID, calls the adapter, and persists the result", 
   const scan = await service.refreshScanForBag("ETB-000123");
   assert.equal(scan, storedScan);
   assert.equal(persistedBagId, "ETB-000123");
-  assert.equal(persistedResult.bhsUid, "BHS-2026-000123");
+  assert.equal(persistedResult.bhsUid, "0000000123");
   assert.deepEqual(
     auditEvents.map((event) => event.action),
     ["XRAY_REFRESH_REQUESTED", "XRAY_SCAN_RECEIVED"],
   );
+});
+
+function correlationService(returnedResult, observations = {}) {
+  const auditEvents = observations.auditEvents ?? [];
+  const writes = observations.writes ?? [];
+  return createXrayService({
+    bagRepository: {
+      async findById() {
+        return { id: "ETB-CORRELATION", bhsUid: "1234567890" };
+      },
+      async findByBhsUid() {
+        return null;
+      },
+    },
+    repository: {
+      async findSelectionByBagId() {
+        return sampleSelection(null);
+      },
+      async upsertFromAdapterResult(_bagId, _expectedBhsUid, result) {
+        writes.push(result);
+        return {
+          scan: sampleScan({ bhsUid: result.bhsUid, images: result.images }),
+          disposition: "CREATED",
+        };
+      },
+      async saveFailure() {
+        observations.failureWrites = (observations.failureWrites ?? 0) + 1;
+        return sampleScan({ status: "FAILED", images: [] });
+      },
+    },
+    adapterFactory: () => ({
+      name: "TEST_HBSS",
+      async getScanByBhsUid(_bhsUid, options) {
+        observations.signal = options?.signal;
+        return typeof returnedResult === "function"
+          ? returnedResult(options?.signal)
+          : returnedResult;
+      },
+      async healthCheck() {
+        return { healthy: true };
+      },
+    }),
+    audit: (event) => auditEvents.push(event),
+    requestTimeoutMs: observations.requestTimeoutMs ?? (() => 1_000),
+  });
+}
+
+function correlatedResult(bhsUid = "1234567890") {
+  return {
+    ...availablePayload,
+    bhsUid,
+    externalScanId: `CORRELATION-${bhsUid || "EMPTY"}`,
+  };
+}
+
+test("HBSS refresh persists only an exact, case-sensitive BHS BagID match", async () => {
+  const observations = { writes: [], auditEvents: [] };
+  const service = correlationService(correlatedResult(), observations);
+
+  const scan = await service.refreshScanForBag("ETB-CORRELATION");
+
+  assert.equal(scan.bhsUid, "1234567890");
+  assert.equal(observations.writes.length, 1);
+  assert.deepEqual(
+    observations.auditEvents.map((event) => event.action),
+    ["XRAY_REFRESH_REQUESTED", "XRAY_SCAN_RECEIVED"],
+  );
+});
+
+for (const [label, returned] of [
+  ["different", "0987654321"],
+  ["same prefix", "1234567891"],
+  ["same suffix", "9234567890"],
+  ["different case", "ABCDEFGHIJ"],
+  ["empty", ""],
+  ["missing", undefined],
+]) {
+  test(`HBSS refresh rejects a ${label} returned BHS BagID without mutation`, async () => {
+    const observations = { writes: [], auditEvents: [] };
+    const result = correlatedResult(returned ?? "1234567890");
+    if (returned === undefined) delete result.bhsUid;
+    const service =
+      label === "different case"
+        ? createXrayService({
+            bagRepository: {
+              async findById() {
+                return { id: "ETB-CORRELATION", bhsUid: "abcdefghij" };
+              },
+              async findByBhsUid() {
+                return null;
+              },
+            },
+            repository: {
+              async upsertFromAdapterResult() {
+                observations.writes.push(result);
+                return { scan: sampleScan(), disposition: "CREATED" };
+              },
+              async saveFailure() {
+                observations.failureWrites = (observations.failureWrites ?? 0) + 1;
+                return sampleScan({ status: "FAILED", images: [] });
+              },
+            },
+            adapterFactory: () => ({
+              name: "TEST_HBSS",
+              async getScanByBhsUid() {
+                return result;
+              },
+              async healthCheck() {
+                return { healthy: true };
+              },
+            }),
+            audit: (event) => observations.auditEvents.push(event),
+            requestTimeoutMs: () => 1_000,
+          })
+        : correlationService(result, observations);
+
+    await assert.rejects(
+      () => service.refreshScanForBag("ETB-CORRELATION"),
+      (error) => error.code === "HBSS_BHS_UID_MISMATCH" && error.status === 502,
+    );
+    assert.equal(observations.writes.length, 0);
+    assert.equal(observations.failureWrites ?? 0, 0);
+    assert.equal(observations.auditEvents.at(-1).errorCode, "HBSS_BHS_UID_MISMATCH");
+  });
+}
+
+test("correlation failure API body contains no returned image", async () => {
+  const wrong = correlatedResult("0987654321");
+  const service = correlationService(wrong);
+  const response = await handleRefreshBagXrayRequest(bagXrayRequest(), "ETB-CORRELATION", {
+    async getSession() {
+      return sessionForRole();
+    },
+    service,
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 502);
+  assert.equal(body.code, "HBSS_BHS_UID_MISMATCH");
+  assert.doesNotMatch(JSON.stringify(body), /side\.jpg|0987654321/);
+});
+
+test("Recheck never renders an adapter refresh result directly", async () => {
+  const source = await readFile(path.join(repositoryRoot, "src/routes/recheck.tsx"), "utf8");
+  assert.match(source, /const xrayScan = scanForDisplay\(xraySelection\)/);
+  assert.match(source, /scan={xraySelection\.displayScan}/);
+  assert.doesNotMatch(source, /scan={refreshXray\.(?:data|result)}/);
+});
+
+test("HBSS timeout configuration uses a safe default and rejects invalid bounds", () => {
+  assert.equal(resolveHbssRequestTimeoutMs(undefined), 10_000);
+  assert.equal(resolveHbssRequestTimeoutMs(""), 10_000);
+  assert.equal(resolveHbssRequestTimeoutMs("100"), 100);
+  assert.equal(resolveHbssRequestTimeoutMs("120000"), 120_000);
+  for (const value of ["abc", "99", "120001", "-1", "1.5"]) {
+    assert.throws(() => resolveHbssRequestTimeoutMs(value), /HBSS request timeout/);
+  }
+});
+
+test("adapter completion before the timeout succeeds", async () => {
+  const observations = { writes: [] };
+  const service = correlationService(Promise.resolve(correlatedResult()), observations);
+  await service.refreshScanForBag("ETB-CORRELATION");
+  assert.equal(observations.writes.length, 1);
+});
+
+test("adapter at the exact timeout boundary times out and cancellation propagates", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const observations = { writes: [], auditEvents: [], requestTimeoutMs: () => 100 };
+  const service = correlationService(
+    (signal) =>
+      new Promise((resolve) => {
+        observations.adapterSignal = signal;
+        setTimeout(() => resolve(correlatedResult()), 100);
+      }),
+    observations,
+  );
+  const assertion = assert.rejects(
+    service.refreshScanForBag("ETB-CORRELATION"),
+    (error) => error.code === "HBSS_REQUEST_TIMED_OUT",
+  );
+  while (!observations.signal) await Promise.resolve();
+  t.mock.timers.tick(100);
+  await assertion;
+  assert.equal(observations.adapterSignal.aborted, true);
+  assert.equal(observations.writes.length, 0);
+});
+
+test("late result from an adapter that ignores cancellation never writes", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let finish;
+  const observations = { writes: [], auditEvents: [], requestTimeoutMs: () => 100 };
+  const service = correlationService(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    observations,
+  );
+  const assertion = assert.rejects(
+    service.refreshScanForBag("ETB-CORRELATION"),
+    (error) => error.code === "HBSS_REQUEST_TIMED_OUT",
+  );
+  while (!finish) await Promise.resolve();
+  t.mock.timers.tick(101);
+  await assertion;
+  finish(correlatedResult());
+  await Promise.resolve();
+  assert.equal(observations.writes.length, 0);
+  assert.equal(observations.failureWrites ?? 0, 0);
+  assert.equal(observations.auditEvents.at(-1).errorCode, "HBSS_REQUEST_TIMED_OUT");
+});
+
+test("retry after timeout succeeds without accepting the late first result", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let attempts = 0;
+  let finishFirst;
+  const observations = { writes: [], auditEvents: [], requestTimeoutMs: () => 100 };
+  const service = correlationService(() => {
+    attempts += 1;
+    if (attempts === 1) return new Promise((resolve) => (finishFirst = resolve));
+    return Promise.resolve(correlatedResult());
+  }, observations);
+  const firstAssertion = assert.rejects(
+    service.refreshScanForBag("ETB-CORRELATION"),
+    (error) => error.code === "HBSS_REQUEST_TIMED_OUT",
+  );
+  while (!finishFirst) await Promise.resolve();
+  t.mock.timers.tick(100);
+  await firstAssertion;
+  await service.refreshScanForBag("ETB-CORRELATION");
+  finishFirst(correlatedResult());
+  await Promise.resolve();
+  assert.equal(observations.writes.length, 1);
 });
 
 test("refresh rejects a bag with no BHS UID before calling the adapter", async () => {
@@ -785,7 +1029,7 @@ test("refresh rejects a bag with no BHS UID before calling the adapter", async (
 
   await assert.rejects(
     () => service.refreshScanForBag("ETB-NO-BHS"),
-    (error) => error instanceof XrayValidationError && error.message === "Bag has no BHS UID",
+    (error) => error.code === "BHS_UID_REQUIRED" && error.message === "Bag has no valid BHS UID",
   );
   assert.equal(adapterCalled, false);
 });
@@ -1048,7 +1292,7 @@ test("ingestion rejects an invalid integration key", async () => {
   const response = await handleHbssIngestionRequest(
     ingestionRequest(availablePayload, "wrong-key"),
     {
-      integrationKey: "test-integration-key",
+      ...configuredHbssIngestion,
       service: {
         async ingestScan() {
           serviceCalled = true;
@@ -1065,7 +1309,7 @@ test("ingestion rejects an invalid integration key", async () => {
 test("ingestion accepts a valid request and returns the stored scan", async () => {
   let receivedPayload;
   const response = await handleHbssIngestionRequest(ingestionRequest(availablePayload), {
-    integrationKey: "test-integration-key",
+    ...configuredHbssIngestion,
     service: {
       async ingestScan(payload) {
         receivedPayload = payload;
@@ -1079,9 +1323,120 @@ test("ingestion accepts a valid request and returns the stored scan", async () =
   assert.deepEqual(await response.json(), { scan: sampleScan() });
 });
 
+test("HBSS credential binds source and site from trusted server configuration", async () => {
+  const received = [];
+  const response = await handleHbssIngestionRequest(
+    ingestionRequest({ ...availablePayload, siteId: "RUH" }),
+    {
+      ...configuredHbssIngestion,
+      service: {
+        async ingestScan(payload) {
+          received.push(payload);
+          return sampleScan({ sourceSystem: payload.sourceSystem });
+        },
+      },
+    },
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(received[0].sourceSystem, "MOCK_HBSS");
+  assert.equal("siteId" in received[0], false);
+});
+
+test("trusted HBSS source is the source persisted and audited", async () => {
+  const audits = [];
+  let persisted;
+  const service = createXrayService({
+    bagRepository: {
+      async findById() {
+        return null;
+      },
+      async findByBhsUid() {
+        return { id: "ETB-TRUSTED-SOURCE", bhsUid: availablePayload.bhsUid };
+      },
+    },
+    repository: {
+      async upsertFromAdapterResult(bagId, expectedBhsUid, result) {
+        persisted = { bagId, expectedBhsUid, result };
+        return {
+          scan: sampleScan({ bagId, sourceSystem: result.sourceSystem }),
+          disposition: "CREATED",
+        };
+      },
+    },
+    audit: (event) => audits.push(event),
+  });
+
+  await service.ingestScan(availablePayload);
+  assert.equal(persisted.result.sourceSystem, "MOCK_HBSS");
+  assert.equal(audits[0].sourceSystem, "MOCK_HBSS");
+});
+
+test("HBSS credential cannot claim another source or site", async () => {
+  for (const payload of [
+    { ...availablePayload, sourceSystem: "OTHER_HBSS" },
+    { ...availablePayload, siteId: "SITE_B" },
+  ]) {
+    let serviceCalled = false;
+    const response = await handleHbssIngestionRequest(ingestionRequest(payload), {
+      ...configuredHbssIngestion,
+      service: {
+        async ingestScan() {
+          serviceCalled = true;
+          return sampleScan();
+        },
+      },
+    });
+    assert.equal(response.status, 400);
+    assert.equal(serviceCalled, false);
+    assert.equal((await response.json()).code, "HBSS_PAYLOAD_INVALID");
+  }
+});
+
+test("disabled, incomplete, and wrong-endpoint HBSS bindings fail closed", async () => {
+  const disabled = await handleHbssIngestionRequest(ingestionRequest(availablePayload), {
+    ...configuredHbssIngestion,
+    enabled: false,
+  });
+  assert.equal(disabled.status, 503);
+  assert.equal((await disabled.json()).code, "HBSS_INTEGRATION_DISABLED");
+
+  const missingSite = await handleHbssIngestionRequest(ingestionRequest(availablePayload), {
+    ...configuredHbssIngestion,
+    siteId: null,
+  });
+  assert.equal(missingSite.status, 503);
+  assert.equal((await missingSite.json()).code, "HBSS_INTEGRATION_NOT_CONFIGURED");
+
+  const wrongEndpoint = await handleHbssIngestionRequest(
+    new Request("http://localhost/api/integrations/hbss/other", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-hbss-integration-key": "test-integration-key",
+      },
+      body: JSON.stringify(availablePayload),
+    }),
+    configuredHbssIngestion,
+  );
+  assert.equal(wrongEndpoint.status, 403);
+  assert.equal((await wrongEndpoint.json()).code, "HBSS_INTEGRATION_ENDPOINT_FORBIDDEN");
+});
+
+test("a BHS credential cannot call the HBSS endpoint and secrets are never echoed", async () => {
+  const secret = "bhs-only-super-secret";
+  const response = await handleHbssIngestionRequest(
+    ingestionRequest(availablePayload, secret),
+    configuredHbssIngestion,
+  );
+  const serialized = JSON.stringify(await response.json());
+  assert.equal(response.status, 401);
+  assert.doesNotMatch(serialized, /bhs-only-super-secret|test-integration-key/);
+});
+
 test("ingestion returns 404 for an unknown BHS UID", async () => {
   const response = await handleHbssIngestionRequest(ingestionRequest(availablePayload), {
-    integrationKey: "test-integration-key",
+    ...configuredHbssIngestion,
     service: {
       async ingestScan() {
         throw new XrayNotFoundError("No bag matches the supplied BHS UID");
@@ -1116,7 +1471,7 @@ test("ingestion service rejects an unknown BHS UID before writing", async () => 
       },
       async upsertFromAdapterResult() {
         repositoryCalled = true;
-        return sampleScan();
+        return { scan: sampleScan(), disposition: "CREATED" };
       },
       async saveFailure() {
         repositoryCalled = true;
@@ -1141,7 +1496,7 @@ test("ingestion rejects a malformed image object", async () => {
     images: [{ id: "side", label: "Side View", url: "/mock-xray/user/set-01/side.jpg" }],
   };
   const response = await handleHbssIngestionRequest(ingestionRequest(malformedPayload), {
-    integrationKey: "test-integration-key",
+    ...configuredHbssIngestion,
     service: {
       async ingestScan() {
         serviceCalled = true;

@@ -3,7 +3,13 @@ import type { XrayScanStatus } from "./xray";
 
 export type TaggingXrayStatus = XrayScanStatus | "NOT_REQUESTED";
 export type BhsConfirmationStatus = "AWAITING_BHS_CONFIRMATION" | "CONFIRMED" | null;
-export type TaggingReadiness = "AWAITING_BHS_CONFIRMATION" | "READY_FOR_TAGGING";
+export type TaggingReadiness =
+  | "NOT_READY"
+  | "AWAITING_BHS"
+  | "AWAITING_SCREENING"
+  | "AWAITING_XRAY"
+  | "READY_FOR_TAGGING"
+  | "BLOCKED_CONFLICT";
 
 export interface TaggingBag {
   id: string;

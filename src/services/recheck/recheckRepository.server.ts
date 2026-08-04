@@ -5,12 +5,22 @@ import { RecheckServiceError } from "./recheckErrors";
 import type { RecheckQueueFilters } from "./recheckSchemas";
 import type {
   HbssRecallRecord,
+  HbssRecallStatus,
   RecheckAction,
   RecheckCase,
   RecheckQueueItem,
 } from "./recheckTypes";
 
 const activeStatuses = ["OPEN", "ACKNOWLEDGED", "ESCALATED", "SENT_TO_RECHECK"];
+const recallStatuses = new Set<HbssRecallStatus>([
+  "PENDING",
+  "REQUEST_SENT",
+  "SIMULATED",
+  "UNAVAILABLE",
+  "FAILED",
+  "TIMED_OUT",
+  "CANCELLED",
+]);
 const asRow = (value: unknown) =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -52,7 +62,13 @@ function mapRecall(value: unknown): HbssRecallRecord {
   const status = text(row.status);
   const adapterType = text(row.adapter_type);
   const requestedAt = text(row.requested_at);
-  if (!id || !status || !adapterType || !requestedAt)
+  if (
+    !id ||
+    !status ||
+    !recallStatuses.has(status as HbssRecallStatus) ||
+    !adapterType ||
+    !requestedAt
+  )
     throw new RecheckServiceError(
       "Stored HBSS recall data is invalid",
       "RECHECK_PROCESSING_FAILED",
@@ -60,7 +76,7 @@ function mapRecall(value: unknown): HbssRecallRecord {
     );
   return {
     id,
-    status,
+    status: status as HbssRecallStatus,
     adapterType,
     requestedAt,
     completedAt: text(row.completed_at),

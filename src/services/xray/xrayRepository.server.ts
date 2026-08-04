@@ -5,8 +5,13 @@ import { z } from "zod";
 import { HbssError } from "@/services/integrations/hbss/hbssErrors";
 import { xrayImageViewSchema } from "@/services/integrations/hbss/hbssSchemas";
 import type { HbssScanResult, XrayScan, XrayScanSelection } from "@/types/xray";
-import { XrayConflictError, XrayServiceError, XrayPersistenceError } from "./xrayErrors";
-import { selectXrayScans, shouldStoreAsSeparateAttempt } from "./xrayScanSelection";
+import {
+  HbssBhsUidMismatchError,
+  XrayConflictError,
+  XrayServiceError,
+  XrayPersistenceError,
+} from "./xrayErrors";
+import { selectXrayScans } from "./xrayScanSelection";
 import { getXrayAdminClient } from "./xraySupabase.server";
 
 const xrayScanRowSchema = z.object({
@@ -49,8 +54,17 @@ export interface XrayRepository {
   findSelectionByBagId(bagId: string): Promise<XrayScanSelection>;
   findLatestByBagId(bagId: string): Promise<XrayScan | null>;
   findLatestByBhsUid(bhsUid: string): Promise<XrayScan | null>;
-  upsertFromAdapterResult(bagId: string, result: HbssScanResult): Promise<XrayScan>;
+  upsertFromAdapterResult(
+    bagId: string,
+    expectedBhsUid: string,
+    result: HbssScanResult,
+  ): Promise<XrayPersistenceResult>;
   saveFailure(bagId: string, bhsUid: string, error: unknown): Promise<XrayScan>;
+}
+
+export interface XrayPersistenceResult {
+  scan: XrayScan;
+  disposition: "CREATED" | "DUPLICATE";
 }
 
 export function mapXrayScanRow(row: unknown): XrayScan {
@@ -135,6 +149,47 @@ function assertExternalIdentityOwner(scan: XrayScan, bagId: string, bhsUid: stri
       "X-ray scan identity is already assigned to another bag or BHS UID",
     );
   }
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    return `{${Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => `${JSON.stringify(key)}:${canonicalJson(nested)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "undefined";
+}
+
+function sameOptionalTimestamp(stored: string | null, incoming?: string): boolean {
+  if (stored === null || incoming === undefined) {
+    return stored === null && incoming === undefined;
+  }
+  return Date.parse(stored) === Date.parse(incoming);
+}
+
+export function isExactHbssScanDuplicate(
+  existing: XrayScan,
+  bagId: string,
+  expectedBhsUid: string,
+  incoming: HbssScanResult,
+): boolean {
+  return (
+    existing.bagId === bagId &&
+    existing.bhsUid === expectedBhsUid &&
+    incoming.bhsUid === expectedBhsUid &&
+    existing.externalScanId === incoming.externalScanId &&
+    existing.sourceSystem === incoming.sourceSystem &&
+    existing.status === incoming.status &&
+    canonicalJson(existing.images) === canonicalJson(incoming.images) &&
+    existing.threatLevel === (incoming.threatLevel ?? null) &&
+    existing.threatType === (incoming.threatType ?? null) &&
+    sameOptionalTimestamp(existing.capturedAt, incoming.capturedAt) &&
+    canonicalJson(existing.metadata) === canonicalJson(incoming.metadata ?? {})
+  );
 }
 
 async function updateScan(id: string, values: XrayScanWrite) {
@@ -233,7 +288,10 @@ export const xrayRepository: XrayRepository = {
     return findLatest("bhs_uid", bhsUid);
   },
 
-  async upsertFromAdapterResult(bagId, result) {
+  async upsertFromAdapterResult(bagId, expectedBhsUid, result) {
+    if (result.bhsUid !== expectedBhsUid) {
+      throw new HbssBhsUidMismatchError();
+    }
     const now = new Date().toISOString();
     const values: XrayScanWrite = {
       bag_id: bagId,
@@ -255,29 +313,17 @@ export const xrayRepository: XrayRepository = {
     const existing = await findByExternalIdentity(result.sourceSystem, result.externalScanId);
     if (existing) {
       assertExternalIdentityOwner(existing, bagId, result.bhsUid);
-      if (shouldStoreAsSeparateAttempt(existing, result)) {
-        const { data, error } = await insertScan({
-          ...values,
-          external_scan_id: null,
-          metadata: {
-            ...values.metadata,
-            reportedExternalScanId: result.externalScanId,
-            preservedAvailableScanId: existing.id,
-          },
-        });
-        if (error || !data) {
-          throw new XrayPersistenceError("Unable to store the X-ray refresh attempt", {
-            cause: error ?? undefined,
-          });
-        }
-        return mapXrayScanRow(data);
+      if (!isExactHbssScanDuplicate(existing, bagId, expectedBhsUid, result)) {
+        throw new XrayConflictError(
+          "X-ray scan identity was already received with a different payload",
+        );
       }
-      return updateScan(existing.id, values);
+      return { scan: existing, disposition: "DUPLICATE" };
     }
 
     const { data, error } = await insertScan(values);
     if (!error && data) {
-      return mapXrayScanRow(data);
+      return { scan: mapXrayScanRow(data), disposition: "CREATED" };
     }
 
     // A concurrent delivery may have inserted the same vendor identity after
@@ -286,7 +332,13 @@ export const xrayRepository: XrayRepository = {
       const concurrent = await findByExternalIdentity(result.sourceSystem, result.externalScanId);
       if (concurrent) {
         assertExternalIdentityOwner(concurrent, bagId, result.bhsUid);
-        return updateScan(concurrent.id, values);
+        if (!isExactHbssScanDuplicate(concurrent, bagId, expectedBhsUid, result)) {
+          throw new XrayConflictError(
+            "X-ray scan identity was concurrently received with a different payload",
+            { cause: error },
+          );
+        }
+        return { scan: concurrent, disposition: "DUPLICATE" };
       }
 
       throw new XrayConflictError("X-ray scan identity conflicts with an existing record", {

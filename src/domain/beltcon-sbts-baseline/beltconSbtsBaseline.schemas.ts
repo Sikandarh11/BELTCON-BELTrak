@@ -28,7 +28,11 @@ export const BhsUidSchema = z
   .string()
   .length(BHS_UID_LENGTH, `BHS BagID must be exactly ${BHS_UID_LENGTH} characters.`)
   .regex(printableAscii, "BHS BagID must contain printable ASCII characters only.")
-  .refine((value) => value === value.trim(), "BHS BagID must not contain transport padding.");
+  .refine((value) => value === value.trim(), "BHS BagID must not contain transport padding.")
+  .refine(
+    (value) => !value.toUpperCase().startsWith("ETB-"),
+    "An internal ETB bag ID must not be used as the BHS BagID.",
+  );
 
 export const IataLpcSchema = z
   .string()

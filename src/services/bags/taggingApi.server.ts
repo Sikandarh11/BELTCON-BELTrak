@@ -1,8 +1,5 @@
 import "@tanstack/react-start/server-only";
 
-import { randomUUID } from "node:crypto";
-import { z } from "zod";
-
 import { roleIsAtLeast } from "@/auth/canonicalRoles";
 import { getSessionFromRequest } from "@/services/authRepository.server";
 import {
@@ -14,24 +11,10 @@ import type { TaggingService } from "./taggingService.server";
 import { taggingService } from "./taggingService.server";
 
 const MINIMUM_TAGGING_ROLE = "Operations Officer";
-const MAX_ENCODE_BODY_BYTES = 4 * 1024;
 const JSON_HEADERS = {
   "cache-control": "no-store",
   "content-type": "application/json; charset=utf-8",
 };
-const encodeTagBodySchema = z
-  .object({
-    epc: z.string(),
-  })
-  .strict();
-const assignTagBodySchema = z
-  .object({
-    rfidTagBarcode: z.string(),
-    epc: z.string(),
-    iataLpc: z.string().optional(),
-    expectedVersion: z.number().int().min(1),
-  })
-  .strict();
 
 type SessionLookup = typeof getSessionFromRequest;
 
@@ -105,42 +88,6 @@ async function authorize(request: Request, options: TaggingApiOptions) {
   return { response: null, session };
 }
 
-async function readLimitedJson(request: Request): Promise<unknown> {
-  const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
-  if (!contentType.includes("application/json")) {
-    throw new TaggingServiceError(
-      "Content-Type must be application/json",
-      "TAGGING_VALIDATION_ERROR",
-      415,
-    );
-  }
-
-  const declaredLength = request.headers.get("content-length");
-  if (declaredLength) {
-    const parsedLength = Number.parseInt(declaredLength, 10);
-    if (Number.isFinite(parsedLength) && parsedLength > MAX_ENCODE_BODY_BYTES) {
-      throw new TaggingServiceError("Request body is too large", "TAGGING_VALIDATION_ERROR", 413);
-    }
-  }
-
-  const body = await request.text();
-  if (new TextEncoder().encode(body).byteLength > MAX_ENCODE_BODY_BYTES) {
-    throw new TaggingServiceError("Request body is too large", "TAGGING_VALIDATION_ERROR", 413);
-  }
-  if (!body.trim()) {
-    throw new SyntaxError("Empty JSON body");
-  }
-  return JSON.parse(body) as unknown;
-}
-
-function requestIdFor(request: Request) {
-  const supplied = request.headers.get("x-request-id")?.trim() ?? "";
-  if (supplied.length > 0 && supplied.length <= 128 && /^[A-Za-z0-9._:-]+$/.test(supplied)) {
-    return supplied;
-  }
-  return randomUUID();
-}
-
 function safeErrorResponse(error: unknown) {
   if (error instanceof TaggingServiceError) {
     return jsonResponse(
@@ -185,35 +132,15 @@ export async function handleEncodeTagRequest(
   if (authorization.response || !authorization.session) {
     return authorization.response;
   }
-
-  let input;
-  try {
-    input = encodeTagBodySchema.parse(await readLimitedJson(request));
-  } catch (error) {
-    if (error instanceof TaggingServiceError) {
-      return safeErrorResponse(error);
-    }
-    return jsonResponse(
-      {
-        error: "Request body must contain a valid EPC",
-        code: "TAGGING_VALIDATION_ERROR",
-      },
-      400,
-    );
-  }
-
-  try {
-    const bag = await (options.service ?? taggingService).encodeTag({
-      bagId,
-      epc: input.epc,
-      actorId: authorization.session.user.id,
-      canonicalRole: authorization.session.user.role,
-      requestId: requestIdFor(request),
-    });
-    return jsonResponse({ bag });
-  } catch (error) {
-    return safeErrorResponse(error);
-  }
+  void request;
+  void bagId;
+  return jsonResponse(
+    {
+      error: "Direct tag encoding is disabled; use the server-controlled station session",
+      code: "TAGGING_SESSION_REQUIRED",
+    },
+    409,
+  );
 }
 
 /** Baseline V1 naming. The legacy encode endpoint remains a compatibility wrapper. */
@@ -224,34 +151,13 @@ export async function handleAssignRfidTagRequest(
 ) {
   const authorization = await authorize(request, options);
   if (authorization.response || !authorization.session) return authorization.response;
-
-  let input: z.infer<typeof assignTagBodySchema>;
-  try {
-    input = assignTagBodySchema.parse(await readLimitedJson(request));
-  } catch (error) {
-    if (error instanceof TaggingServiceError) return safeErrorResponse(error);
-    return jsonResponse(
-      {
-        error: "Request body contains an invalid RFID tag assignment",
-        code: "TAGGING_VALIDATION_ERROR",
-      },
-      400,
-    );
-  }
-
-  try {
-    const bag = await (options.service ?? taggingService).assignRfidTag({
-      bagId,
-      rfidTagBarcode: input.rfidTagBarcode,
-      epc: input.epc,
-      iataLpc: input.iataLpc,
-      expectedVersion: input.expectedVersion,
-      actorId: authorization.session.user.id,
-      canonicalRole: authorization.session.user.role,
-      requestId: requestIdFor(request),
-    });
-    return jsonResponse({ bag });
-  } catch (error) {
-    return safeErrorResponse(error);
-  }
+  void request;
+  void bagId;
+  return jsonResponse(
+    {
+      error: "Direct RFID assignment is disabled; use the verified station workflow",
+      code: "TAGGING_SESSION_REQUIRED",
+    },
+    409,
+  );
 }

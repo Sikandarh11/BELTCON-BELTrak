@@ -48,6 +48,11 @@ function createBag(overrides = {}) {
     threatLevel: 3,
     screeningStation: "HBSS-SIM-01",
     screenedAt: "2026-07-26T10:00:00.000Z",
+    screeningReceivedAt: "2026-07-26T10:00:01.000Z",
+    bhsConfirmationStatus: "CONFIRMED",
+    bhsConfirmedAt: "2026-07-26T10:00:02.000Z",
+    taggingReadiness: "READY_FOR_TAGGING",
+    canAssignTag: true,
     status: "IDENTIFIED",
     flaggedAt: "2026-07-26T10:00:00.000Z",
     taggedAt: null,
@@ -81,6 +86,12 @@ function createMemoryRepository(initialBags = [], options = {}) {
       const bag = state.bags.find((candidate) => candidate.id === command.bagId);
       if (!bag) {
         return { status: "BAG_NOT_FOUND", errorMessage: "Bag was not found" };
+      }
+      if (bag.taggingReadiness !== "READY_FOR_TAGGING") {
+        return {
+          status: "TAG_ASSIGNMENT_NOT_READY",
+          errorMessage: "Required BHS, screening, threat, and X-ray evidence is incomplete",
+        };
       }
       if (bag.status !== "IDENTIFIED" || bag.epc) {
         return {
@@ -213,7 +224,7 @@ test("pending Tagging rejects unauthenticated and unauthorized sessions", async 
   assert.equal((await unauthorized.json()).code, "TAGGING_FORBIDDEN");
 });
 
-test("successful encoding normalizes EPC, persists TAGGED, and creates TAG_ENCODED audit", async () => {
+test("legacy direct encoding endpoint requires a server-controlled tagging session", async () => {
   const repository = createMemoryRepository([createBag()]);
   const response = await handleEncodeTagRequest(encodeRequest("  epc-tag-001  "), "ETB-TAG-001", {
     getSession: sessionLookupFor("Operations Officer"),
@@ -221,15 +232,10 @@ test("successful encoding normalizes EPC, persists TAGGED, and creates TAG_ENCOD
   });
   const body = await response.json();
 
-  assert.equal(response.status, 200);
-  assert.equal(body.bag.epc, "EPC-TAG-001");
-  assert.equal(body.bag.status, "TAGGED");
-  assert.equal(body.bag.rfidState, "ENCODED");
-  assert.equal(repository.state.bags[0].status, "TAGGED");
-  assert.deepEqual(
-    repository.state.audits.map((event) => event.action),
-    ["TAG_ENCODED"],
-  );
+  assert.equal(response.status, 409);
+  assert.equal(body.code, "TAGGING_SESSION_REQUIRED");
+  assert.equal(repository.state.bags[0].status, "IDENTIFIED");
+  assert.equal(repository.state.audits.length, 0);
 });
 
 test("duplicate EPC is rejected without changing the pending bag", async () => {
@@ -250,7 +256,7 @@ test("duplicate EPC is rejected without changing the pending bag", async () => {
   });
 
   assert.equal(response.status, 409);
-  assert.equal((await response.json()).code, "TAGGING_DUPLICATE_EPC");
+  assert.equal((await response.json()).code, "TAGGING_SESSION_REQUIRED");
   assert.equal(repository.state.bags[0].status, "IDENTIFIED");
   assert.equal(repository.state.audits.length, 0);
 });
@@ -279,7 +285,7 @@ test("two concurrent encode attempts produce one success and one already-tagged 
   assert.equal(repository.state.bags[0].status, "TAGGED");
 });
 
-test("an already-tagged bag is rejected", async () => {
+test("legacy direct endpoint cannot mutate an already-tagged bag", async () => {
   const repository = createMemoryRepository([
     createBag({
       status: "TAGGED",
@@ -294,10 +300,10 @@ test("an already-tagged bag is rejected", async () => {
   });
 
   assert.equal(response.status, 409);
-  assert.equal((await response.json()).code, "TAGGING_ALREADY_ENCODED");
+  assert.equal((await response.json()).code, "TAGGING_SESSION_REQUIRED");
 });
 
-test("a missing bag returns not found", async () => {
+test("legacy direct endpoint is closed before bag lookup", async () => {
   const response = await handleEncodeTagRequest(
     encodeRequest("EPC-MISSING-BAG"),
     "ETB-DOES-NOT-EXIST",
@@ -307,11 +313,11 @@ test("a missing bag returns not found", async () => {
     },
   );
 
-  assert.equal(response.status, 404);
-  assert.equal((await response.json()).code, "TAGGING_BAG_NOT_FOUND");
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "TAGGING_SESSION_REQUIRED");
 });
 
-test("invalid EPC is rejected before the repository is called", async () => {
+test("legacy direct endpoint is closed before EPC validation or persistence", async () => {
   let repositoryCalled = false;
   const service = createTaggingService({
     async listPendingTagging() {
@@ -327,12 +333,12 @@ test("invalid EPC is rejected before the repository is called", async () => {
     service,
   });
 
-  assert.equal(response.status, 400);
-  assert.equal((await response.json()).code, "TAGGING_VALIDATION_ERROR");
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "TAGGING_SESSION_REQUIRED");
   assert.equal(repositoryCalled, false);
 });
 
-test("database failure returns failure and never changes the bag or audit", async () => {
+test("closed legacy endpoint never reaches the database", async () => {
   const repository = createMemoryRepository([createBag()], { failEncoding: true });
   const response = await handleEncodeTagRequest(encodeRequest("EPC-FAIL"), "ETB-TAG-001", {
     getSession: sessionLookupFor("Operations Officer"),
@@ -340,25 +346,32 @@ test("database failure returns failure and never changes the bag or audit", asyn
   });
   const body = await response.json();
 
-  assert.equal(response.status, 500);
-  assert.equal(body.code, "TAGGING_PERSISTENCE_ERROR");
+  assert.equal(response.status, 409);
+  assert.equal(body.code, "TAGGING_SESSION_REQUIRED");
   assert.equal(repository.state.bags[0].status, "IDENTIFIED");
   assert.equal(repository.state.audits.length, 0);
 });
 
-test("missing X-ray does not block RFID encoding", async () => {
+test("missing X-ray blocks RFID encoding", async () => {
   const repository = createMemoryRepository([
-    createBag({ xrayStatus: "NOT_REQUESTED", xrayViewCount: 0 }),
+    createBag({
+      xrayStatus: "NOT_REQUESTED",
+      xrayViewCount: 0,
+      taggingReadiness: "AWAITING_XRAY",
+      canAssignTag: false,
+    }),
   ]);
-  const bag = await createTaggingService(repository).encodeTag({
-    bagId: "ETB-TAG-001",
-    epc: "EPC-NO-XRAY",
-    actorId: "operations-user",
-    canonicalRole: "Operations Officer",
-  });
-
-  assert.equal(bag.status, "TAGGED");
-  assert.equal(bag.xrayStatus, "NOT_REQUESTED");
+  await assert.rejects(
+    () =>
+      createTaggingService(repository).encodeTag({
+        bagId: "ETB-TAG-001",
+        epc: "EPC-NO-XRAY",
+        actorId: "operations-user",
+        canonicalRole: "Operations Officer",
+      }),
+    (error) => error.code === "TAG_ASSIGNMENT_NOT_READY" && error.status === 409,
+  );
+  assert.equal(repository.state.bags[0].status, "IDENTIFIED");
 });
 
 test("a fresh service instance observes the durable encoded state after reload", async () => {

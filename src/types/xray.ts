@@ -35,7 +35,7 @@ export interface HbssScanResult {
   externalScanId: string;
   bhsUid: string;
   sourceSystem: string;
-  status: "AVAILABLE" | "PENDING" | "FAILED" | "NOT_FOUND";
+  status: "AVAILABLE" | "PENDING" | "FAILED" | "NOT_FOUND" | "ARCHIVED";
   images: XrayImageView[];
   threatLevel?: number;
   threatType?: string;

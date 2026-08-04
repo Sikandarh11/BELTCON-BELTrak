@@ -8,6 +8,7 @@ export type XrayEmptyStateKind =
   | "pending"
   | "missing"
   | "failed"
+  | "archived"
   | "error";
 
 interface XrayEmptyStateProps {
@@ -62,6 +63,12 @@ const defaults: Record<
     description: "HBSS reported a failure while retrieving this scan.",
     icon: AlertTriangle,
     iconClassName: "text-danger",
+  },
+  archived: {
+    title: "X-ray scan archived",
+    description: "The stored HBSS scan is archived and is not available as a current image.",
+    icon: ImageOff,
+    iconClassName: "text-muted-foreground",
   },
   error: {
     title: "X-ray service unavailable",

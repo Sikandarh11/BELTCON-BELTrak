@@ -3,7 +3,7 @@ import "@tanstack/react-start/server-only";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 
 import { roleIsAtLeast, type CanonicalRole } from "@/auth/canonicalRoles";
-import { parseHbssIngestionPayload } from "@/services/integrations/hbss/hbssSchemas";
+import { normalizeHbssIngestionPayload } from "@/services/integrations/hbss/hbssSchemas";
 import { getSessionFromRequest } from "@/services/authRepository.server";
 import {
   PermissionAuthorizationError,
@@ -37,6 +37,10 @@ interface AuthenticatedHandlerOptions {
 interface IngestionHandlerOptions {
   service?: Pick<XrayService, "ingestScan">;
   integrationKey?: string | null;
+  sourceSystem?: string | null;
+  siteId?: string | null;
+  enabled?: boolean;
+  endpointPath?: string;
 }
 
 interface HealthHandlerOptions {
@@ -155,6 +159,48 @@ function integrationKeysMatch(provided: string, configured: string) {
   return timingSafeEqual(providedDigest, configuredDigest);
 }
 
+const HBSS_INGESTION_ENDPOINT = "/api/integrations/hbss/scans";
+const integrationIdentityPattern = /^[A-Za-z0-9._:-]+$/;
+
+export interface HbssIngressBinding {
+  credential: string;
+  siteId: string;
+  sourceSystem: string;
+  endpointPath: string;
+  enabled: boolean;
+}
+
+function resolveHbssIngressBinding(options: IngestionHandlerOptions): HbssIngressBinding | null {
+  const credential =
+    options.integrationKey === undefined
+      ? process.env.HBSS_INTEGRATION_KEY?.trim()
+      : options.integrationKey?.trim();
+  const sourceSystem =
+    options.sourceSystem === undefined
+      ? process.env.HBSS_SOURCE_SYSTEM?.trim()
+      : options.sourceSystem?.trim();
+  const siteId =
+    options.siteId === undefined ? process.env.HBSS_SITE_ID?.trim() : options.siteId?.trim();
+  const enabled =
+    options.enabled === undefined
+      ? process.env.HBSS_INTEGRATION_ENABLED?.trim().toLowerCase() === "true"
+      : options.enabled;
+  const endpointPath = options.endpointPath ?? HBSS_INGESTION_ENDPOINT;
+
+  if (
+    !credential ||
+    !sourceSystem ||
+    !siteId ||
+    !integrationIdentityPattern.test(sourceSystem) ||
+    !integrationIdentityPattern.test(siteId) ||
+    endpointPath !== HBSS_INGESTION_ENDPOINT
+  ) {
+    return null;
+  }
+
+  return { credential, siteId, sourceSystem, endpointPath, enabled };
+}
+
 async function readLimitedJson(request: Request): Promise<unknown> {
   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
   if (!contentType.includes("application/json")) {
@@ -217,7 +263,7 @@ export async function handleRefreshBagXrayRequest(
 
   try {
     const service = options.service ?? xrayService;
-    await service.refreshScanForBag(bagId);
+    await service.refreshScanForBag(bagId, { signal: request.signal });
     const selection = await service.getScanSelectionForBag(bagId);
     await auditAvailableScan(
       request,
@@ -235,12 +281,9 @@ export async function handleHbssIngestionRequest(
   request: Request,
   options: IngestionHandlerOptions = {},
 ) {
-  const configuredKey =
-    options.integrationKey === undefined
-      ? (process.env.HBSS_INTEGRATION_KEY ?? null)
-      : options.integrationKey;
+  const binding = resolveHbssIngressBinding(options);
 
-  if (!configuredKey) {
+  if (!binding) {
     return jsonResponse(
       {
         error: "HBSS ingestion is not configured",
@@ -250,8 +293,25 @@ export async function handleHbssIngestionRequest(
     );
   }
 
+  if (!binding.enabled) {
+    return jsonResponse(
+      { error: "HBSS ingestion is unavailable", code: "HBSS_INTEGRATION_DISABLED" },
+      503,
+    );
+  }
+
+  if (new URL(request.url).pathname !== binding.endpointPath) {
+    return jsonResponse(
+      {
+        error: "HBSS credential is not valid for this endpoint",
+        code: "HBSS_INTEGRATION_ENDPOINT_FORBIDDEN",
+      },
+      403,
+    );
+  }
+
   const suppliedKey = request.headers.get("x-hbss-integration-key");
-  if (!suppliedKey || !integrationKeysMatch(suppliedKey, configuredKey)) {
+  if (!suppliedKey || !integrationKeysMatch(suppliedKey, binding.credential)) {
     return jsonResponse(
       {
         error: "Missing or invalid integration key",
@@ -296,7 +356,7 @@ export async function handleHbssIngestionRequest(
 
   let payload;
   try {
-    payload = parseHbssIngestionPayload(untrustedPayload);
+    payload = normalizeHbssIngestionPayload(untrustedPayload, binding.sourceSystem, binding.siteId);
   } catch {
     return jsonResponse(
       {

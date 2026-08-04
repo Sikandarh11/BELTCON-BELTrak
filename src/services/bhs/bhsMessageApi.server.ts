@@ -6,7 +6,9 @@ import { BhsBagMessageV1Schema } from "@/domain/beltcon-sbts-baseline/beltconSbt
 import { BhsMessageError } from "./bhsMessageErrors";
 import { bhsMessageService, type BhsMessageService } from "./bhsMessageService.server";
 
-const MAX_BHS_MESSAGE_BODY_BYTES = 256 * 1024;
+export const MAX_BHS_MESSAGE_BODY_BYTES = 256 * 1024;
+const BHS_INGESTION_ENDPOINT = "/api/integrations/bhs/messages";
+const integrationIdentityPattern = /^[A-Za-z0-9._:-]+$/;
 const JSON_HEADERS = {
   "cache-control": "no-store",
   "content-type": "application/json; charset=utf-8",
@@ -16,6 +18,21 @@ export interface BhsMessageApiOptions {
   service?: BhsMessageService;
   integrationKey?: string | null;
   sourceSystem?: string | null;
+  siteId?: string | null;
+  stationId?: string | null;
+  requestSiteId?: string | null;
+  requestStationId?: string | null;
+  enabled?: boolean;
+  endpointPath?: string;
+}
+
+export interface BhsIngressBinding {
+  credential: string;
+  sourceSystem: string;
+  siteId: string;
+  stationId: string | null;
+  enabled: boolean;
+  endpointPath: string;
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -35,7 +52,7 @@ function requestIdFor(request: Request) {
     : randomUUID();
 }
 
-async function readLimitedJson(request: Request): Promise<unknown> {
+export async function readLimitedBhsJson(request: Request): Promise<unknown> {
   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
   if (!contentType.includes("application/json")) {
     throw new BhsMessageError(
@@ -61,6 +78,42 @@ async function readLimitedJson(request: Request): Promise<unknown> {
   return JSON.parse(body) as unknown;
 }
 
+function resolveBhsIngressBinding(options: BhsMessageApiOptions): BhsIngressBinding | null {
+  const credential =
+    options.integrationKey === undefined
+      ? process.env.BHS_INTEGRATION_KEY?.trim()
+      : options.integrationKey?.trim();
+  const sourceSystem =
+    options.sourceSystem === undefined
+      ? process.env.BHS_SOURCE_SYSTEM?.trim()
+      : options.sourceSystem?.trim();
+  const siteId =
+    options.siteId === undefined ? process.env.BHS_SITE_ID?.trim() : options.siteId?.trim();
+  const stationId =
+    options.stationId === undefined
+      ? process.env.BHS_STATION_ID?.trim() || null
+      : options.stationId?.trim() || null;
+  const enabled =
+    options.enabled === undefined
+      ? process.env.BHS_INTEGRATION_ENABLED?.trim().toLowerCase() === "true"
+      : options.enabled;
+  const endpointPath = options.endpointPath ?? BHS_INGESTION_ENDPOINT;
+
+  if (
+    !credential ||
+    !sourceSystem ||
+    !siteId ||
+    !integrationIdentityPattern.test(sourceSystem) ||
+    !integrationIdentityPattern.test(siteId) ||
+    (stationId !== null && !integrationIdentityPattern.test(stationId)) ||
+    endpointPath !== BHS_INGESTION_ENDPOINT
+  ) {
+    return null;
+  }
+
+  return { credential, sourceSystem, siteId, stationId, enabled, endpointPath };
+}
+
 function safeErrorResponse(error: unknown) {
   if (error instanceof BhsMessageError) {
     return jsonResponse({ error: error.message, code: error.code }, error.status);
@@ -80,19 +133,53 @@ export async function handleBhsMessageRequest(
     return jsonResponse({ error: "Method not allowed", code: "BHS_INVALID_MESSAGE" }, 405);
   }
 
-  const configuredKey =
-    options.integrationKey === undefined
-      ? (process.env.BHS_INTEGRATION_KEY?.trim() ?? null)
-      : options.integrationKey?.trim() || null;
-  const configuredSource =
-    options.sourceSystem === undefined
-      ? (process.env.BHS_SOURCE_SYSTEM?.trim() ?? null)
-      : options.sourceSystem?.trim() || null;
-
-  if (!configuredKey || !configuredSource) {
+  const binding = resolveBhsIngressBinding(options);
+  if (!binding) {
     return jsonResponse(
       { error: "BHS integration is not configured", code: "BHS_INTEGRATION_UNAVAILABLE" },
       503,
+    );
+  }
+
+  if (!binding.enabled) {
+    return jsonResponse(
+      { error: "BHS integration is unavailable", code: "BHS_INTEGRATION_UNAVAILABLE" },
+      503,
+    );
+  }
+
+  if (new URL(request.url).pathname !== binding.endpointPath) {
+    return jsonResponse(
+      {
+        error: "BHS credential is not valid for this endpoint",
+        code: "BHS_AUTHENTICATION_FAILED",
+      },
+      403,
+    );
+  }
+
+  const requestSiteId =
+    options.requestSiteId === undefined
+      ? (process.env.SBTS_SITE_ID?.trim() ?? binding.siteId)
+      : options.requestSiteId?.trim();
+  if (!requestSiteId || requestSiteId !== binding.siteId) {
+    return jsonResponse(
+      { error: "BHS credential is not valid for this site", code: "BHS_AUTHENTICATION_FAILED" },
+      403,
+    );
+  }
+
+  const requestStationId =
+    options.requestStationId === undefined
+      ? request.headers.get("x-sbts-station-id")?.trim() || null
+      : options.requestStationId?.trim() || null;
+  if (binding.stationId && requestStationId !== binding.stationId) {
+    return jsonResponse(
+      {
+        error: "BHS credential is not valid for this station",
+        code: "BHS_AUTHENTICATION_FAILED",
+      },
+      403,
     );
   }
 
@@ -103,7 +190,7 @@ export async function handleBhsMessageRequest(
       401,
     );
   }
-  if (!credentialsMatch(suppliedKey, configuredKey)) {
+  if (!credentialsMatch(suppliedKey, binding.credential)) {
     return jsonResponse(
       { error: "BHS integration authentication failed", code: "BHS_AUTHENTICATION_FAILED" },
       401,
@@ -112,7 +199,7 @@ export async function handleBhsMessageRequest(
 
   let payload: unknown;
   try {
-    payload = await readLimitedJson(request);
+    payload = await readLimitedBhsJson(request);
   } catch (error) {
     if (error instanceof BhsMessageError) return safeErrorResponse(error);
     return jsonResponse(
@@ -129,7 +216,9 @@ export async function handleBhsMessageRequest(
   const requestId = requestIdFor(request);
   try {
     const result = await (options.service ?? bhsMessageService).ingestMessage(parsed.data, {
-      sourceSystem: configuredSource,
+      sourceSystem: binding.sourceSystem,
+      stationId: binding.stationId,
+      siteId: binding.siteId,
       requestId,
     });
     const status = result.outcome === "REJECTED" ? 409 : result.outcome === "FAILED" ? 500 : 200;

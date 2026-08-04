@@ -2,12 +2,13 @@ import "@tanstack/react-start/server-only";
 
 import { z } from "zod";
 
+import { BhsUidSchema } from "@/domain/beltcon-sbts-baseline/beltconSbtsBaseline.schemas";
 import { getXrayAdminClient } from "@/services/xray/xraySupabase.server";
 import { BhsMessagePersistenceError } from "./bhsMessageErrors";
 
 const pendingBagRowSchema = z.object({
   id: z.string().min(1),
-  bhs_uid: z.string().length(10),
+  bhs_uid: BhsUidSchema,
   screening_evaluation_raw: z.enum(["R", "T", "N", "?"]),
   screening_evaluation: z.enum(["REJECT", "TIMEOUT", "NO_DECISION", "MISTRACK"]),
   screening_station: z.string().nullable(),
@@ -58,13 +59,12 @@ const PENDING_SELECT = [
   "rfid_tag_barcode",
 ].join(",");
 
-function mapPending(rowInput: unknown, xrayAvailable: boolean): PendingBhsConfirmation {
+export function parsePendingBhsConfirmationRow(
+  rowInput: unknown,
+  xrayAvailable: boolean,
+): PendingBhsConfirmation | null {
   const parsed = pendingBagRowSchema.safeParse(rowInput);
-  if (!parsed.success) {
-    throw new BhsMessagePersistenceError("Stored BHS confirmation data is invalid", {
-      cause: parsed.error,
-    });
-  }
+  if (!parsed.success) return null;
   const row = parsed.data;
   return {
     bagId: row.id,
@@ -128,22 +128,22 @@ async function loadRows(bagId?: string) {
 export const bhsPendingConfirmationRepository: BhsPendingConfirmationRepository = {
   async listPending() {
     const rows = await loadRows();
-    const availability = await loadXrayAvailability(
-      rows.flatMap((row) => {
-        const parsed = pendingBagRowSchema.safeParse(row);
-        return parsed.success ? [parsed.data.id] : [];
-      }),
-    );
-    return rows.map((row) => {
-      const parsed = pendingBagRowSchema.parse(row);
-      return mapPending(parsed, availability.has(parsed.id));
+    const validRows = rows.flatMap((row) => {
+      const parsed = pendingBagRowSchema.safeParse(row);
+      return parsed.success ? [parsed.data] : [];
+    });
+    const availability = await loadXrayAvailability(validRows.map((row) => row.id));
+    return validRows.flatMap((row) => {
+      const mapped = parsePendingBhsConfirmationRow(row, availability.has(row.id));
+      return mapped ? [mapped] : [];
     });
   },
   async getPending(bagId) {
     const rows = await loadRows(bagId);
     if (rows.length === 0) return null;
-    const parsed = pendingBagRowSchema.parse(rows[0]);
-    const availability = await loadXrayAvailability([parsed.id]);
-    return mapPending(parsed, availability.has(parsed.id));
+    const parsed = pendingBagRowSchema.safeParse(rows[0]);
+    if (!parsed.success) return null;
+    const availability = await loadXrayAvailability([parsed.data.id]);
+    return parsePendingBhsConfirmationRow(parsed.data, availability.has(parsed.data.id));
   },
 };

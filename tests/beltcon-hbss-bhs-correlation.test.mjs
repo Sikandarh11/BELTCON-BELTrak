@@ -17,9 +17,10 @@ const vite = await createServer({
 });
 test.after(async () => vite.close());
 
-const schemas = await vite.ssrLoadModule(
-  "/src/services/integrations/screening/screeningSchemas.ts",
-);
+const [schemas, recallStatus] = await Promise.all([
+  vite.ssrLoadModule("/src/services/integrations/screening/screeningSchemas.ts"),
+  vite.ssrLoadModule("/src/services/recheck/hbssRecallStatus.ts"),
+]);
 
 const validSuspect = {
   eventId: "00000000-0000-4000-8000-000000002401",
@@ -54,46 +55,79 @@ test("HBSS simulator preserves a leading-zero 10-character BHS BagID and rejects
   );
 });
 
-test("correlation migration establishes two-stage readiness and server-side tag gate", async () => {
-  const migration = await read(
-    "supabase/migrations/024_beltcon_hbss_bhs_correlation_and_tagging_readiness.sql",
-  );
+test("integrity migration establishes configurable readiness and server-side tag gates", async () => {
+  const migration = await read("supabase/migrations/025_bhs_hbss_integrity_hardening.sql");
   for (const field of [
     "screening_received_at",
     "bhs_confirmation_status",
     "bhs_confirmed_at",
     "tagging_ready_at",
-    "bhs_confirmation_event_id",
+    "tagging_readiness_status",
   ])
     assert.match(migration, new RegExp(field));
-  assert.match(migration, /AWAITING_BHS_CONFIRMATION/);
-  assert.match(migration, /CONFIRMED/);
+  assert.match(migration, /AWAITING_BHS/);
+  assert.match(migration, /AWAITING_SCREENING/);
+  assert.match(migration, /AWAITING_XRAY/);
+  assert.match(migration, /READY_FOR_TAGGING/);
+  assert.match(migration, /BLOCKED_CONFLICT/);
   assert.match(migration, /ingest_screening_suspect_event_v2/);
-  assert.match(migration, /ingest_beltcon_bhs_message_v2/);
+  assert.match(migration, /ingest_beltcon_bhs_message_v2_pre_readiness/);
+  assert.match(migration, /'canAssignTag',COALESCE\(v_readiness='READY_FOR_TAGGING'/);
   assert.match(migration, /beltcon:canonical-bhs:/);
-  assert.match(migration, /TAG_ASSIGNMENT_BHS_CONFIRMATION_REQUIRED/);
-  assert.match(migration, /BHS diversion confirmation is required before assigning an RFID tag/);
-  assert.match(migration, /WHERE bhs_uid = v_bhs_uid/);
+  assert.match(migration, /TAG_ASSIGNMENT_NOT_READY/);
+  assert.match(migration, /BASE_ALWAJH/);
+  assert.match(migration, /ENHANCED_EVIDENCE/);
+  assert.match(migration, /configured tagging-readiness policy/);
+  assert.match(migration, /orderingBasis','SERVER_RECEIPT_ONLY'/);
+  assert.match(migration, /prior_event\.screening_evaluation_raw IS DISTINCT FROM/);
+  assert.match(migration, /WHERE bhs_uid=v_bhs_uid/);
   assert.doesNotMatch(migration, /CREATE UNIQUE INDEX[^;]*ON public\.bags\s*\(bhs_uid\)\s*;/i);
 });
 
 test("new queue model returns one canonical readiness record and keeps the tag form disabled", async () => {
-  const [repository, route, type] = await Promise.all([
+  const [repository, panel, type] = await Promise.all([
     read("src/services/bags/taggingRepository.server.ts"),
-    read("src/routes/tagging.tsx"),
+    read("src/features/stations/TaggingStationAgentPanel.tsx"),
     read("src/types/tagging.ts"),
   ]);
   assert.match(repository, /canonicalQueueRows/);
-  assert.match(repository, /bhs_confirmation_status === "CONFIRMED"/);
+  assert.match(repository, /tagging_readiness_status === "READY_FOR_TAGGING"/);
   assert.match(repository, /canAssignTag:/);
-  assert.match(type, /AWAITING_BHS_CONFIRMATION/);
+  assert.match(type, /AWAITING_BHS/);
+  assert.match(type, /AWAITING_SCREENING/);
+  assert.match(type, /AWAITING_XRAY/);
   assert.match(type, /READY_FOR_TAGGING/);
-  assert.match(route, /tagAssignmentDisabled/);
+  assert.match(panel, /assignmentBlocked/);
+  assert.match(panel, /TAG ASSIGNMENT BLOCKED/);
+  assert.match(panel, /queue\.position1/);
+  assert.doesNotMatch(panel, /Legacy suspect|useAppStore/);
+});
+
+test("recheck recall statuses have explicit, non-overlapping presentations", () => {
+  const expected = {
+    PENDING: ["RECALL_PENDING", "info"],
+    REQUEST_SENT: ["RECALL_REQUEST_SENT", "info"],
+    SIMULATED: ["RECALL_SIMULATED", "info"],
+    UNAVAILABLE: ["RECALL_UNAVAILABLE", "warning"],
+    FAILED: ["RECALL_FAILED", "danger"],
+    TIMED_OUT: ["RECALL_TIMED_OUT", "warning"],
+    CANCELLED: ["RECALL_CANCELLED", "warning"],
+  };
+
+  for (const [status, [stage, tone]] of Object.entries(expected)) {
+    const presentation = recallStatus.getHbssRecallPresentation(status);
+    assert.equal(presentation.stage, stage);
+    assert.equal(presentation.tone, tone);
+  }
+
   assert.match(
-    route,
-    /RFID assignment will be enabled after BHS message 2001 confirms the diversion/,
+    recallStatus.getHbssRecallPresentation("REQUEST_SENT").message,
+    /no acknowledgement or image retrieval is assumed/i,
   );
-  assert.doesNotMatch(route, /Legacy suspect/);
+  assert.doesNotMatch(
+    recallStatus.getHbssRecallPresentation("FAILED").message,
+    /completed|acknowledged/i,
+  );
 });
 
 test("normal BHS simulator confirms a server-loaded pending case without browser identity authority", async () => {

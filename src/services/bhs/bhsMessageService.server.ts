@@ -16,6 +16,8 @@ import type { BhsIngestionResult, NormalizedBhsMessage } from "./bhsMessageTypes
 
 export interface BhsIngestionContext {
   sourceSystem: string;
+  stationId?: string | null;
+  siteId?: string | null;
   requestId?: string | null;
   receivedAt?: string;
 }
@@ -66,6 +68,8 @@ export function normalizeBhsMessage(
     evaluationNormalized,
     taggingEligible: isTaggingEligibleEvaluation(evaluationNormalized),
     sourceSystem,
+    stationId: context.stationId?.trim() || null,
+    siteId: context.siteId?.trim() || null,
     sourceEventId: dependencies.createEventId(),
     messageFingerprint: createBhsMessageFingerprint(message),
     payloadHash: canonicalPayloadHash(sourceSystem, message),
@@ -89,6 +93,11 @@ export function createBhsMessageService(
     async ingestMessage(messageInput, context) {
       const normalized = normalizeBhsMessage(messageInput, context, dependencies);
       const result = await dependencies.repository.ingestAtomic(normalized);
+      if (result.bhsUid !== normalized.bhsUid || result.lineId !== normalized.lineId) {
+        throw new BhsMessagePersistenceError(
+          "BHS transaction returned mismatched message identity",
+        );
+      }
       const outcome =
         result.status === "CONFLICT"
           ? "REJECTED"
@@ -100,15 +109,17 @@ export function createBhsMessageService(
         outcome,
         integrationEventId: result.integrationEventId,
         bagId: result.bagId,
-        bhsUid: result.bhsUid || normalized.bhsUid,
-        lineId: result.lineId || normalized.lineId,
+        bhsUid: result.bhsUid,
+        lineId: result.lineId,
         evaluation: result.evaluation,
         taggingEligible: result.taggingEligible,
+        canAssignTag: result.canAssignTag,
+        taggingReadinessStatus: result.taggingReadinessStatus,
         duplicate: result.status === "DUPLICATE",
         processingAttemptCount: result.processingAttemptCount,
         errorCode: result.errorCode,
         errorMessage: result.errorMessage,
-        acknowledgement: createSemanticAcknowledgement(result.bhsUid || normalized.bhsUid, outcome),
+        acknowledgement: createSemanticAcknowledgement(result.bhsUid, outcome),
       };
     },
   };
