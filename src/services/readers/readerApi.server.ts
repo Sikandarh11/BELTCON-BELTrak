@@ -11,7 +11,13 @@ import { recordAccessDenied } from "@/services/securityAudit.server";
 
 import { ReaderApiError } from "./readerErrors";
 import { readerService, type ReaderService } from "./readerService.server";
-import { readerListFiltersSchema, updateAntennaSchema, updateReaderSchema } from "./readerSchemas";
+import {
+  createReaderConfigurationSchema,
+  readerListFiltersSchema,
+  setReaderEnabledSchema,
+  updateAntennaSchema,
+  updateReaderConfigurationSchema,
+} from "./readerSchemas";
 
 const JSON_HEADERS = {
   "cache-control": "no-store",
@@ -19,6 +25,10 @@ const JSON_HEADERS = {
 };
 const MAX_BODY_BYTES = 8 * 1024;
 type SessionLookup = typeof getSessionFromRequest;
+
+function getSiteId() {
+  return process.env.SBTS_SITE_ID?.trim() || process.env.BHS_STATION_SITE_ID?.trim() || "ALWAJH";
+}
 
 export interface ReaderApiOptions {
   getSession?: SessionLookup;
@@ -135,6 +145,11 @@ function safeError(error: unknown) {
   if (error instanceof ReaderApiError)
     return respond({ error: error.message, code: error.code }, error.status);
   const message = error instanceof Error ? error.message : "";
+  if ((error as { code?: string } | null)?.code === "23505" || /already exists|duplicate/i.test(message))
+    return respond(
+      { error: "Reader code already exists for this site", code: "READER_CONFLICT" },
+      409,
+    );
   if (/version conflict/i.test(message))
     return respond(
       { error: "This reader was changed by another user", code: "READER_VERSION_CONFLICT" },
@@ -151,15 +166,12 @@ export async function handleListReadersRequest(request: Request, options: Reader
   const filters = queryFilters(request);
   if (!filters.success) {
     return respond(
-      {
-        error: filters.error.issues[0]?.message ?? "Invalid reader filters",
-        code: "READER_INVALID_CONFIGURATION",
-      },
-      400,
+      { error: filters.error.issues[0]?.message ?? "Invalid reader filters", code: "READER_INVALID_CONFIGURATION" },
+      400
     );
   }
   try {
-    return respond(await (options.service ?? readerService).list(filters.data));
+    return respond(await (options.service ?? readerService).listReadersForSite(getSiteId(), filters.data));
   } catch (error) {
     return safeError(error);
   }
@@ -175,7 +187,7 @@ export async function handleGetReaderRequest(
   if (!readerId.trim())
     return respond({ error: "A reader ID is required", code: "READER_NOT_FOUND" }, 400);
   try {
-    const reader = await (options.service ?? readerService).get(readerId);
+    const reader = await (options.service ?? readerService).getReaderById(getSiteId(), readerId);
     return reader
       ? respond({ reader })
       : respond({ error: "Reader was not found", code: "READER_NOT_FOUND" }, 404);
@@ -184,6 +196,33 @@ export async function handleGetReaderRequest(
   }
 }
 
+export async function handleCreateReaderRequest(request: Request, options: ReaderApiOptions = {}) {
+  const authorization = await authorize(request, "reader.manage", options);
+  if (authorization.response || !authorization.session) return authorization.response!;
+  try {
+    const parsed = createReaderConfigurationSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      await recordRejected(options, authorization.session, "NEW", request, "READER_INVALID_CONFIGURATION");
+      return respond(
+        {
+          error: parsed.error.issues[0]?.message ?? "Invalid reader configuration",
+          code: "READER_INVALID_CONFIGURATION",
+        },
+        400,
+      );
+    }
+    const reader = await (options.service ?? readerService).createReaderConfiguration({
+      ...parsed.data,
+      actorId: authorization.session.user.id,
+      canonicalRole: authorization.session.user.role,
+      requestId: requestIdFor(request),
+    });
+    return respond({ reader }, 201);
+  } catch (error) {
+    await recordRejected(options, authorization.session, "NEW", request, "READER_QUERY_FAILED");
+    return safeError(error);
+  }
+}
 async function recordRejected(
   options: ReaderApiOptions,
   session: NonNullable<Awaited<ReturnType<SessionLookup>>>,
@@ -214,7 +253,7 @@ export async function handleUpdateReaderRequest(
   const authorization = await authorize(request, "reader.manage", options);
   if (authorization.response || !authorization.session) return authorization.response!;
   try {
-    const parsed = updateReaderSchema.safeParse(await readJson(request));
+    const parsed = updateReaderConfigurationSchema.safeParse(await readJson(request));
     if (!parsed.success) {
       await recordRejected(
         options,
@@ -251,6 +290,50 @@ export async function handleUpdateReaderRequest(
   }
 }
 
+export async function handleSetReaderEnabledRequest(
+  request: Request,
+  readerId: string,
+  options: ReaderApiOptions = {},
+) {
+  const authorization = await authorize(request, "reader.manage", options);
+  if (authorization.response || !authorization.session) return authorization.response!;
+  try {
+    const parsed = setReaderEnabledSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      await recordRejected(
+        options,
+        authorization.session,
+        readerId,
+        request,
+        "READER_INVALID_CONFIGURATION",
+      );
+      return respond(
+        {
+          error: parsed.error.issues[0]?.message ?? "Invalid reader enabled request",
+          code: "READER_INVALID_CONFIGURATION",
+        },
+        400,
+      );
+    }
+    const reader = await (options.service ?? readerService).setReaderEnabled({
+      ...parsed.data,
+      readerId,
+      actorId: authorization.session.user.id,
+      canonicalRole: authorization.session.user.role,
+      requestId: requestIdFor(request),
+    });
+    return respond({ reader });
+  } catch (error) {
+    await recordRejected(
+      options,
+      authorization.session,
+      readerId,
+      request,
+      error instanceof ReaderApiError ? error.code : "READER_QUERY_FAILED",
+    );
+    return safeError(error);
+  }
+}
 export async function handleUpdateAntennaRequest(
   request: Request,
   readerId: string,

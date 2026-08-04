@@ -1,7 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
-  Map,
   BellRing,
   History,
   Target,
@@ -61,8 +60,6 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Operations",
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard.view" },
-      { to: "/map", label: "Live Operations Map", icon: Map, permission: "dashboard.view" },
       {
         to: "/alarms",
         label: "Notifications & Alarms",
@@ -70,14 +67,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
         badge: 4,
         permission: "alarm.acknowledge",
       },
-      { to: "/history", label: "Query Tag History", icon: History, permission: "report.view" },
       { to: "/tagging", label: "Tagging Station", icon: Tag, permission: "bag.tag" },
-      {
-        to: "/ops/scan",
-        label: "Operator Scan",
-        icon: ScanLine,
-        permission: "bag.manage",
-      },
       { to: "/target", label: "Target Information", icon: Target, permission: "bag.recheck" },
       { to: "/recheck", label: "Recheck Station", icon: ScanLine, permission: "bag.recheck" },
       { to: "/readers", label: "RFID Readers", icon: Radio, permission: "reader.view" },

@@ -4,12 +4,19 @@ import { getSupabaseAdminClient } from "@/services/supabaseAdmin.server";
 import type { CanonicalRole } from "@/auth/canonicalRoles";
 
 import {
+  READER_ZONES,
+  readerAdapterTypeSchema,
+  readerHealthSchema,
   type ReaderAntennaDetail,
   type ReaderDetail,
+  type ReaderAdapterType,
   type ReaderHealth,
   type ReaderListFilters,
   type ReaderListResponse,
   type ReaderSummary,
+  type CreateReaderConfigurationInput,
+  type UpdateReaderConfigurationInput,
+  type SetReaderEnabledInput,
   type UpdateAntennaInput,
   type UpdateReaderInput,
 } from "./readerSchemas";
@@ -47,13 +54,24 @@ function latest(left: string | null, right: string | null) {
   return new Date(left).getTime() >= new Date(right).getTime() ? left : right;
 }
 
-function healthFor(enabled: boolean, lastSeenAt: string | null): ReaderHealth {
-  if (!enabled) return "DISABLED";
-  if (!lastSeenAt) return "UNKNOWN";
-  const ageSeconds = Math.max(0, (Date.now() - new Date(lastSeenAt).getTime()) / 1000);
-  if (ageSeconds <= ONLINE_THRESHOLD_SECONDS) return "ONLINE";
-  if (ageSeconds <= OFFLINE_THRESHOLD_SECONDS) return "DEGRADED";
-  return "OFFLINE";
+function normalizeHealth(value: string | null | undefined): ReaderHealth | null {
+  return value && readerHealthSchema.safeParse(value).success ? value : null;
+}
+
+function resolveReaderHealth(row: Row): ReaderHealth {
+  if (!bool(row.enabled, true)) return "DISABLED";
+  const adapterType = text(row.adapter_type);
+  if (adapterType === "SIMULATED") return "SIMULATED";
+  const storedHealth = normalizeHealth(text(row.health_status) ?? text(row.status));
+  const lastHeartbeatAt = text(row.last_heartbeat_at);
+  const host = text(row.ip) ?? text(row.host);
+  if (storedHealth === "ONLINE") return lastHeartbeatAt ? "ONLINE" : host ? "UNKNOWN" : "MISCONFIGURED";
+  if (storedHealth === "STARTING" || storedHealth === "DEGRADED" || storedHealth === "OFFLINE") {
+    return storedHealth;
+  }
+  if (storedHealth === "MISCONFIGURED" || storedHealth === "UNKNOWN") return storedHealth;
+  if (adapterType && adapterType !== "SIMULATED" && !host) return "MISCONFIGURED";
+  return "UNKNOWN";
 }
 
 type Activity = {
@@ -114,38 +132,59 @@ function toActivity(value: unknown): Activity | null {
 
 function readerSummary(
   value: unknown,
-  antennas: AntennaRow[],
-  activity: Activity[],
+  antennas: AntennaRow[] = [],
+  activity: Activity[] = [],
 ): ReaderSummary | null {
   const row = record(value);
   const id = text(row.id);
+  const readerCode = text(row.reader_code) ?? id;
+  const siteId = text(row.site_id);
   const name = text(row.name);
-  if (!id || !name) return null;
+  const zone = text(row.zone);
+  if (!id || !readerCode || !siteId || !name || !zone || !READER_ZONES.includes(zone as never)) {
+    return null;
+  }
   const readerActivity = activity.filter((item) => item.readerId === id);
   const lastReadAt = readerActivity.reduce<string | null>(
     (current, item) => latest(current, item.receivedAt),
     null,
   );
   const mappedAntennas = antennas.filter((antenna) => antenna.readerId === id);
-  const enabled = bool(row.enabled, true);
+  const lastHeartbeatAt = text(row.last_heartbeat_at);
+  const lastEventAt = text(row.last_event_at) ?? lastReadAt;
+  const healthStatus = resolveReaderHealth(row);
+  const configurationVersion = numberValue(row.configuration_version) ?? numberValue(row.version) ?? 1;
+  const adapterType = text(row.adapter_type);
   return {
     id,
-    readerCode: id,
+    readerCode,
+    siteId,
     name,
+    zone: zone as ReaderSummary["zone"],
     model: text(row.model),
     vendor: text(row.vendor),
-    firmwareVersion: text(row.firmware_version),
-    enabled,
-    configuredStatus: text(row.status),
-    calculatedHealth: healthFor(enabled, lastReadAt),
-    lastSeenAt: lastReadAt,
-    lastReadAt,
-    antennaCount: mappedAntennas.length,
-    activeAntennaCount: mappedAntennas.filter((antenna) => antenna.enabled).length,
-    mappedZones: [...new Set(mappedAntennas.map((antenna) => antenna.zoneCode))].sort(),
+    adapterType: adapterTypeSchema.safeParse(adapterType).success
+      ? (adapterType as ReaderAdapterType)
+      : "UNAVAILABLE_PHYSICAL",
+    host: text(row.ip) ?? text(row.host),
+    enabled: bool(row.enabled, true),
+    healthStatus,
+    calculatedHealth: healthStatus,
+    lastHeartbeatAt,
+    lastEventAt,
+    configurationVersion,
     createdAt: text(row.created_at),
     updatedAt: text(row.updated_at),
-    version: numberValue(row.version) ?? 1,
+    createdBy: text(row.created_by),
+    updatedBy: text(row.updated_by),
+    firmwareVersion: text(row.firmware_version),
+    configuredStatus: text(row.status),
+    lastSeenAt: lastHeartbeatAt ?? lastEventAt,
+    lastReadAt: lastEventAt,
+    antennaCount: mappedAntennas.length,
+    activeAntennaCount: mappedAntennas.filter((antenna) => antenna.enabled).length,
+    mappedZones: [...new Set([zone, ...mappedAntennas.map((antenna) => antenna.zoneCode)])].sort(),
+    version: numberValue(row.version) ?? configurationVersion,
   };
 }
 
@@ -207,6 +246,35 @@ function filterAndSort(summaries: ReaderSummary[], filters: ReaderListFilters) {
 }
 
 export interface ReaderRepository {
+  listReadersForSite(input: { siteId: string; filters: ReaderListFilters }): Promise<ReaderListResponse>;
+  getReaderById(input: { siteId: string; readerId: string }): Promise<ReaderSummary | null>;
+  getReaderByCode(input: { siteId: string; readerCode: string }): Promise<ReaderSummary | null>;
+  createReaderConfiguration(
+    input: CreateReaderConfigurationInput & {
+      siteId: string;
+      actorId: string;
+      canonicalRole: CanonicalRole;
+      requestId: string;
+    },
+  ): Promise<ReaderSummary>;
+  updateReaderConfiguration(
+    input: UpdateReaderConfigurationInput & {
+      readerId: string;
+      siteId: string;
+      actorId: string;
+      canonicalRole: CanonicalRole;
+      requestId: string;
+    },
+  ): Promise<ReaderSummary>;
+  setReaderEnabled(
+    input: SetReaderEnabledInput & {
+      readerId: string;
+      siteId: string;
+      actorId: string;
+      canonicalRole: CanonicalRole;
+      requestId: string;
+    },
+  ): Promise<ReaderSummary>;
   list(filters: ReaderListFilters): Promise<ReaderListResponse>;
   get(readerId: string): Promise<ReaderDetail | null>;
   updateReader(
@@ -237,22 +305,18 @@ export interface ReaderRepository {
 }
 
 export const readerRepository: ReaderRepository = {
-  async list(filters) {
+  async listReadersForSite({ siteId, filters }) {
     const { data, error } = await getSupabaseAdminClient()
       .from("readers")
-      .select("id,name,model,status,enabled,vendor,firmware_version,version,created_at,updated_at")
-      .order("id")
+      .select(
+        "id,reader_code,site_id,name,zone,model,vendor,adapter_type,ip,enabled,status,last_heartbeat_at,last_event_at,configuration_version,created_at,updated_at,created_by,updated_by,version,firmware_version",
+      )
+      .eq("site_id", siteId)
+      .order("reader_code")
       .limit(1_000);
     if (error) throw new Error("Unable to load reader inventory", { cause: error });
-    const readerIds = (data ?? [])
-      .map((row) => text(record(row).id))
-      .filter((id): id is string => Boolean(id));
-    const [antennas, activityResult] = await Promise.all([
-      loadAntennas(readerIds),
-      loadActivity(readerIds),
-    ]);
     const summaries = (data ?? [])
-      .map((row) => readerSummary(row, antennas, activityResult.activity))
+      .map((row) => readerSummary(row))
       .filter((item): item is ReaderSummary => item !== null);
     const filtered = filterAndSort(summaries, filters);
     const start = (filters.page - 1) * filters.pageSize;
@@ -262,29 +326,116 @@ export const readerRepository: ReaderRepository = {
       pageSize: filters.pageSize,
       total: filtered.length,
       totalPages: Math.ceil(filtered.length / filters.pageSize),
-      dataLimitations: [
-        "Reader health is derived from authoritative RFID activity; no device heartbeat transport is configured.",
-        ...(activityResult.truncated
-          ? ["Recent RFID activity exceeded the bounded reader-health query limit."]
-          : []),
-      ],
+      dataLimitations: [],
     };
   },
 
-  async get(readerId) {
+  async getReaderById({ siteId, readerId }) {
     const { data, error } = await getSupabaseAdminClient()
       .from("readers")
-      .select("id,name,model,status,enabled,vendor,firmware_version,version,created_at,updated_at")
+      .select(
+        "id,reader_code,site_id,name,zone,model,vendor,adapter_type,ip,enabled,status,last_heartbeat_at,last_event_at,configuration_version,created_at,updated_at,created_by,updated_by,version,firmware_version",
+      )
+      .eq("site_id", siteId)
       .eq("id", readerId)
       .maybeSingle();
     if (error) throw new Error("Unable to load reader", { cause: error });
-    if (!data) return null;
+    return data ? readerSummary(data) : null;
+  },
+
+  async getReaderByCode({ siteId, readerCode }) {
+    const { data, error } = await getSupabaseAdminClient()
+      .from("readers")
+      .select(
+        "id,reader_code,site_id,name,zone,model,vendor,adapter_type,ip,enabled,status,last_heartbeat_at,last_event_at,configuration_version,created_at,updated_at,created_by,updated_by,version,firmware_version",
+      )
+      .eq("site_id", siteId)
+      .eq("reader_code", readerCode)
+      .maybeSingle();
+    if (error) throw new Error("Unable to load reader", { cause: error });
+    return data ? readerSummary(data) : null;
+  },
+
+  async createReaderConfiguration(input) {
+    const { data, error } = await getSupabaseAdminClient().rpc(
+      "create_beltcon_reader_configuration_v1",
+      {
+        p_site_id: input.siteId,
+        p_reader_code: input.readerCode,
+        p_name: input.name,
+        p_zone: input.zone,
+        p_vendor: input.vendor ?? null,
+        p_model: input.model ?? null,
+        p_adapter_type: input.adapterType,
+        p_host: input.host ?? null,
+        p_enabled: input.enabled,
+        p_actor_id: input.actorId,
+        p_canonical_role: input.canonicalRole,
+        p_request_id: input.requestId,
+      },
+    );
+    if (error || !data) throw new Error("Unable to create reader configuration", { cause: error });
+    const reader = readerSummary(data);
+    if (!reader) throw new Error("Stored reader data is invalid");
+    return reader;
+  },
+
+  async updateReaderConfiguration(input) {
+    const { data, error } = await getSupabaseAdminClient().rpc(
+      "update_beltcon_reader_configuration_v1",
+      {
+        p_reader_id: input.readerId,
+        p_site_id: input.siteId,
+        p_reader_code: input.readerCode,
+        p_name: input.name,
+        p_zone: input.zone,
+        p_vendor: input.vendor ?? null,
+        p_model: input.model ?? null,
+        p_adapter_type: input.adapterType,
+        p_host: input.host ?? null,
+        p_enabled: input.enabled,
+        p_expected_version: input.expectedVersion,
+        p_actor_id: input.actorId,
+        p_canonical_role: input.canonicalRole,
+        p_request_id: input.requestId,
+      },
+    );
+    if (error || !data) throw new Error("Unable to update reader configuration", { cause: error });
+    const reader = readerSummary(data);
+    if (!reader) throw new Error("Stored reader data is invalid");
+    return reader;
+  },
+
+  async setReaderEnabled(input) {
+    const { data, error } = await getSupabaseAdminClient().rpc("set_beltcon_reader_enabled_v1", {
+      p_reader_id: input.readerId,
+      p_site_id: input.siteId,
+      p_enabled: input.enabled,
+      p_expected_version: input.expectedVersion,
+      p_actor_id: input.actorId,
+      p_canonical_role: input.canonicalRole,
+      p_request_id: input.requestId,
+    });
+    if (error || !data) throw new Error("Unable to update reader enabled state", { cause: error });
+    const reader = readerSummary(data);
+    if (!reader) throw new Error("Stored reader data is invalid");
+    return reader;
+  },
+
+  async list(filters) {
+    return this.listReadersForSite({ siteId: process.env.SBTS_SITE_ID?.trim() ?? "ALWAJH", filters });
+  },
+
+  async get(readerId) {
+    const summary = await this.getReaderById({
+      siteId: process.env.SBTS_SITE_ID?.trim() ?? "ALWAJH",
+      readerId,
+    });
+    if (!summary) return null;
     const [antennas, activityResult] = await Promise.all([
       loadAntennas([readerId]),
       loadActivity([readerId]),
     ]);
-    const summary = readerSummary(data, antennas, activityResult.activity);
-    if (!summary) throw new Error("Stored reader data is invalid");
     const now = Date.now();
     const hourAgo = now - 60 * 60 * 1000;
     const dayAgo = now - 24 * 60 * 60 * 1000;
@@ -319,31 +470,27 @@ export const readerRepository: ReaderRepository = {
           (item) => item.status === "FAILED" || item.outcome === "FAILED",
         ).length,
       },
-      healthBasis: summary.lastSeenAt ? "RFID_ACTIVITY" : "NO_AUTHORITATIVE_HEALTH_DATA",
+      healthBasis: summary.lastHeartbeatAt ? "RFID_ACTIVITY" : "NO_AUTHORITATIVE_HEALTH_DATA",
     };
   },
 
   async updateReader(input) {
-    const { data, error } = await getSupabaseAdminClient().rpc(
-      "update_beltcon_reader_configuration_v1",
-      {
-        p_reader_id: input.readerId,
-        p_name: input.name,
-        p_enabled: input.enabled,
-        p_model: input.model ?? null,
-        p_vendor: input.vendor ?? null,
-        p_firmware_version: input.firmwareVersion ?? null,
-        p_expected_version: input.expectedVersion,
-        p_actor_id: input.actorId,
-        p_canonical_role: input.canonicalRole,
-        p_reason: input.reason,
-        p_request_id: input.requestId,
-      },
-    );
-    if (error || !data) throw new Error("Unable to update reader configuration", { cause: error });
-    const detail = await this.get(input.readerId);
-    if (!detail) throw new Error("Reader was not found after configuration update");
-    return detail;
+    return this.updateReaderConfiguration({
+      readerId: input.readerId,
+      siteId: process.env.SBTS_SITE_ID?.trim() ?? "ALWAJH",
+      readerCode: input.readerId,
+      name: input.name,
+      zone: "OTHER",
+      vendor: input.vendor ?? null,
+      model: input.model ?? null,
+      adapterType: "UNAVAILABLE_PHYSICAL",
+      host: null,
+      enabled: input.enabled,
+      expectedVersion: input.expectedVersion,
+      actorId: input.actorId,
+      canonicalRole: input.canonicalRole,
+      requestId: input.requestId,
+    });
   },
 
   async updateAntenna(input) {

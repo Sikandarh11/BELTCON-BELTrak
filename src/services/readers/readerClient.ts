@@ -5,10 +5,12 @@ import { BELTCON_QUERY_RETRY, BELTCON_QUERY_STALE_TIME } from "@/lib/queryPolicy
 import { readApiResponse } from "@/services/api/appApiError";
 
 import type {
+  CreateReaderConfigurationInput,
   ReaderDetail,
   ReaderListFilters,
   ReaderListResponse,
   ReaderSummary,
+  SetReaderEnabledInput,
   UpdateAntennaInput,
   UpdateReaderInput,
 } from "./readerSchemas";
@@ -49,12 +51,44 @@ async function patch<T>(url: string, input: unknown, fallback: string): Promise<
   );
 }
 
+async function post<T>(url: string, input: unknown, fallback: string): Promise<T> {
+  return readApiResponse<T>(
+    await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+    fallback,
+  );
+}
+
 export function useReaders(filters: ReaderListFilters) {
   return useQuery({
     queryKey: readerKeys.list(filters),
     queryFn: () => fetchReaders(filters),
     staleTime: BELTCON_QUERY_STALE_TIME.readerConfiguration,
     retry: BELTCON_QUERY_RETRY.read,
+  });
+}
+
+export function useCreateReader() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ input }: { input: CreateReaderConfigurationInput }) => {
+      const result = await post<{ reader: ReaderSummary }>(
+        "/api/readers",
+        input,
+        "Unable to create reader configuration",
+      );
+      return result.reader;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: readerKeys.all }),
+        queryClient.invalidateQueries({ queryKey: readerKeys.antennaMap() }),
+      ]);
+    },
   });
 }
 
@@ -87,6 +121,33 @@ export function useUpdateReader() {
         queryClient.invalidateQueries({ queryKey: rfidKeys.events() }),
         queryClient.invalidateQueries({ queryKey: reportKeys.readers({}) }),
         queryClient.invalidateQueries({ queryKey: auditKeys.all }),
+      ]);
+    },
+  });
+}
+
+export function useSetReaderEnabled() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      readerId,
+      input,
+    }: {
+      readerId: string;
+      input: SetReaderEnabledInput;
+    }) => {
+      const result = await post<{ reader: ReaderSummary }>(
+        `/api/readers/${encodeURIComponent(readerId)}/enabled`,
+        input,
+        "Unable to update reader enabled state",
+      );
+      return result.reader;
+    },
+    onSuccess: async (_, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: readerKeys.all }),
+        queryClient.invalidateQueries({ queryKey: readerKeys.detail(variables.readerId) }),
+        queryClient.invalidateQueries({ queryKey: readerKeys.antennaMap() }),
       ]);
     },
   });

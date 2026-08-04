@@ -25,8 +25,7 @@ function AdminDashboard() {
         />
         <Panel title="Administration">
           <p className="mb-4 text-sm text-muted-foreground">
-            Operational counts and recent activity are intentionally unavailable until their
-            server-backed read models are delivered in Phase 9.
+            Operational counts and recent activity are not enabled in this release.
           </p>
           <div className="flex flex-wrap gap-2">
             {links.map(({ to, label, icon: Icon }) => (

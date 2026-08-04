@@ -352,26 +352,26 @@ test("closed legacy endpoint never reaches the database", async () => {
   assert.equal(repository.state.audits.length, 0);
 });
 
-test("missing X-ray blocks RFID encoding", async () => {
+test("BASE_ALWAJH allows RFID tagging without X-Ray evidence", async () => {
   const repository = createMemoryRepository([
     createBag({
       xrayStatus: "NOT_REQUESTED",
       xrayViewCount: 0,
-      taggingReadiness: "AWAITING_XRAY",
-      canAssignTag: false,
+      taggingReadiness: "READY_FOR_TAGGING",
+      canAssignTag: true,
     }),
   ]);
-  await assert.rejects(
-    () =>
-      createTaggingService(repository).encodeTag({
-        bagId: "ETB-TAG-001",
-        epc: "EPC-NO-XRAY",
-        actorId: "operations-user",
-        canonicalRole: "Operations Officer",
-      }),
-    (error) => error.code === "TAG_ASSIGNMENT_NOT_READY" && error.status === 409,
-  );
-  assert.equal(repository.state.bags[0].status, "IDENTIFIED");
+  const encoded = await createTaggingService(repository).encodeTag({
+    bagId: "ETB-TAG-001",
+    epc: "EPC-NO-XRAY",
+    actorId: "operations-user",
+    canonicalRole: "Operations Officer",
+  });
+
+  assert.equal(encoded.epc, "EPC-NO-XRAY");
+  assert.equal(encoded.status, "TAGGED");
+  assert.equal(repository.state.bags[0].status, "TAGGED");
+  assert.equal(repository.state.bags[0].xrayStatus, "NOT_REQUESTED");
 });
 
 test("a fresh service instance observes the durable encoded state after reload", async () => {

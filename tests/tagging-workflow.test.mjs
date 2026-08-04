@@ -80,6 +80,8 @@ test("P3-TAG-003 session uniqueness has active bag and queue constraints", () =>
 
 test("P3-TAG-004 pre-encoded barcode capture preserves case and strips one terminator", () => {
   assert.equal(schemas.normalizeTagBarcode("00TagCase\r\n", "SCANNER"), "00TagCase");
+  assert.equal(schemas.containsControlCharacters("00TagCase"), false);
+  assert.equal(schemas.containsControlCharacters("\u0007"), true);
   assert.throws(() => schemas.normalizeTagBarcode(" value ", "SCANNER"), /whitespace/);
 });
 

@@ -85,8 +85,8 @@ export function ErrorLogPanel() {
   return (
     <Panel title="Client errors">
       <p className="text-sm text-muted-foreground">
-        Client error history is intentionally not an operational audit log. Use server-backed audit
-        events once the Phase 9 read model is available.
+        Client error history is intentionally not an operational audit log. Use server-backed
+        audit events instead.
       </p>
     </Panel>
   );
@@ -145,8 +145,8 @@ export function EventStreamPanel() {
         </div>
       ) : null}
       <p className="mt-3 text-xs text-muted-foreground">
-        RFID event history will receive a dedicated server read model in Phase 9. Test reads are
-        submitted only through the server-backed simulator.
+        RFID event history remains server-backed. Test reads are submitted only through the
+        server-backed simulator.
       </p>
     </Panel>
   );

@@ -60,6 +60,7 @@ import { Route as ApiXrayBagsBagIdRouteImport } from './routes/api.xray.bags.$ba
 import { Route as ApiRecheckByTagTagBarcodeRouteImport } from './routes/api.recheck.by-tag.$tagBarcode'
 import { Route as ApiRecheckBagIdResolveRouteImport } from './routes/api.recheck.$bagId.resolve'
 import { Route as ApiRecheckBagIdHbssRecallRouteImport } from './routes/api.recheck.$bagId.hbss-recall'
+import { Route as ApiReadersReaderIdEnabledRouteImport } from './routes/api.readers.$readerId.enabled'
 import { Route as ApiIntegrationsScreeningSuspectEventsRouteImport } from './routes/api.integrations.screening.suspect-events'
 import { Route as ApiIntegrationsRfidReadsRouteImport } from './routes/api.integrations.rfid.reads'
 import { Route as ApiIntegrationsHbssScansRouteImport } from './routes/api.integrations.hbss.scans'
@@ -345,6 +346,12 @@ const ApiRecheckBagIdHbssRecallRoute =
     path: '/hbss-recall',
     getParentRoute: () => ApiRecheckBagIdRoute,
   } as any)
+const ApiReadersReaderIdEnabledRoute =
+  ApiReadersReaderIdEnabledRouteImport.update({
+    id: '/enabled',
+    path: '/enabled',
+    getParentRoute: () => ApiReadersReaderIdRoute,
+  } as any)
 const ApiIntegrationsScreeningSuspectEventsRoute =
   ApiIntegrationsScreeningSuspectEventsRouteImport.update({
     id: '/api/integrations/screening/suspect-events',
@@ -566,6 +573,7 @@ export interface FileRoutesByFullPath {
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
   '/api/integrations/rfid/reads': typeof ApiIntegrationsRfidReadsRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
+  '/api/readers/$readerId/enabled': typeof ApiReadersReaderIdEnabledRoute
   '/api/recheck/$bagId/hbss-recall': typeof ApiRecheckBagIdHbssRecallRoute
   '/api/recheck/$bagId/resolve': typeof ApiRecheckBagIdResolveRoute
   '/api/recheck/by-tag/$tagBarcode': typeof ApiRecheckByTagTagBarcodeRoute
@@ -646,6 +654,7 @@ export interface FileRoutesByTo {
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
   '/api/integrations/rfid/reads': typeof ApiIntegrationsRfidReadsRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
+  '/api/readers/$readerId/enabled': typeof ApiReadersReaderIdEnabledRoute
   '/api/recheck/$bagId/hbss-recall': typeof ApiRecheckBagIdHbssRecallRoute
   '/api/recheck/$bagId/resolve': typeof ApiRecheckBagIdResolveRoute
   '/api/recheck/by-tag/$tagBarcode': typeof ApiRecheckByTagTagBarcodeRoute
@@ -727,6 +736,7 @@ export interface FileRoutesById {
   '/api/integrations/hbss/scans': typeof ApiIntegrationsHbssScansRoute
   '/api/integrations/rfid/reads': typeof ApiIntegrationsRfidReadsRoute
   '/api/integrations/screening/suspect-events': typeof ApiIntegrationsScreeningSuspectEventsRoute
+  '/api/readers/$readerId/enabled': typeof ApiReadersReaderIdEnabledRoute
   '/api/recheck/$bagId/hbss-recall': typeof ApiRecheckBagIdHbssRecallRoute
   '/api/recheck/$bagId/resolve': typeof ApiRecheckBagIdResolveRoute
   '/api/recheck/by-tag/$tagBarcode': typeof ApiRecheckByTagTagBarcodeRoute
@@ -809,6 +819,7 @@ export interface FileRouteTypes {
     | '/api/integrations/hbss/scans'
     | '/api/integrations/rfid/reads'
     | '/api/integrations/screening/suspect-events'
+    | '/api/readers/$readerId/enabled'
     | '/api/recheck/$bagId/hbss-recall'
     | '/api/recheck/$bagId/resolve'
     | '/api/recheck/by-tag/$tagBarcode'
@@ -889,6 +900,7 @@ export interface FileRouteTypes {
     | '/api/integrations/hbss/scans'
     | '/api/integrations/rfid/reads'
     | '/api/integrations/screening/suspect-events'
+    | '/api/readers/$readerId/enabled'
     | '/api/recheck/$bagId/hbss-recall'
     | '/api/recheck/$bagId/resolve'
     | '/api/recheck/by-tag/$tagBarcode'
@@ -969,6 +981,7 @@ export interface FileRouteTypes {
     | '/api/integrations/hbss/scans'
     | '/api/integrations/rfid/reads'
     | '/api/integrations/screening/suspect-events'
+    | '/api/readers/$readerId/enabled'
     | '/api/recheck/$bagId/hbss-recall'
     | '/api/recheck/$bagId/resolve'
     | '/api/recheck/by-tag/$tagBarcode'
@@ -1408,6 +1421,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRecheckBagIdHbssRecallRouteImport
       parentRoute: typeof ApiRecheckBagIdRoute
     }
+    '/api/readers/$readerId/enabled': {
+      id: '/api/readers/$readerId/enabled'
+      path: '/enabled'
+      fullPath: '/api/readers/$readerId/enabled'
+      preLoaderRoute: typeof ApiReadersReaderIdEnabledRouteImport
+      parentRoute: typeof ApiReadersReaderIdRoute
+    }
     '/api/integrations/screening/suspect-events': {
       id: '/api/integrations/screening/suspect-events'
       path: '/api/integrations/screening/suspect-events'
@@ -1628,10 +1648,12 @@ const ApiAlarmsRouteWithChildren = ApiAlarmsRoute._addFileChildren(
 )
 
 interface ApiReadersReaderIdRouteChildren {
+  ApiReadersReaderIdEnabledRoute: typeof ApiReadersReaderIdEnabledRoute
   ApiReadersReaderIdAntennasAntennaIdRoute: typeof ApiReadersReaderIdAntennasAntennaIdRoute
 }
 
 const ApiReadersReaderIdRouteChildren: ApiReadersReaderIdRouteChildren = {
+  ApiReadersReaderIdEnabledRoute: ApiReadersReaderIdEnabledRoute,
   ApiReadersReaderIdAntennasAntennaIdRoute:
     ApiReadersReaderIdAntennasAntennaIdRoute,
 }

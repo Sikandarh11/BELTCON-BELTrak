@@ -215,6 +215,26 @@ if (!availability.available) {
     assert.equal(created.session.state, "READY_FOR_INPUT");
   });
 
+  test("P3-TAG-003 BASE_ALWAJH allows RFID tagging without X-ray evidence", () => {
+    const seed = seedReadyBag({ suffix: 3, mode: "PRINT_AND_ENCODE" });
+    assert.equal(
+      database.execute(`SELECT count(*) FROM public.xray_scans WHERE bag_id='${seed.bagId}'`),
+      "0",
+    );
+    let session = createSession(seed, "create-no-xray").session;
+    session = captureIdentity(session, {
+      barcode: "NO-XRAY-TAG",
+      epc: null,
+      request: "capture-no-xray",
+    }).session;
+    session = verify(session, { request: "verify-no-xray" }).session;
+    session = stagePhoto(session, "photo-no-xray").session;
+    const committed = commit(session, "commit-no-xray");
+
+    assert.equal(committed.status, "COMMITTED");
+    assert.equal(database.execute("SELECT status FROM public.bags"), "TAGGED");
+  });
+
   test("P3-TAG-003 waiting queue item cannot create a session", () => {
     const seed = seedReadyBag({ position: 2, state: "WAITING" });
     assert.equal(createSession(seed).status, "QUEUE_ITEM_NOT_ACTIVE");

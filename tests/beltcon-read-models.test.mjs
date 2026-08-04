@@ -68,8 +68,12 @@ const reader = {
   updatedAt: NOW,
   version: 1,
 };
+function updatedReaderFrom(input) {
+  return { ...reader, name: input.name, version: 2 };
+}
+
 const readerService = {
-  async list(filters) {
+  async listReadersForSite(_siteId, filters) {
     return {
       items: [reader],
       page: filters.page,
@@ -79,7 +83,7 @@ const readerService = {
       dataLimitations: ["Reader health is derived from authoritative RFID activity."],
     };
   },
-  async get() {
+  async getReaderById() {
     return {
       ...reader,
       antennas: [],
@@ -93,8 +97,32 @@ const readerService = {
       healthBasis: "NO_AUTHORITATIVE_HEALTH_DATA",
     };
   },
+  async updateReaderConfiguration(input) {
+    return updatedReaderFrom(input);
+  },
   async updateReader(input) {
-    return { ...reader, name: input.name, version: 2 };
+    return updatedReaderFrom(input);
+  },
+  async createReaderConfiguration(input) {
+    return {
+      ...reader,
+      readerCode: input.readerCode,
+      name: input.name,
+      zone: input.zone,
+      vendor: input.vendor ?? null,
+      model: input.model ?? null,
+      adapterType: input.adapterType,
+      host: input.host ?? null,
+      enabled: input.enabled,
+      configurationVersion: 1,
+      version: 1,
+    };
+  },
+  async setReaderEnabled(input) {
+    return { ...reader, enabled: input.enabled, version: 2 };
+  },
+  async getReaderByCode() {
+    return reader;
   },
   async updateAntenna() {
     throw new Error("not used");
@@ -184,15 +212,17 @@ test("reader list validates pagination and server filters before invoking the se
   assert.equal(body.items[0].readerCode, "RDR-001");
 });
 
-test("reader configuration mutation requires reader.manage, server actor identity, and a reason", async () => {
+test("reader configuration mutation requires reader.manage and server actor identity", async () => {
   const request = new Request("http://localhost/api/readers/RDR-001", {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
+      readerCode: "RDR-001",
       name: "Reader 1",
+      zone: "RECLAIM",
+      adapterType: "THINGMAGIC_IZAR",
       enabled: true,
       expectedVersion: 1,
-      reason: "Operational configuration correction",
     }),
   });
   const response = await readerApi.handleUpdateReaderRequest(request, "RDR-001", {
@@ -201,7 +231,7 @@ test("reader configuration mutation requires reader.manage, server actor identit
     service: readerService,
   });
   assert.equal(response.status, 200);
-  const missingReason = await readerApi.handleUpdateReaderRequest(
+  const invalidPayload = await readerApi.handleUpdateReaderRequest(
     new Request("http://localhost/api/readers/RDR-001", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -210,7 +240,62 @@ test("reader configuration mutation requires reader.manage, server actor identit
     "RDR-001",
     { getSession: async () => session, requirePermission: allow, service: readerService },
   );
-  assert.equal(missingReason.status, 400);
+  assert.equal(invalidPayload.status, 400);
+});
+
+test("reader registry create and enable mutations stay server-backed and reject duplicate codes", async () => {
+  const created = await readerApi.handleCreateReaderRequest(
+    new Request("http://localhost/api/readers", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        readerCode: "RDR-009",
+        name: "Reader 9",
+        zone: "TAGGING",
+        adapterType: "THINGMAGIC_IZAR",
+        enabled: true,
+      }),
+    }),
+    { getSession: async () => session, requirePermission: allow, service: readerService },
+  );
+  assert.equal(created.status, 201);
+  assert.equal((await created.json()).reader.readerCode, "RDR-009");
+
+  const enabled = await readerApi.handleSetReaderEnabledRequest(
+    new Request("http://localhost/api/readers/RDR-001/enabled", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ enabled: false, expectedVersion: 1 }),
+    }),
+    "RDR-001",
+    { getSession: async () => session, requirePermission: allow, service: readerService },
+  );
+  assert.equal(enabled.status, 200);
+  assert.equal((await enabled.json()).reader.enabled, false);
+
+  const duplicateService = {
+    ...readerService,
+    async createReaderConfiguration() {
+      const error = new Error("duplicate key value violates unique constraint");
+      error.code = "23505";
+      throw error;
+    },
+  };
+  const duplicate = await readerApi.handleCreateReaderRequest(
+    new Request("http://localhost/api/readers", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        readerCode: "RDR-001",
+        name: "Reader 1 duplicate",
+        zone: "TAGGING",
+        adapterType: "THINGMAGIC_IZAR",
+        enabled: true,
+      }),
+    }),
+    { getSession: async () => session, requirePermission: allow, service: duplicateService },
+  );
+  assert.equal(duplicate.status, 409);
 });
 
 test("operational reports require report.view and reject excessive date ranges", async () => {

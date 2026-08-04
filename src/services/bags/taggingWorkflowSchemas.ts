@@ -4,7 +4,6 @@ import { z } from "zod";
 import type { TagInputKind } from "@/types/taggingWorkflow";
 import { TaggingValidationError } from "./taggingErrors";
 
-const CONTROL_CHARACTER = /[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/u;
 const PRINTABLE_ASCII = /^[\x20-\x7e]+$/;
 const HEX_EPC = /^[0-9A-Fa-f]+$/;
 
@@ -39,6 +38,13 @@ export function stripScannerTerminator(raw: string): string {
   return raw;
 }
 
+export function containsControlCharacters(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 31 || code === 127;
+  });
+}
+
 export function normalizeTagBarcode(
   raw: string,
   kind: TagInputKind,
@@ -57,7 +63,7 @@ export function normalizeTagBarcode(
   if (barcode !== barcode.trim()) {
     throw new TaggingValidationError("RFID tag barcode cannot have leading or trailing whitespace");
   }
-  if (!PRINTABLE_ASCII.test(barcode) || CONTROL_CHARACTER.test(barcode)) {
+  if (!PRINTABLE_ASCII.test(barcode) || containsControlCharacters(barcode)) {
     throw new TaggingValidationError("RFID tag barcode contains unsupported control characters");
   }
   return configuration.caseSensitive === false ? barcode.toUpperCase() : barcode;

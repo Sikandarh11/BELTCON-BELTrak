@@ -452,3 +452,28 @@ test("workspace code contains no universal access override", async () => {
   assert.match(sources[2], /permission:\s*"developer\.access"/);
   assert.match(sources[2], /hasPermission\(currentUser\?\.permissions/);
 });
+
+test("operations navigation hides placeholder modules and the old operator scan route redirects", async () => {
+  const [layoutSource, opsScanSource, unavailableSource, adminDashboardSource, developerPanelsSource] =
+    await Promise.all([
+      readFile(path.join(repositoryRoot, "src/components/AppLayout.tsx"), "utf8"),
+      readFile(path.join(repositoryRoot, "src/routes/ops.scan.tsx"), "utf8"),
+      readFile(path.join(repositoryRoot, "src/components/OperationalDataUnavailable.tsx"), "utf8"),
+      readFile(path.join(repositoryRoot, "src/routes/admin.dashboard.tsx"), "utf8"),
+      readFile(path.join(repositoryRoot, "src/features/developer/DeveloperPanels.tsx"), "utf8"),
+    ]);
+
+  for (const pattern of [
+    /label:\s*"Dashboard"/,
+    /label:\s*"Query Tag History"/,
+    /label:\s*"Live Operations Map"/,
+    /label:\s*"Operator Scan"/,
+    /to:\s*"\/ops\/scan"/,
+  ]) {
+    assert.doesNotMatch(layoutSource, pattern);
+  }
+  assert.match(opsScanSource, /beforeLoad:\s*\(\)\s*=>\s*\{[\s\S]*redirect\(\{\s*to:\s*["']\/recheck["']/);
+  assert.doesNotMatch(unavailableSource, /Phase 9/);
+  assert.doesNotMatch(adminDashboardSource, /Phase 9/);
+  assert.doesNotMatch(developerPanelsSource, /Phase 9/);
+});
