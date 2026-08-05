@@ -24,6 +24,15 @@ import {
   type RfidDetectionService,
 } from "../detections/rfidDetectionService.server";
 import type { RfidDetectionResult } from "../detections/rfidDetectionSchemas";
+import {
+  rfidActiveBagResolutionService,
+  type RfidActiveBagResolutionService,
+} from "../resolution/rfidActiveBagResolutionService.server";
+import type { RfidActiveBagResolution } from "../resolution/rfidActiveBagResolutionSchemas";
+import {
+  customsExitAlarmService,
+  type CustomsExitAlarmResult,
+} from "@/services/alarms/customsExitAlarmService.server";
 import type { SimulatedReadInput } from "./simulatedRfidReaderAdapter.server";
 
 function defaultSiteId() {
@@ -34,6 +43,7 @@ export interface RfidReaderAdapterRuntimeOptions {
   readerService?: ReaderService;
   ingestionService?: RfidReadEventService;
   detectionService?: RfidDetectionService;
+  resolutionService?: RfidActiveBagResolutionService;
   getSiteId?: () => string;
   simulatorEnabled?: boolean;
   clock?: () => Date;
@@ -63,6 +73,8 @@ type IngestionOutcome =
 type ProcessingOutcome = {
   ingestion: RfidReadIngestionResult;
   detection?: RfidDetectionResult;
+  resolution?: RfidActiveBagResolution;
+  alarm?: CustomsExitAlarmResult;
   detectionError?: { code: string; message: string };
 };
 
@@ -70,6 +82,7 @@ export class RfidReaderAdapterRuntime {
   private readonly readerService: ReaderService;
   private readonly ingestionService: RfidReadEventService;
   private readonly detectionService?: RfidDetectionService;
+  private readonly resolutionService?: RfidActiveBagResolutionService;
   private readonly getSiteId: () => string;
   private readonly simulatorEnabled: boolean;
   private readonly clock?: () => Date;
@@ -82,6 +95,7 @@ export class RfidReaderAdapterRuntime {
     this.readerService = options.readerService ?? readerService;
     this.ingestionService = options.ingestionService ?? rfidReadEventService;
     this.detectionService = options.detectionService;
+    this.resolutionService = options.resolutionService;
     this.getSiteId = options.getSiteId ?? defaultSiteId;
     this.simulatorEnabled = options.simulatorEnabled ?? true;
     this.clock = options.clock;
@@ -192,9 +206,18 @@ export class RfidReaderAdapterRuntime {
       const detection = await this.detectionService.processStoredRfidEvent({
         rfidEventId: ingestion.eventId,
       });
+      const resolution = await (this.resolutionService ?? rfidActiveBagResolutionService).resolveActiveBagForDetection(
+        detection.detectionId,
+      );
+      const alarm =
+        detection.zone === "CUSTOMS_EXIT"
+          ? await customsExitAlarmService.processForDetection(detection.detectionId)
+          : undefined;
       this.processingOutcomes.set(this.ingestionKey(readerId, ingestion.sourceEventId), {
         ingestion,
         detection,
+        resolution,
+        ...(alarm ? { alarm } : {}),
       });
     } catch (error) {
       const wrapped =

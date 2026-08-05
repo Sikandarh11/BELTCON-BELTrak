@@ -50,6 +50,12 @@ const detectionResultSchema = z.object({
 const processingResultSchema = z.object({
   ingestion: ingestionResultSchema,
   detection: detectionResultSchema.optional(),
+  alarm: z
+    .object({
+      status: z.enum(["TRIGGERED", "ALREADY_TRIGGERED", "OUTPUT_UNAVAILABLE", "FAILED"]),
+      alarmId: z.string().nullable().optional(),
+    })
+    .optional(),
   detectionError: z.object({ code: z.string(), message: z.string() }).optional(),
 });
 
@@ -111,7 +117,10 @@ export function SimulatorPanel() {
   });
   const readers = useMemo(() => readersQuery.data?.readers ?? [], [readersQuery.data]);
   const selectedReaderId = form.watch("readerId");
-  const selectedReader = useMemo(() => readers.find((reader) => reader.readerId === selectedReaderId) ?? null, [readers, selectedReaderId]);
+  const selectedReader = useMemo(
+    () => readers.find((reader) => reader.readerId === selectedReaderId) ?? null,
+    [readers, selectedReaderId],
+  );
 
   useEffect(() => {
     if (!form.getValues("readerId") && readers[0]) {
@@ -166,7 +175,9 @@ export function SimulatorPanel() {
               <select {...form.register("readerId")} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3">
                 <option value="">Select reader</option>
                 {readers.map((reader) => (
-                  <option key={reader.readerId} value={reader.readerId}>{reader.readerCode} - {reader.readerName} - {reader.health.state}</option>
+                  <option key={reader.readerId} value={reader.readerId}>
+                    {reader.readerCode} - {reader.readerName} - {reader.health.state}
+                  </option>
                 ))}
               </select>
             </label>
@@ -189,7 +200,9 @@ export function SimulatorPanel() {
             <div className="md:col-span-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
               <strong>Adapter health</strong>
               <p className="mt-1 text-muted-foreground">
-                {selectedReader ? `${selectedReader.readerCode} - ${selectedReader.health.state} - ${selectedReader.health.connected ? "connected" : "disconnected"}` : "Choose a configured SIMULATED reader."}
+                {selectedReader
+                  ? `${selectedReader.readerCode} - ${selectedReader.health.state} - ${selectedReader.health.connected ? "connected" : "disconnected"}`
+                  : "Choose a configured SIMULATED reader."}
               </p>
             </div>
             <button type="button" onClick={() => void runAction("start")} disabled={actionMutation.isPending || !selectedReaderId} className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50">
@@ -230,6 +243,7 @@ function Result({ result, failureCode }: { result: ActionResponse | null; failur
   const latest = result?.result ?? result?.results?.[result.results.length - 1] ?? null;
   const ingestion = latest?.ingestion ?? null;
   const detection = latest?.detection ?? null;
+  const alarm = latest?.alarm ?? null;
 
   return (
     <div className="grid gap-3 text-sm">
@@ -239,33 +253,35 @@ function Result({ result, failureCode }: { result: ActionResponse | null; failur
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
         <dt>Reader</dt>
-        <dd className="font-mono">{result?.readerId ?? "â€”"}</dd>
+        <dd className="font-mono">{result?.readerId ?? "—"}</dd>
         <dt>RFID event outcome</dt>
-        <dd className="font-mono">{ingestion?.outcome ?? "â€”"}</dd>
+        <dd className="font-mono">{ingestion?.outcome ?? "—"}</dd>
         <dt>RFID event ID</dt>
-        <dd className="font-mono">{ingestion?.eventId ?? "â€”"}</dd>
+        <dd className="font-mono">{ingestion?.eventId ?? "—"}</dd>
         <dt>Detection outcome</dt>
-        <dd className="font-mono">{detection?.outcome ?? latest?.detectionError?.code ?? "â€”"}</dd>
+        <dd className="font-mono">{detection?.outcome ?? latest?.detectionError?.code ?? "—"}</dd>
         <dt>Detection ID</dt>
-        <dd className="font-mono">{detection?.detectionId ?? "â€”"}</dd>
+        <dd className="font-mono">{detection?.detectionId ?? "—"}</dd>
         <dt>Reader ID</dt>
-        <dd className="font-mono">{detection?.readerId ?? ingestion?.readerId ?? "â€”"}</dd>
+        <dd className="font-mono">{detection?.readerId ?? ingestion?.readerId ?? "—"}</dd>
         <dt>Zone</dt>
-        <dd className="font-mono">{detection?.zone ?? "â€”"}</dd>
+        <dd className="font-mono">{detection?.zone ?? "—"}</dd>
         <dt>EPC</dt>
-        <dd className="font-mono">{ingestion?.epc ?? detection?.epc ?? "â€”"}</dd>
+        <dd className="font-mono">{ingestion?.epc ?? detection?.epc ?? "—"}</dd>
         <dt>Raw event count</dt>
-        <dd className="font-mono">{detection?.rawEventCount ?? "â€”"}</dd>
+        <dd className="font-mono">{detection?.rawEventCount ?? "—"}</dd>
         <dt>Total read count</dt>
-        <dd className="font-mono">{detection?.totalReadCount ?? "â€”"}</dd>
+        <dd className="font-mono">{detection?.totalReadCount ?? "—"}</dd>
         <dt>First detected time</dt>
-        <dd className="font-mono">{detection?.firstDetectedAt ?? "â€”"}</dd>
+        <dd className="font-mono">{detection?.firstDetectedAt ?? "—"}</dd>
         <dt>Last detected time</dt>
-        <dd className="font-mono">{detection?.lastDetectedAt ?? "â€”"}</dd>
+        <dd className="font-mono">{detection?.lastDetectedAt ?? "—"}</dd>
         <dt>Simulated</dt>
         <dd>{detection?.simulated ? "Yes" : "No"}</dd>
+        <dt>Alarm output</dt>
+        <dd className="font-mono">{alarm?.status ?? "—"}</dd>
         <dt>Failure</dt>
-        <dd className="font-mono">{failureCode ?? latest?.detectionError?.code ?? "â€”"}</dd>
+        <dd className="font-mono">{failureCode ?? latest?.detectionError?.code ?? "—"}</dd>
       </dl>
     </div>
   );

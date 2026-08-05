@@ -33,9 +33,14 @@ const expectedMigrations = [
   "026_station_delivery_metadata.sql",
   "027_complete_tagging_station_workflow.sql",
   "028_create_beltcon_authoritative_reader_registry.sql",
+  "029_create_beltcon_authoritative_rfid_read_ingestion.sql",
+  "030_create_beltcon_rfid_detection_episodes.sql",
+  "031_create_beltcon_baseline_rfid_detections.sql",
+  "032_create_beltcon_rfid_active_bag_resolution.sql",
+  "033_create_beltcon_customs_exit_alarm.sql",
 ];
 
-test("the migration chain is complete and ordered from 001 through 028", async () => {
+test("the migration chain is complete and ordered from 001 through 033", async () => {
   const actual = (await readdir(migrationsDirectory))
     .filter((name) => name.endsWith(".sql"))
     .sort();

@@ -17,6 +17,7 @@ import {
 import { RfidReadError } from "./events/rfidReadEventErrors";
 import { RfidReadIngestionResultSchema } from "./events/rfidReadEventSchemas";
 import { RfidDetectionResultSchema } from "./detections/rfidDetectionSchemas";
+import { RfidActiveBagResolutionSchema } from "./resolution/rfidActiveBagResolutionSchemas";
 
 const headers = {
   "cache-control": "no-store",
@@ -58,6 +59,7 @@ const processingResultSchema = z
   .object({
     ingestion: RfidReadIngestionResultSchema,
     detection: RfidDetectionResultSchema.optional(),
+    resolution: RfidActiveBagResolutionSchema.optional(),
     detectionError: z
       .object({
         code: z.string(),

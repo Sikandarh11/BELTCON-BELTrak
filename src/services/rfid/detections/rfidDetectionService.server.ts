@@ -7,6 +7,14 @@ import { rfidReadEventRepository, type RfidReadEventRepository } from "../events
 import { getRfidBurstWindowMs, isBaselineRfidZone } from "./rfidBurstDeduplicationPolicy.server";
 import { rfidDetectionRepository, type RfidDetectionRepository } from "./rfidDetectionRepository.server";
 import { BaselineRfidDetectionResultSchema, type RfidDetectionResult } from "./rfidDetectionSchemas";
+import {
+  rfidActiveBagResolutionService,
+  type RfidActiveBagResolutionService,
+} from "../resolution/rfidActiveBagResolutionService.server";
+import {
+  customsExitAlarmService,
+  type CustomsExitAlarmService,
+} from "@/services/alarms/customsExitAlarmService.server";
 
 export interface ProcessStoredRfidEventInput {
   rfidEventId: string;
@@ -28,10 +36,14 @@ export function createRfidDetectionService(options: {
   readerService?: ReaderService;
   eventRepository?: RfidReadEventRepository;
   detectionRepository?: RfidDetectionRepository;
+  resolutionService?: RfidActiveBagResolutionService;
+  customsExitAlarmService?: CustomsExitAlarmService;
 } = {}): RfidDetectionService {
   const currentReaderService = options.readerService ?? readerService;
   const currentEventRepository = options.eventRepository ?? rfidReadEventRepository;
   const currentDetectionRepository = options.detectionRepository ?? rfidDetectionRepository;
+  const currentResolutionService = options.resolutionService ?? rfidActiveBagResolutionService;
+  const currentCustomsExitAlarmService = options.customsExitAlarmService ?? customsExitAlarmService;
 
   return {
     async processStoredRfidEvent(input) {
@@ -74,7 +86,12 @@ export function createRfidDetectionService(options: {
       const result = await currentDetectionRepository.processStoredRfidEventAtomically({
         rfidEventId: event.id,
       });
-      return BaselineRfidDetectionResultSchema.parse(result);
+      const parsed = BaselineRfidDetectionResultSchema.parse(result);
+      await currentResolutionService.resolveActiveBagForDetection(parsed.detectionId);
+      if (parsed.zone === "CUSTOMS_EXIT") {
+        await currentCustomsExitAlarmService.processForDetection(parsed.detectionId);
+      }
+      return parsed;
     },
   };
 }
