@@ -11,16 +11,7 @@ import { AppApiError, readApiResponse } from "@/services/api/appApiError";
 const healthSchema = z.object({
   readerId: z.string(),
   adapterType: z.enum(["SIMULATED", "UNAVAILABLE_PHYSICAL", "THINGMAGIC_IZAR", "ZEBRA_FX9600"]),
-  state: z.enum([
-    "UNKNOWN",
-    "STARTING",
-    "ONLINE",
-    "DEGRADED",
-    "OFFLINE",
-    "MISCONFIGURED",
-    "DISABLED",
-    "SIMULATED",
-  ]),
+  state: z.enum(["UNKNOWN", "STARTING", "ONLINE", "DEGRADED", "OFFLINE", "MISCONFIGURED", "DISABLED", "SIMULATED"]),
   connected: z.boolean(),
   startedAt: z.string().nullable(),
   lastReadAt: z.string().nullable(),
@@ -39,34 +30,27 @@ const ingestionResultSchema = z.object({
 });
 
 const detectionResultSchema = z.object({
-  outcome: z.enum(["EPISODE_CREATED", "EPISODE_UPDATED", "LATE_EVENT_RECORDED"]),
+  outcome: z.enum(["DETECTION_CREATED", "DETECTION_UPDATED", "OPTIONAL_ZONE_IGNORED"]),
   detectionId: z.string().uuid(),
-  readPointId: z.string(),
-  readPointCode: z.string(),
-  readPointName: z.string(),
-  readPointZone: z.string(),
+  rfidEventId: z.string().uuid(),
   readerId: z.string(),
+  zone: z.string(),
   epc: z.string(),
-  antennaPort: z.number().int().nullable(),
   firstDetectedAt: z.string(),
   lastDetectedAt: z.string(),
-  rawEventCount: z.number().int().min(1),
-  totalReadCount: z.number().int().min(1),
+  rawEventCount: z.number().int().min(0),
+  totalReadCount: z.number().int().min(0),
   strongestRssiDbm: z.number().nullable(),
-  weakestRssiDbm: z.number().nullable(),
-  latestRssiDbm: z.number().nullable(),
   simulated: z.boolean(),
+  version: z.number().int().min(1),
+  createdAt: z.string(),
+  updatedAt: z.string(),
 });
 
 const processingResultSchema = z.object({
   ingestion: ingestionResultSchema,
   detection: detectionResultSchema.optional(),
-  detectionError: z
-    .object({
-      code: z.string(),
-      message: z.string(),
-    })
-    .optional(),
+  detectionError: z.object({ code: z.string(), message: z.string() }).optional(),
 });
 
 const readerSchema = z.object({
@@ -80,7 +64,6 @@ const readerSchema = z.object({
 });
 
 const readersResponseSchema = z.object({ readers: z.array(readerSchema) });
-
 const actionResponseSchema = z.object({
   readerId: z.string(),
   health: healthSchema.optional(),
@@ -119,24 +102,16 @@ async function postAction(input: Record<string, unknown>) {
 }
 
 export function SimulatorPanel() {
-  const readersQuery = useQuery({
-    queryKey: ["dev", "simulator", "rfid", "readers"],
-    queryFn: fetchReaders,
-  });
+  const readersQuery = useQuery({ queryKey: ["dev", "simulator", "rfid", "readers"], queryFn: fetchReaders });
   const [result, setResult] = useState<ActionResponse | null>(null);
   const [failureCode, setFailureCode] = useState<string | null>(null);
-
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { readerId: "", epc: "", antennaPort: 1, rssiDbm: -45, burstCount: 2 },
   });
-
   const readers = useMemo(() => readersQuery.data?.readers ?? [], [readersQuery.data]);
   const selectedReaderId = form.watch("readerId");
-  const selectedReader = useMemo(
-    () => readers.find((reader) => reader.readerId === selectedReaderId) ?? null,
-    [readers, selectedReaderId],
-  );
+  const selectedReader = useMemo(() => readers.find((reader) => reader.readerId === selectedReaderId) ?? null, [readers, selectedReaderId]);
 
   useEffect(() => {
     if (!form.getValues("readerId") && readers[0]) {
@@ -165,21 +140,10 @@ export function SimulatorPanel() {
   }
 
   const emitOne = form.handleSubmit(async (values) => {
-    await runAction("emit", {
-      epc: values.epc,
-      antennaPort: values.antennaPort,
-      rssiDbm: values.rssiDbm,
-      burstCount: 1,
-    });
+    await runAction("emit", { epc: values.epc, antennaPort: values.antennaPort, rssiDbm: values.rssiDbm, burstCount: 1 });
   });
-
   const emitBurst = form.handleSubmit(async (values) => {
-    await runAction("emit", {
-      epc: values.epc,
-      antennaPort: values.antennaPort,
-      rssiDbm: values.rssiDbm,
-      burstCount: values.burstCount,
-    });
+    await runAction("emit", { epc: values.epc, antennaPort: values.antennaPort, rssiDbm: values.rssiDbm, burstCount: values.burstCount });
   });
 
   return (
@@ -188,13 +152,7 @@ export function SimulatorPanel() {
         title="BELTCON RFID Reader Simulator"
         subtitle="Software simulator. No physical RFID hardware connected."
         actions={
-          <button
-            type="button"
-            onClick={() => {
-              void readersQuery.refetch();
-            }}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-2 text-sm"
-          >
+          <button type="button" onClick={() => void readersQuery.refetch()} className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-2 text-sm">
             <RefreshCw className="size-4" />
             Refresh data
           </button>
@@ -205,146 +163,70 @@ export function SimulatorPanel() {
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-sm font-medium">
               Reader
-              <select
-                {...form.register("readerId")}
-                className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3"
-              >
+              <select {...form.register("readerId")} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3">
                 <option value="">Select reader</option>
                 {readers.map((reader) => (
-                  <option key={reader.readerId} value={reader.readerId}>
-                    {reader.readerCode} - {reader.readerName} - {reader.health.state}
-                  </option>
+                  <option key={reader.readerId} value={reader.readerId}>{reader.readerCode} - {reader.readerName} - {reader.health.state}</option>
                 ))}
               </select>
             </label>
             <label className="text-sm font-medium">
               EPC
-              <input
-                {...form.register("epc")}
-                className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 font-mono"
-                placeholder="Malformed EPCs are allowed"
-              />
+              <input {...form.register("epc")} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 font-mono" placeholder="Malformed EPCs are allowed" />
             </label>
             <label className="text-sm font-medium">
               Antenna port
-              <input
-                {...form.register("antennaPort", { valueAsNumber: true })}
-                type="number"
-                min={1}
-                className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3"
-              />
+              <input {...form.register("antennaPort", { valueAsNumber: true })} type="number" min={1} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3" />
             </label>
             <label className="text-sm font-medium">
               RSSI dBm <span className="font-normal text-muted-foreground">(optional)</span>
-              <input
-                {...form.register("rssiDbm", {
-                  setValueAs: (value) => (value === "" ? undefined : Number(value)),
-                })}
-                type="number"
-                step="0.1"
-                className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3"
-              />
+              <input {...form.register("rssiDbm", { setValueAs: (value) => (value === "" ? undefined : Number(value)) })} type="number" step="0.1" className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3" />
             </label>
             <label className="text-sm font-medium md:col-span-2">
               Duplicate burst count
-              <input
-                {...form.register("burstCount", { valueAsNumber: true })}
-                type="number"
-                min={1}
-                max={10_000}
-                className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3"
-              />
+              <input {...form.register("burstCount", { valueAsNumber: true })} type="number" min={1} max={10_000} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3" />
             </label>
             <div className="md:col-span-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
               <strong>Adapter health</strong>
               <p className="mt-1 text-muted-foreground">
-                {selectedReader
-                  ? `${selectedReader.readerCode} - ${selectedReader.health.state} - ${selectedReader.health.connected ? "connected" : "disconnected"}`
-                  : "Choose a configured SIMULATED reader."}
+                {selectedReader ? `${selectedReader.readerCode} - ${selectedReader.health.state} - ${selectedReader.health.connected ? "connected" : "disconnected"}` : "Choose a configured SIMULATED reader."}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => void runAction("start")}
-              disabled={actionMutation.isPending || !selectedReaderId}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50"
-            >
+            <button type="button" onClick={() => void runAction("start")} disabled={actionMutation.isPending || !selectedReaderId} className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50">
               <Play className="size-4" />
               Start
             </button>
-            <button
-              type="button"
-              onClick={() => void runAction("stop")}
-              disabled={actionMutation.isPending || !selectedReaderId}
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 font-semibold disabled:opacity-50"
-            >
+            <button type="button" onClick={() => void runAction("stop")} disabled={actionMutation.isPending || !selectedReaderId} className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 font-semibold disabled:opacity-50">
               <Pause className="size-4" />
               Stop
             </button>
-            <button
-              type="button"
-              onClick={() => void emitOne()}
-              disabled={actionMutation.isPending || !selectedReaderId}
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 font-semibold disabled:opacity-50"
-            >
+            <button type="button" onClick={() => void emitOne()} disabled={actionMutation.isPending || !selectedReaderId} className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 font-semibold disabled:opacity-50">
               <Radio className="size-4" />
               Emit one read
             </button>
-            <button
-              type="button"
-              onClick={() => void emitBurst()}
-              disabled={actionMutation.isPending || !selectedReaderId}
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 font-semibold disabled:opacity-50"
-            >
+            <button type="button" onClick={() => void emitBurst()} disabled={actionMutation.isPending || !selectedReaderId} className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 font-semibold disabled:opacity-50">
               <Zap className="size-4" />
               Emit duplicate burst
             </button>
-            <button
-              type="button"
-              onClick={() => void runAction("disconnect")}
-              disabled={actionMutation.isPending || !selectedReaderId}
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 font-semibold disabled:opacity-50"
-            >
+            <button type="button" onClick={() => void runAction("disconnect")} disabled={actionMutation.isPending || !selectedReaderId} className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 font-semibold disabled:opacity-50">
               <PowerOff className="size-4" />
               Disconnect
             </button>
-            <button
-              type="button"
-              onClick={() => void runAction("reconnect")}
-              disabled={actionMutation.isPending || !selectedReaderId}
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 font-semibold disabled:opacity-50"
-            >
+            <button type="button" onClick={() => void runAction("reconnect")} disabled={actionMutation.isPending || !selectedReaderId} className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 font-semibold disabled:opacity-50">
               <RefreshCw className="size-4" />
               Reconnect
             </button>
           </div>
-          {actionMutation.isError ? (
-            <p role="alert" className="mt-3 text-sm text-danger">
-              {actionMutation.error instanceof Error ? actionMutation.error.message : "RFID action failed"}
-            </p>
-          ) : null}
         </Panel>
         <Panel title="Processing result" className="col-span-12 lg:col-span-5">
-          {result || failureCode ? (
-            <Result result={result} failureCode={failureCode} />
-          ) : (
-            <p className="py-12 text-center text-sm text-muted-foreground">
-              Awaiting a server-confirmed adapter action.
-            </p>
-          )}
+          {result || failureCode ? <Result result={result} failureCode={failureCode} /> : <p className="py-12 text-center text-sm text-muted-foreground">Awaiting a server-confirmed adapter action.</p>}
         </Panel>
       </div>
     </div>
   );
 }
 
-function Result({
-  result,
-  failureCode,
-}: {
-  result: ActionResponse | null;
-  failureCode: string | null;
-}) {
+function Result({ result, failureCode }: { result: ActionResponse | null; failureCode: string | null }) {
   const latest = result?.result ?? result?.results?.[result.results.length - 1] ?? null;
   const ingestion = latest?.ingestion ?? null;
   const detection = latest?.detection ?? null;
@@ -352,50 +234,38 @@ function Result({
   return (
     <div className="grid gap-3 text-sm">
       <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
-        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Software simulator
-        </div>
+        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Software simulator</div>
         <div className="mt-1 text-sm">No physical RFID hardware connected</div>
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
         <dt>Reader</dt>
-        <dd className="font-mono">{result?.readerId ?? "—"}</dd>
+        <dd className="font-mono">{result?.readerId ?? "â€”"}</dd>
         <dt>RFID event outcome</dt>
-        <dd className="font-mono">{ingestion?.outcome ?? "—"}</dd>
-        <dt>Event ID</dt>
-        <dd className="font-mono">{ingestion?.eventId ?? "—"}</dd>
-        <dt>Source event</dt>
-        <dd className="font-mono">{ingestion?.sourceEventId ?? "—"}</dd>
-        <dt>EPC</dt>
-        <dd className="font-mono">{ingestion?.epc ?? detection?.epc ?? "—"}</dd>
-        <dt>Persisted</dt>
-        <dd className="font-mono">{ingestion?.receivedAt ?? "—"}</dd>
-        <dt>Simulated</dt>
-        <dd>{ingestion?.simulated ? "Yes" : "No"}</dd>
+        <dd className="font-mono">{ingestion?.outcome ?? "â€”"}</dd>
+        <dt>RFID event ID</dt>
+        <dd className="font-mono">{ingestion?.eventId ?? "â€”"}</dd>
         <dt>Detection outcome</dt>
-        <dd className="font-mono">{detection?.outcome ?? latest?.detectionError?.code ?? "—"}</dd>
-        <dt>Detection episode ID</dt>
-        <dd className="font-mono">{detection?.detectionId ?? "—"}</dd>
-        <dt>Read point</dt>
-        <dd className="font-mono">{detection ? `${detection.readPointCode} (${detection.readPointName})` : "—"}</dd>
+        <dd className="font-mono">{detection?.outcome ?? latest?.detectionError?.code ?? "â€”"}</dd>
+        <dt>Detection ID</dt>
+        <dd className="font-mono">{detection?.detectionId ?? "â€”"}</dd>
+        <dt>Reader ID</dt>
+        <dd className="font-mono">{detection?.readerId ?? ingestion?.readerId ?? "â€”"}</dd>
+        <dt>Zone</dt>
+        <dd className="font-mono">{detection?.zone ?? "â€”"}</dd>
+        <dt>EPC</dt>
+        <dd className="font-mono">{ingestion?.epc ?? detection?.epc ?? "â€”"}</dd>
         <dt>Raw event count</dt>
-        <dd className="font-mono">{detection?.rawEventCount ?? "—"}</dd>
+        <dd className="font-mono">{detection?.rawEventCount ?? "â€”"}</dd>
         <dt>Total read count</dt>
-        <dd className="font-mono">{detection?.totalReadCount ?? "—"}</dd>
-        <dt>First detection</dt>
-        <dd className="font-mono">{detection?.firstDetectedAt ?? "—"}</dd>
-        <dt>Last detection</dt>
-        <dd className="font-mono">{detection?.lastDetectedAt ?? "—"}</dd>
+        <dd className="font-mono">{detection?.totalReadCount ?? "â€”"}</dd>
+        <dt>First detected time</dt>
+        <dd className="font-mono">{detection?.firstDetectedAt ?? "â€”"}</dd>
+        <dt>Last detected time</dt>
+        <dd className="font-mono">{detection?.lastDetectedAt ?? "â€”"}</dd>
+        <dt>Simulated</dt>
+        <dd>{detection?.simulated ? "Yes" : "No"}</dd>
         <dt>Failure</dt>
-        <dd className="font-mono">{failureCode ?? latest?.detectionError?.code ?? "—"}</dd>
-        {result?.health ? (
-          <>
-            <dt>Started</dt>
-            <dd className="font-mono">{result.health.startedAt ?? "—"}</dd>
-            <dt>Last read</dt>
-            <dd className="font-mono">{result.health.lastReadAt ?? "—"}</dd>
-          </>
-        ) : null}
+        <dd className="font-mono">{failureCode ?? latest?.detectionError?.code ?? "â€”"}</dd>
       </dl>
     </div>
   );
