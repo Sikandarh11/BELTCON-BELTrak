@@ -2,7 +2,7 @@
 
 ## Scope and classification
 
-This phase implements a software-only Al Wajh tagging workflow. It verifies PostgreSQL transactions, server APIs, station persistence, HMI state, production interfaces, unavailable physical placeholders, and software simulators. It does **not** claim physical RFID, camera, printer/encoder, conveyor, or vendor SDK interoperability.
+This phase implements a software-only  tagging workflow. It verifies PostgreSQL transactions, server APIs, station persistence, HMI state, production interfaces, unavailable physical placeholders, and software simulators. It does **not** claim physical RFID, camera, printer/encoder, conveyor, or vendor SDK interoperability.
 
 ## Architecture
 

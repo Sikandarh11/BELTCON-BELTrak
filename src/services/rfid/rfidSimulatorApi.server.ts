@@ -1,6 +1,5 @@
 import "@tanstack/react-start/server-only";
 
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { isBeltconSbtsBaselineFeatureEnabled } from "@/domain/beltcon-sbts-baseline/beltconSbtsBaseline.featureFlags";
@@ -9,7 +8,7 @@ import {
   PermissionAuthorizationError,
   requirePermission,
 } from "@/services/authorization/permissionAuthorization.server";
-import { readerService, type ReaderService } from "@/services/readers/readerService.server";
+import type { ReaderService } from "@/services/readers/readerService.server";
 
 import {
   rfidReaderAdapterRuntime,
@@ -17,6 +16,7 @@ import {
 } from "./adapters/rfidReaderAdapterRuntime.server";
 import { RfidReadError } from "./events/rfidReadEventErrors";
 import { RfidReadIngestionResultSchema } from "./events/rfidReadEventSchemas";
+import { RfidDetectionResultSchema } from "./detections/rfidDetectionSchemas";
 
 const headers = {
   "cache-control": "no-store",
@@ -54,10 +54,23 @@ const simulatorActionSchema = z.discriminatedUnion("action", [
     .strict(),
 ]);
 
+const processingResultSchema = z
+  .object({
+    ingestion: RfidReadIngestionResultSchema,
+    detection: RfidDetectionResultSchema.optional(),
+    detectionError: z
+      .object({
+        code: z.string(),
+        message: z.string(),
+      })
+      .optional(),
+  })
+  .strict();
+
 const simulatorResultSchema = z.object({
   readerId: z.string(),
-  result: RfidReadIngestionResultSchema.optional(),
-  results: z.array(RfidReadIngestionResultSchema).optional(),
+  result: processingResultSchema.optional(),
+  results: z.array(processingResultSchema).optional(),
 });
 
 function enabled(options: RfidSimulatorApiOptions) {
@@ -138,6 +151,17 @@ function safeError(error: unknown) {
     );
   }
   return respond({ error: "RFID simulator request failed", code: "RFID_QUERY_FAILED" }, 500);
+}
+
+function combineProcessingResult(
+  runtime: RfidReaderAdapterRuntime,
+  readerId: string,
+  ingestion: z.infer<typeof RfidReadIngestionResultSchema>,
+) {
+  return {
+    ingestion,
+    ...(runtime.getProcessingOutcome(readerId, ingestion.sourceEventId) ?? {}),
+  };
 }
 
 async function readJson(request: Request) {
@@ -246,8 +270,16 @@ export async function handleRfidSimulatorRead(
 
     const payloadResult =
       results.length === 1
-        ? { readerId: parsed.data.readerId, result: results[0] }
-        : { readerId: parsed.data.readerId, results };
+        ? {
+            readerId: parsed.data.readerId,
+            result: combineProcessingResult(runtime, parsed.data.readerId, results[0]),
+          }
+        : {
+            readerId: parsed.data.readerId,
+            results: results.map((ingestion) =>
+              combineProcessingResult(runtime, parsed.data.readerId, ingestion),
+            ),
+          };
 
     return respond(simulatorResultSchema.parse(payloadResult));
   } catch (error) {

@@ -4,11 +4,12 @@ import { z } from "zod";
 
 import { getSupabaseAdminClient } from "@/services/supabaseAdmin.server";
 
-import { RFID_ADAPTER_TYPES } from "../adapters/rfidReaderAdapter";
+import { RFID_ADAPTER_TYPES } from "../rfidReaderAdapter";
+import { RfidReadError } from "./rfidReadEventErrors";
 import {
   RfidReadIngestionResultSchema,
+  type RfidReadIngestionResult,
 } from "./rfidReadEventSchemas";
-import { RfidReadError } from "./rfidReadEventErrors";
 
 export interface RfidReadEventRepositoryInput {
   siteId: string;
@@ -25,6 +26,26 @@ export interface RfidReadEventRepositoryInput {
   receivedAt: string;
   payloadHash: string;
 }
+
+const rowSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    siteId: z.string(),
+    readerId: z.string(),
+    sourceEventId: z.string(),
+    epc: z.string(),
+    antennaPort: z.number().int(),
+    rssiDbm: z.number().nullable(),
+    firstSeenAt: z.string(),
+    lastSeenAt: z.string(),
+    readCount: z.number().int(),
+    adapterType: z.enum(RFID_ADAPTER_TYPES),
+    simulated: z.boolean(),
+    receivedAt: z.string(),
+    payloadHash: z.string().length(64),
+    createdAt: z.string(),
+  })
+  .strict();
 
 export interface RfidReadEventRow {
   id: string;
@@ -43,13 +64,6 @@ export interface RfidReadEventRow {
   payloadHash: string;
   createdAt: string;
 }
-
-const rowSchema = RfidReadIngestionResultSchema.omit({ outcome: true })
-  .extend({
-    payloadHash: z.string().length(64),
-    createdAt: z.string().datetime({ offset: true }),
-  })
-  .strict();
 
 function isRetryableDbError(error: unknown) {
   const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
@@ -103,6 +117,7 @@ function toRow(value: unknown): RfidReadEventRow {
 
 export interface RfidReadEventRepository {
   ingestReadAtomically(input: RfidReadEventRepositoryInput): Promise<RfidReadIngestionResult>;
+  getById(eventId: string): Promise<RfidReadEventRow | null>;
   getBySourceEvent(siteId: string, readerId: string, sourceEventId: string): Promise<RfidReadEventRow | null>;
   getRecentForReader?(siteId: string, readerId: string, limit?: number): Promise<RfidReadEventRow[]>;
 }
@@ -144,6 +159,15 @@ export const rfidReadEventRepository: RfidReadEventRepository = {
       try {
         return await ingestOnce(input);
       } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        if (/RFID_SOURCE_EVENT_CONFLICT/.test(message)) {
+          throw new RfidReadError(
+            "RFID_SOURCE_EVENT_CONFLICT",
+            "RFID source event reuse conflicts with a different payload",
+            409,
+            { cause: error },
+          );
+        }
         if (isRetryableDbError(error) && attempt === 0) {
           continue;
         }
@@ -155,6 +179,24 @@ export const rfidReadEventRepository: RfidReadEventRepository = {
     }
 
     throw new RfidReadError("RFID_READ_PERSISTENCE_FAILED", "RFID read persistence failed", 500);
+  },
+
+  async getById(eventId) {
+    const { data, error } = await getSupabaseAdminClient()
+      .from("rfid_events")
+      .select(
+        "id,site_id,reader_id,source_event_id,epc,antenna_port,rssi_dbm,first_seen_at,last_seen_at,read_count,adapter_type,simulated,received_at,payload_hash,created_at",
+      )
+      .eq("id", eventId)
+      .maybeSingle();
+
+    if (error) {
+      throw new RfidReadError("RFID_READ_PERSISTENCE_FAILED", "RFID read lookup failed", 500, {
+        cause: error,
+      });
+    }
+
+    return data ? toRow(data) : null;
   },
 
   async getBySourceEvent(siteId, readerId, sourceEventId) {

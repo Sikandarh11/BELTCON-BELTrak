@@ -192,7 +192,7 @@ if (!availability.available) {
     assert.equal(database.execute("SELECT count(DISTINCT bhs_uid) FROM public.bags"), "2");
   });
 
-  test("P2-DB-016 base Al Wajh policy permits optional IATA, X-ray, and threat evidence", () => {
+  test("P2-DB-016 base  policy permits optional IATA, X-ray, and threat evidence", () => {
     const result = parseJsonOutput(database.execute(bhsSql("0000003103", 3103, "T")));
     assert.equal(result.taggingReadinessStatus, "READY_FOR_TAGGING");
     assert.equal(result.canAssignTag, true);

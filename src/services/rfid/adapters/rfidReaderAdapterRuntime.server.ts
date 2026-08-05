@@ -19,6 +19,11 @@ import {
   type RfidReadEventService,
 } from "../events/rfidReadEventService.server";
 import type { RfidReadIngestionResult } from "../events/rfidReadEventSchemas";
+import {
+  rfidDetectionService,
+  type RfidDetectionService,
+} from "../detections/rfidDetectionService.server";
+import type { RfidDetectionResult } from "../detections/rfidDetectionSchemas";
 import type { SimulatedReadInput } from "./simulatedRfidReaderAdapter.server";
 
 function defaultSiteId() {
@@ -28,6 +33,7 @@ function defaultSiteId() {
 export interface RfidReaderAdapterRuntimeOptions {
   readerService?: ReaderService;
   ingestionService?: RfidReadEventService;
+  detectionService?: RfidDetectionService;
   getSiteId?: () => string;
   simulatorEnabled?: boolean;
   clock?: () => Date;
@@ -54,19 +60,28 @@ type IngestionOutcome =
   | { status: "stored"; result: RfidReadIngestionResult }
   | { status: "error"; error: RfidReadError };
 
+type ProcessingOutcome = {
+  ingestion: RfidReadIngestionResult;
+  detection?: RfidDetectionResult;
+  detectionError?: { code: string; message: string };
+};
+
 export class RfidReaderAdapterRuntime {
   private readonly readerService: ReaderService;
   private readonly ingestionService: RfidReadEventService;
+  private readonly detectionService?: RfidDetectionService;
   private readonly getSiteId: () => string;
   private readonly simulatorEnabled: boolean;
   private readonly clock?: () => Date;
   private readonly idFactory?: () => string;
   private readonly adapters = new Map<string, ReaderCacheEntry>();
   private readonly ingestionOutcomes = new Map<string, IngestionOutcome>();
+  private readonly processingOutcomes = new Map<string, ProcessingOutcome>();
 
   constructor(options: RfidReaderAdapterRuntimeOptions = {}) {
     this.readerService = options.readerService ?? readerService;
     this.ingestionService = options.ingestionService ?? rfidReadEventService;
+    this.detectionService = options.detectionService;
     this.getSiteId = options.getSiteId ?? defaultSiteId;
     this.simulatorEnabled = options.simulatorEnabled ?? true;
     this.clock = options.clock;
@@ -153,6 +168,7 @@ export class RfidReaderAdapterRuntime {
         status: "stored",
         result,
       });
+      await this.processDetection(reader.id, result);
       return result;
     } catch (error) {
       const wrapped =
@@ -166,6 +182,34 @@ export class RfidReaderAdapterRuntime {
         error: wrapped,
       });
       throw wrapped;
+    }
+  }
+
+  private async processDetection(readerId: string, ingestion: RfidReadIngestionResult) {
+    if (!this.detectionService) return;
+
+    try {
+      const detection = await this.detectionService.processStoredRfidEvent({
+        rfidEventId: ingestion.eventId,
+      });
+      this.processingOutcomes.set(this.ingestionKey(readerId, ingestion.sourceEventId), {
+        ingestion,
+        detection,
+      });
+    } catch (error) {
+      const wrapped =
+        error instanceof RfidReadError
+          ? error
+          : new RfidReadError("RFID_DETECTION_PROCESSING_FAILED", "RFID detection failed", 500, {
+              cause: error,
+            });
+      this.processingOutcomes.set(this.ingestionKey(readerId, ingestion.sourceEventId), {
+        ingestion,
+        detectionError: {
+          code: wrapped.code,
+          message: wrapped.message,
+        },
+      });
     }
   }
 
@@ -270,6 +314,10 @@ export class RfidReaderAdapterRuntime {
     return [await this.verifyDurable(reader.id, read.sourceEventId)];
   }
 
+  getProcessingOutcome(readerId: string, sourceEventId: string) {
+    return this.processingOutcomes.get(this.ingestionKey(readerId, sourceEventId)) ?? null;
+  }
+
   reset(readerId?: string) {
     if (readerId) {
       this.adapters.get(readerId)?.unsubscribe?.();
@@ -285,4 +333,5 @@ export class RfidReaderAdapterRuntime {
 
 export const rfidReaderAdapterRuntime = new RfidReaderAdapterRuntime({
   simulatorEnabled: true,
+  detectionService: rfidDetectionService,
 });

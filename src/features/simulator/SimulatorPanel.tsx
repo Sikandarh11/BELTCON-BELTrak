@@ -38,6 +38,37 @@ const ingestionResultSchema = z.object({
   simulated: z.literal(true),
 });
 
+const detectionResultSchema = z.object({
+  outcome: z.enum(["EPISODE_CREATED", "EPISODE_UPDATED", "LATE_EVENT_RECORDED"]),
+  detectionId: z.string().uuid(),
+  readPointId: z.string(),
+  readPointCode: z.string(),
+  readPointName: z.string(),
+  readPointZone: z.string(),
+  readerId: z.string(),
+  epc: z.string(),
+  antennaPort: z.number().int().nullable(),
+  firstDetectedAt: z.string(),
+  lastDetectedAt: z.string(),
+  rawEventCount: z.number().int().min(1),
+  totalReadCount: z.number().int().min(1),
+  strongestRssiDbm: z.number().nullable(),
+  weakestRssiDbm: z.number().nullable(),
+  latestRssiDbm: z.number().nullable(),
+  simulated: z.boolean(),
+});
+
+const processingResultSchema = z.object({
+  ingestion: ingestionResultSchema,
+  detection: detectionResultSchema.optional(),
+  detectionError: z
+    .object({
+      code: z.string(),
+      message: z.string(),
+    })
+    .optional(),
+});
+
 const readerSchema = z.object({
   readerId: z.string(),
   readerCode: z.string(),
@@ -53,8 +84,8 @@ const readersResponseSchema = z.object({ readers: z.array(readerSchema) });
 const actionResponseSchema = z.object({
   readerId: z.string(),
   health: healthSchema.optional(),
-  result: ingestionResultSchema.optional(),
-  results: z.array(ingestionResultSchema).optional(),
+  result: processingResultSchema.optional(),
+  results: z.array(processingResultSchema).optional(),
 });
 
 const formSchema = z.object({
@@ -120,16 +151,17 @@ export function SimulatorPanel() {
       setFailureCode(null);
       await readersQuery.refetch();
     },
-    onError: (error) => {
-      setResult(null);
-      setFailureCode(error instanceof AppApiError ? error.code ?? null : "RFID_QUERY_FAILED");
-    },
   });
 
   async function runAction(action: string, extra: Record<string, unknown> = {}) {
     const values = form.getValues();
     if (!values.readerId) return;
-    await actionMutation.mutateAsync({ action, readerId: values.readerId, ...extra });
+    try {
+      await actionMutation.mutateAsync({ action, readerId: values.readerId, ...extra });
+    } catch (error) {
+      setResult({ readerId: values.readerId });
+      setFailureCode(error instanceof AppApiError ? error.code ?? null : "RFID_QUERY_FAILED");
+    }
   }
 
   const emitOne = form.handleSubmit(async (values) => {
@@ -293,7 +325,7 @@ export function SimulatorPanel() {
           ) : null}
         </Panel>
         <Panel title="Processing result" className="col-span-12 lg:col-span-5">
-          {result ? (
+          {result || failureCode ? (
             <Result result={result} failureCode={failureCode} />
           ) : (
             <p className="py-12 text-center text-sm text-muted-foreground">
@@ -310,10 +342,12 @@ function Result({
   result,
   failureCode,
 }: {
-  result: ActionResponse;
+  result: ActionResponse | null;
   failureCode: string | null;
 }) {
-  const latest = result.result ?? result.results?.[result.results.length - 1] ?? null;
+  const latest = result?.result ?? result?.results?.[result.results.length - 1] ?? null;
+  const ingestion = latest?.ingestion ?? null;
+  const detection = latest?.detection ?? null;
 
   return (
     <div className="grid gap-3 text-sm">
@@ -325,22 +359,36 @@ function Result({
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
         <dt>Reader</dt>
-        <dd className="font-mono">{result.readerId}</dd>
-        <dt>Outcome</dt>
-        <dd className="font-mono">{latest?.outcome ?? "—"}</dd>
+        <dd className="font-mono">{result?.readerId ?? "—"}</dd>
+        <dt>RFID event outcome</dt>
+        <dd className="font-mono">{ingestion?.outcome ?? "—"}</dd>
         <dt>Event ID</dt>
-        <dd className="font-mono">{latest?.eventId ?? "—"}</dd>
+        <dd className="font-mono">{ingestion?.eventId ?? "—"}</dd>
         <dt>Source event</dt>
-        <dd className="font-mono">{latest?.sourceEventId ?? "—"}</dd>
+        <dd className="font-mono">{ingestion?.sourceEventId ?? "—"}</dd>
         <dt>EPC</dt>
-        <dd className="font-mono">{latest?.epc ?? "—"}</dd>
+        <dd className="font-mono">{ingestion?.epc ?? detection?.epc ?? "—"}</dd>
         <dt>Persisted</dt>
-        <dd className="font-mono">{latest?.receivedAt ?? "—"}</dd>
+        <dd className="font-mono">{ingestion?.receivedAt ?? "—"}</dd>
         <dt>Simulated</dt>
-        <dd>{latest?.simulated ? "Yes" : "No"}</dd>
+        <dd>{ingestion?.simulated ? "Yes" : "No"}</dd>
+        <dt>Detection outcome</dt>
+        <dd className="font-mono">{detection?.outcome ?? latest?.detectionError?.code ?? "—"}</dd>
+        <dt>Detection episode ID</dt>
+        <dd className="font-mono">{detection?.detectionId ?? "—"}</dd>
+        <dt>Read point</dt>
+        <dd className="font-mono">{detection ? `${detection.readPointCode} (${detection.readPointName})` : "—"}</dd>
+        <dt>Raw event count</dt>
+        <dd className="font-mono">{detection?.rawEventCount ?? "—"}</dd>
+        <dt>Total read count</dt>
+        <dd className="font-mono">{detection?.totalReadCount ?? "—"}</dd>
+        <dt>First detection</dt>
+        <dd className="font-mono">{detection?.firstDetectedAt ?? "—"}</dd>
+        <dt>Last detection</dt>
+        <dd className="font-mono">{detection?.lastDetectedAt ?? "—"}</dd>
         <dt>Failure</dt>
-        <dd className="font-mono">{failureCode ?? "—"}</dd>
-        {result.health ? (
+        <dd className="font-mono">{failureCode ?? latest?.detectionError?.code ?? "—"}</dd>
+        {result?.health ? (
           <>
             <dt>Started</dt>
             <dd className="font-mono">{result.health.startedAt ?? "—"}</dd>

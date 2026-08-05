@@ -13,4 +13,4 @@
 | LIM-P3-009 | Final BHS/HBSS ICDs absent                       | No new telegram, acknowledgement, framing, or response invented                 | Controlled final ICDs                                     |
 | LIM-P3-010 | Physical throughput unknown                      | Software load is not a hardware benchmark                                       | End-to-end measured performance FAT                       |
 | LIM-P3-011 | Station host packaging not validated             | Node/SQLite process behavior only                                               | Target workstation deployment and soak                    |
-| LIM-P3-012 | Multi-site ownership model remains limited       | Trusted site/station binding for Al Wajh workflow                               | Approved multi-site data-ownership design                 |
+| LIM-P3-012 | Multi-site ownership model remains limited       | Trusted site/station binding for  workflow                               | Approved multi-site data-ownership design                 |

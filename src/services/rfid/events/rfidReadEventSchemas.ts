@@ -2,7 +2,7 @@ import "@tanstack/react-start/server-only";
 
 import { z } from "zod";
 
-import { RFID_ADAPTER_TYPES } from "../adapters/rfidReaderAdapter";
+import { RFID_ADAPTER_TYPES } from "../rfidReaderAdapter";
 
 function containsAsciiControlCharacter(value: string): boolean {
   return Array.from(value).some((character) => {
@@ -88,8 +88,8 @@ export const TrustedRawRfidReadSchema = z
   })
   .strict()
   .superRefine((value, context) => {
-    const firstSeenAt = Date.parse(value.firstSeenAt);
-    const lastSeenAt = Date.parse(value.lastSeenAt);
+    const firstSeenAt = Date.parse(value.firstSeenAt as string);
+    const lastSeenAt = Date.parse(value.lastSeenAt as string);
 
     if (lastSeenAt < firstSeenAt) {
       context.addIssue({

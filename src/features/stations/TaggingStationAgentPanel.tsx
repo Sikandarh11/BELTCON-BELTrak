@@ -144,7 +144,7 @@ export function TaggingStationAgentPanel() {
   const session = view?.workflow?.session ?? null;
   const assignmentBlocked = !online || (view?.health.pendingSynchronizations ?? 0) > 0;
   return (
-    <Panel title="Al Wajh Tagging Station" className="mb-4">
+    <Panel title="Tagging Station" className="mb-4">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span
           className={`inline-flex items-center gap-1 rounded-full px-2 py-1 font-semibold ${online ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}

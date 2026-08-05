@@ -36,7 +36,7 @@ The PostgreSQL suite uses PostgreSQL 17.10 on `sbts_test@127.0.0.1:55432/sbts_te
 - VERIFIED: BHS ACCEPT, all non-ACCEPT values, duplicates, conflict orders, transaction faults, response loss, and real concurrent clients converge without duplicate bags.
 - VERIFIED: HBSS/X-Ray exact identity, source-scoped external IDs, rollback, direct ingestion, immutable external identity, and cross-bag rejection execute against PostgreSQL.
 - VERIFIED: BHS-first, HBSS-first, and simultaneous ingestion retain one internal bag identity.
-- VERIFIED: Al Wajh defaults to `BASE_ALWAJH`; optional IATA, threat data, and a local X-Ray are not required. `ENHANCED_EVIDENCE` is explicit opt-in.
+- VERIFIED:  defaults to `BASE_ALWAJH`; optional IATA, threat data, and a local X-Ray are not required. `ENHANCED_EVIDENCE` is explicit opt-in.
 - VERIFIED: tag assignment creates one immutable `tags` row, is retry-safe, and prevents EPC/barcode reuse.
 - VERIFIED: migration 026 station metadata is durable and cannot be rebound to another station/site.
 - VERIFIED: recall requests are durable and idempotent. `REQUEST_SENT` does not imply acknowledgement or image retrieval.
@@ -47,7 +47,7 @@ The PostgreSQL suite uses PostgreSQL 17.10 on `sbts_test@127.0.0.1:55432/sbts_te
 1. Station metadata test queried internal event `id` using the external event ID; corrected to `event_id`.
 2. Harness `service_role` did not emulate Supabase `BYPASSRLS`; corrected.
 3. Trusted X-Ray writes could not execute the readiness trigger; granted the required refresh function.
-4. Readiness incorrectly required screening/threat/X-Ray evidence for the Al Wajh default; added explicit base/enhanced policy.
+4. Readiness incorrectly required screening/threat/X-Ray evidence for the  default; added explicit base/enhanced policy.
 5. No relational tag table existed and identical retries were not idempotent; added immutable `tags` association and duplicate convergence.
 6. Service role inherited audit update/delete privileges; explicitly revoked them.
 7. Migrations were not individually atomic; added `--single-transaction`.

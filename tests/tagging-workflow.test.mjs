@@ -250,7 +250,7 @@ test("P3-TAG-014 simulated camera creates signature-valid PNG evidence", async (
   assert.equal(photo.simulated, true);
 });
 
-test("P3-TAG-015 required-photo policy is the Al Wajh default", () => {
+test("P3-TAG-015 required-photo policy is the  default", () => {
   assert.equal(stationConfig().bagPhotoPolicy, "REQUIRED");
   assert.match(migration, /PHOTO_REQUIRED/);
 });

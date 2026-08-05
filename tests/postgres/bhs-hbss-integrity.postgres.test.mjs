@@ -118,7 +118,7 @@ if (!availability.available) {
     );
   });
 
-  test("P2-DB-005 and P2-DB-006 BHS REJECT is idempotent and satisfies the Al Wajh base policy", () => {
+  test("P2-DB-005 and P2-DB-006 BHS REJECT is idempotent and satisfies the  base policy", () => {
     const command = bhsSql({ bhsUid: "0000000102" });
     const first = parseJsonOutput(database.execute(command));
     const duplicate = parseJsonOutput(database.execute(command));
@@ -885,7 +885,7 @@ if (!availability.available) {
     );
   });
 
-  test("P2-DB-016 enhanced evidence is opt-in and base Al Wajh readiness does not require X-ray evidence", () => {
+  test("P2-DB-016 enhanced evidence is opt-in and base  readiness does not require X-ray evidence", () => {
     database.execute(
       "UPDATE public.tagging_readiness_configuration SET policy='ENHANCED_EVIDENCE',updated_at=NOW() WHERE singleton=TRUE",
       { tuplesOnly: false },
