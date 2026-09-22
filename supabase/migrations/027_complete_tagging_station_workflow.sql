@@ -4,6 +4,8 @@
 -- deliberately does not claim a physical printer, encoder, RFID reader,
 -- camera, conveyor, or supplier-specific EPC layout.
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 INSERT INTO public.permissions(code,name,description,category,risk_level)
 VALUES
   ('tagging.session.start','Start tagging sessions','Start or resume a server-controlled session for the active station bag.','Tagging','HIGH'),
@@ -186,7 +188,7 @@ INSERT INTO public.bag_tag_assignments(
 SELECT tags.bag_id,tags.id,1,'ACTIVE',tags.assigned_at,
        COALESCE(tags.assigned_by,'migration-027'),'LEGACY','LEGACY',
        COALESCE(tags.request_id,'migration-027-'||tags.id::TEXT),
-       encode(digest('migration-027:'||tags.id::TEXT,'sha256'),'hex')
+      encode(extensions.digest('migration-027:'||tags.id::TEXT,'sha256'),'hex')
 FROM public.tags
 WHERE tags.bag_id IS NOT NULL
 ON CONFLICT DO NOTHING;

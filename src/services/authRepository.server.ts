@@ -453,10 +453,25 @@ export async function handleAuthRequest(request: Request, options: AuthRepositor
       return jsonResponse({ error: "Unable to create account" }, 500);
     }
     if (!created.res.ok) {
-      if (created.body?.error_code === "email_exists" || created.body?.code === 422) {
+      const providerMessage =
+        typeof created.body?.msg === "string"
+          ? created.body.msg
+          : typeof created.body?.message === "string"
+            ? created.body.message
+            : "";
+      const normalizedProviderMessage = providerMessage.toLowerCase();
+      if (
+        created.body?.error_code === "email_exists" ||
+        normalizedProviderMessage.includes("already registered") ||
+        normalizedProviderMessage.includes("already exists") ||
+        normalizedProviderMessage.includes("email exists")
+      ) {
         return jsonResponse({ error: "Email address already registered" }, 409);
       }
-      return jsonResponse({ error: "Unable to create account" }, created.res.status || 500);
+      return jsonResponse(
+        { error: providerMessage || "Unable to create account" },
+        created.res.status || 500,
+      );
     }
 
     const userId = created.body?.id;

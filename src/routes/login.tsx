@@ -164,7 +164,7 @@ function LoginPage() {
             </div>
 
             {error ? (
-              <div className="mb-4 flex items-start gap-2 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+              <div className="mb-4 flex items-start gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-700">
                 <ShieldAlert className="mt-0.5 size-4 shrink-0" />
                 <span>{error}</span>
               </div>

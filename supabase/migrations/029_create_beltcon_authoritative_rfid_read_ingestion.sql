@@ -35,7 +35,7 @@ SET
   payload_hash = COALESCE(
     ev.payload_hash,
     encode(
-      digest(
+      extensions.digest(
         concat_ws(
           E'\x1F',
           COALESCE(NULLIF(ev.site_id, ''), r.site_id, 'ALWAJH'),
@@ -77,7 +77,7 @@ SET
   payload_hash = COALESCE(
     payload_hash,
     encode(
-      digest(
+      extensions.digest(
         concat_ws(
           E'\x1F',
           COALESCE(NULLIF(site_id, ''), 'ALWAJH'),
