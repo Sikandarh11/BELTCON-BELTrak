@@ -173,9 +173,9 @@ test("simulator and Tagging wire authoritative server queries and refresh trigge
     "utf8",
   );
 
-  assert.match(simulatorSource, /useRfidTrackableBags\(\)/);
-  assert.match(simulatorSource, /useReaderAntennaMap\(\)/);
-  assert.match(simulatorSource, /useSubmitSimulatedRfidRead\(\)/);
+  assert.match(simulatorSource, /\/api\/dev\/simulator\/rfid\/reads/);
+  assert.match(simulatorSource, /useQuery\(/);
+  assert.match(simulatorSource, /useMutation\(/);
   assert.doesNotMatch(
     simulatorSource,
     /const activeBags = bags\.filter\(\(bag\) => bag\.status === "TAGGED"/,

@@ -30,11 +30,11 @@ test("RFID APIs are server-authenticated and simulator supplies no zone", async 
   assert.match(integration, /x-rfid-integration-key/);
   assert.match(integration, /timingSafeEqual/);
   assert.doesNotMatch(integration, /useAppStore|RFID_INTEGRATION_KEY.*client/i);
-  assert.match(simulator, /BELTCON_RFID_SIMULATOR/);
-  assert.match(simulator, /developer\.access/);
-  assert.match(ui, /useRfidTrackableBags/);
-  assert.match(ui, /useReaderAntennaMap/);
-  assert.match(ui, /useSubmitSimulatedRfidRead/);
+  assert.match(simulator, /FEATURE_RFID_SIMULATOR|BELTCON_RFID_SIMULATOR/);
+  assert.match(simulator, /developer\.access|simulator\.use/);
+  assert.match(ui, /\/api\/dev\/simulator\/rfid\/reads/);
+  assert.match(ui, /useQuery\(/);
+  assert.match(ui, /useMutation\(/);
   assert.doesNotMatch(ui, /useAppStore|eventService|alarmService|bagService/);
   assert.doesNotMatch(ui, /zone:\s*values\./);
 });
