@@ -3,7 +3,7 @@ name: Phase 2 software gate
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main3]
   workflow_dispatch:
 
 jobs:
