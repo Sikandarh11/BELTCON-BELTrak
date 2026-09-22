@@ -2,12 +2,18 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { createPostgresHarness, parseJsonOutput, postgresTestAvailability } from "./postgresHarness.mjs";
+import {
+  createPostgresHarness,
+  parseJsonOutput,
+  postgresTestAvailability,
+} from "./postgresHarness.mjs";
 
 const availability = postgresTestAvailability();
 
 if (availability.available) {
-  const database = createPostgresHarness(availability.databaseUrl, { psqlPath: availability.psqlPath });
+  const database = createPostgresHarness(availability.databaseUrl, {
+    psqlPath: availability.psqlPath,
+  });
 
   test.before(async () => {
     await database.migrateClean();
@@ -19,7 +25,21 @@ if (availability.available) {
 
   function payloadHash(values) {
     return createHash("sha256")
-      .update([values.siteId, values.readerId, values.sourceEventId, values.epc, String(values.antennaPort), values.rssiDbm === null ? "" : String(values.rssiDbm), values.firstSeenAt, values.lastSeenAt, String(values.readCount), values.adapterType, values.simulated ? "1" : "0"].join("\u001f"))
+      .update(
+        [
+          values.siteId,
+          values.readerId,
+          values.sourceEventId,
+          values.epc,
+          String(values.antennaPort),
+          values.rssiDbm === null ? "" : String(values.rssiDbm),
+          values.firstSeenAt,
+          values.lastSeenAt,
+          String(values.readCount),
+          values.adapterType,
+          values.simulated ? "1" : "0",
+        ].join("\u001f"),
+      )
       .digest("hex");
   }
 
@@ -31,7 +51,15 @@ if (availability.available) {
     `);
   }
 
-  async function ingest({ sourceEventId, epc, firstSeenAt, lastSeenAt, rssiDbm = -42, readCount = 1, readerId = "reader-1" }) {
+  async function ingest({
+    sourceEventId,
+    epc,
+    firstSeenAt,
+    lastSeenAt,
+    rssiDbm = -42,
+    readCount = 1,
+    readerId = "reader-1",
+  }) {
     const siteId = "ALWAJH";
     const payload = {
       siteId,
@@ -53,13 +81,20 @@ if (availability.available) {
   }
 
   async function detect(eventId) {
-    const result = database.execute(`SELECT public.process_beltcon_baseline_rfid_detection_v1(${sql(eventId)}::text)`);
+    const result = database.execute(
+      `SELECT public.process_beltcon_baseline_rfid_detection_v1(${sql(eventId)}::text)`,
+    );
     return parseJsonOutput(result);
   }
 
   test("baseline detection creates, updates, replays, and ignores optional zones", async () => {
     await seedReader("reader-1", "TAGGING");
-    const first = await ingest({ sourceEventId: "s1", epc: "00AA00AA00AA00AA00AA00AA", firstSeenAt: "2026-08-04T10:00:00.000Z", lastSeenAt: "2026-08-04T10:00:00.000Z" });
+    const first = await ingest({
+      sourceEventId: "s1",
+      epc: "00AA00AA00AA00AA00AA00AA",
+      firstSeenAt: "2026-08-04T10:00:00.000Z",
+      lastSeenAt: "2026-08-04T10:00:00.000Z",
+    });
     const created = await detect(first.eventId);
     assert.equal(created.outcome, "DETECTION_CREATED");
     const replay = await detect(first.eventId);
@@ -68,7 +103,13 @@ if (availability.available) {
     assert.equal(database.execute("SELECT count(*) FROM public.rfid_detections"), "1");
 
     await seedReader("reader-2", "WASHROOM");
-    const optional = await ingest({ sourceEventId: "s2", epc: "00BB00BB00BB00BB00BB00BB", firstSeenAt: "2026-08-04T10:00:00.000Z", lastSeenAt: "2026-08-04T10:00:00.000Z", readerId: "reader-2" });
+    const optional = await ingest({
+      sourceEventId: "s2",
+      epc: "00BB00BB00BB00BB00BB00BB",
+      firstSeenAt: "2026-08-04T10:00:00.000Z",
+      lastSeenAt: "2026-08-04T10:00:00.000Z",
+      readerId: "reader-2",
+    });
     const ignored = await detect(optional.eventId);
     assert.equal(ignored.outcome, "OPTIONAL_ZONE_IGNORED");
   });
