@@ -27,7 +27,7 @@ export function getSupabaseClient(): SupabaseClient {
 	}
 
 	const existingClient = cachedClient;
-	if (existingClient?.url === url && existingClient.anonKey === anonKey) {
+	if (existingClient && existingClient.url === url && existingClient.anonKey === anonKey) {
 		return existingClient.client;
 	}
 
