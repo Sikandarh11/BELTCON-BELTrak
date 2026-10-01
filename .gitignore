@@ -15,14 +15,12 @@ dist-ssr
 .tanstack/**
 .nitro
 *.local
-.env
 /artifacts/
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
 
 # Editor directories and files
-.vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
@@ -34,3 +32,4 @@ dist-ssr
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
+config.bat

@@ -4,9 +4,9 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
+    "dev": "node init && vite dev",
+    "build": "node init && vite build",
+    "build:dev": "node init && vite build --mode development",
     "preview": "srvx --dir .vercel/output/functions/__server.func --entry index.mjs -s ../../static --port 4174 --prod",
     "lint": "eslint .",
     "lint:ci": "eslint src tests scripts eslint.config.js vite.config.ts --rule \"prettier/prettier: off\"",
